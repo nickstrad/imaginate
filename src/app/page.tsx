@@ -24,7 +24,7 @@ export default function Home() {
       <Button
         disabled={invoke.isPending}
         type="button"
-        onClick={() => invoke.mutate({ message: value })}
+        onClick={() => invoke.mutate({ userMessage: value })}
       >
         invoke
       </Button>
