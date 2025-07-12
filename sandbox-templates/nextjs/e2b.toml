@@ -1,0 +1,17 @@
+# This is a config for E2B sandbox template.
+# You can use template ID (ufxl8duemuaeytel1r1e) or template name (imaginate-dev) to create a sandbox:
+
+# Python SDK
+# from e2b import Sandbox, AsyncSandbox
+# sandbox = Sandbox("imaginate-dev") # Sync sandbox
+# sandbox = await AsyncSandbox.create("imaginate-dev") # Async sandbox
+
+# JS SDK
+# import { Sandbox } from 'e2b'
+# const sandbox = await Sandbox.create('imaginate-dev')
+
+team_id = "f32a0fa7-f5c9-45b5-b1b0-0806f634786c"
+start_cmd = "/compile_page.sh"
+dockerfile = "e2b.Dockerfile"
+template_name = "imaginate-dev"
+template_id = "ufxl8duemuaeytel1r1e"
