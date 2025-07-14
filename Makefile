@@ -1,3 +1,3 @@
-.PHONY: run/inngest/dev
-run/inngest/dev:
+.PHONY: run/inngest
+run/inngest:
 	npx inngest-cli@latest dev
