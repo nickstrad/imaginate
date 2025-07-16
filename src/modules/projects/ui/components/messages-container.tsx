@@ -19,6 +19,7 @@ import React from "react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { error } from "console";
 interface Props {
   projectId: string;
 }
@@ -146,7 +147,11 @@ export const MessagesContainer = ({ projectId }: Props) => {
 
   const queryClient = useQueryClient();
   const trpc = useTRPC();
-  const { data: messages, refetch } = useSuspenseQuery(
+  const {
+    data: messages,
+    refetch,
+    error,
+  } = useSuspenseQuery(
     trpc.messages.getMany.queryOptions({
       projectId,
     })
@@ -212,20 +217,18 @@ export const MessagesContainer = ({ projectId }: Props) => {
       createMessage.mutate({ userPrompt: content, projectId });
     }
   };
-
+  // TOOD: make sure errors are shown as author message
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <div className="relative flex-1 min-h-0">
-        <div
-          className="h-full overflow-y-auto"
-          ref={scrollContainerRef}
-        >
+        <div className="h-full overflow-y-auto" ref={scrollContainerRef}>
           <div className="pt-2 px-4 pb-4">
             {(messages as Message[]).map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))}
           </div>
         </div>
+        *
         {showGradient && (
           <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
         )}
