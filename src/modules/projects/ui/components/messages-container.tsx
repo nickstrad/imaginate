@@ -5,7 +5,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardAction, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Accordion,
@@ -13,7 +13,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { BotIcon, SendIcon, TerminalIcon, UserIcon } from "lucide-react";
+import { BotIcon, Icon, SendIcon, TerminalIcon, UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import React from "react";
 import { toast } from "sonner";
@@ -107,12 +107,9 @@ const MessageBubble = ({
           <CardContent className="p-3">
             <p className="whitespace-pre-wrap">{message.content}</p>
             {message.fragment && (
-              <Accordion
-                type="single"
-                collapsible
-                value={isFragmentActive ? message.fragment.id : ""}
-                onValueChange={(value) => {
-                  if (value) {
+              <CardAction
+                onClick={() => {
+                  if (message.fragment) {
                     setActiveFragment(message.fragment!);
                   } else {
                     setActiveFragment(null);
@@ -126,41 +123,8 @@ const MessageBubble = ({
                     isFragmentActive && isUser,
                 })}
               >
-                <AccordionItem
-                  value={message.fragment.id}
-                  className="border-b-0"
-                >
-                  <AccordionTrigger className="text-sm py-2 hover:no-underline">
-                    {message.fragment.title}
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    {message.fragment.sandboxUrl && (
-                      <p className="mb-2">
-                        <a
-                          href={message.fragment.sandboxUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={cn(
-                            "text-sm hover:underline",
-                            isUser
-                              ? isFragmentActive
-                                ? "text-primary/80"
-                                : "text-primary-foreground/80"
-                              : "text-blue-500"
-                          )}
-                        >
-                          View Sandbox
-                        </a>
-                      </p>
-                    )}
-                    {message.fragment.files && (
-                      <pre className="bg-gray-800 text-white p-2 rounded-md text-xs whitespace-pre-wrap break-words">
-                        {JSON.stringify(message.fragment.files, null, 2)}
-                      </pre>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
+                {message.fragment.title}
+              </CardAction>
             )}
           </CardContent>
         </Card>
