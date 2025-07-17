@@ -19,9 +19,13 @@ import React from "react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { error } from "console";
+import { Fragment } from "@/generated/prisma";
+import { MessageLoading } from "./message-loading";
+
 interface Props {
   projectId: string;
+  activeFragment: Fragment | null;
+  setActiveFragment: (fragment: Fragment | null) => void;
 }
 
 interface Message {
@@ -31,18 +35,34 @@ interface Message {
   type: "RESULT" | "ERROR";
   createdAt: Date;
   updatedAt: Date;
-  fragment?: {
-    id: string;
-    title: string;
-    sandboxUrl?: string;
-    files?: { [path: string]: string };
-  };
+  fragment?: Fragment;
   role: "USER" | "ASSISTANT";
 }
 
-const MessageBubble = ({ message }: { message: Message }) => {
+const MessageBubble = ({
+  message,
+  activeFragment,
+  setActiveFragment,
+}: {
+  message: Message;
+  activeFragment: Fragment | null;
+  setActiveFragment: (fragment: Fragment | null) => void;
+}) => {
   const isUser = message.role === "USER";
   const createdAt = new Date(message.createdAt);
+
+  const handleFragmentClick = () => {
+    if (!message.fragment) return;
+
+    if (activeFragment?.id === message.fragment.id) {
+      setActiveFragment(null);
+    } else {
+      setActiveFragment(message.fragment);
+    }
+  };
+
+  const isFragmentActive =
+    message.fragment && activeFragment?.id === message.fragment.id;
 
   if (message.type === "ERROR") {
     return (
@@ -77,15 +97,35 @@ const MessageBubble = ({ message }: { message: Message }) => {
         )}
       >
         <Card
+          onClick={message.fragment ? handleFragmentClick : undefined}
           className={cn(
             "max-w-2xl w-fit",
-            isUser ? "bg-primary text-primary-foreground" : ""
+            isUser ? "bg-primary text-primary-foreground" : "",
+            message.fragment ? "cursor-pointer" : ""
           )}
         >
           <CardContent className="p-3">
             <p className="whitespace-pre-wrap">{message.content}</p>
             {message.fragment && (
-              <Accordion type="single" collapsible className="w-full mt-2">
+              <Accordion
+                type="single"
+                collapsible
+                value={isFragmentActive ? message.fragment.id : ""}
+                onValueChange={(value) => {
+                  if (value) {
+                    setActiveFragment(message.fragment!);
+                  } else {
+                    setActiveFragment(null);
+                  }
+                }}
+                className={cn("w-full mt-2", {
+                  "rounded-md p-2": isFragmentActive,
+                  "bg-accent text-accent-foreground":
+                    isFragmentActive && !isUser,
+                  "bg-primary-foreground text-primary":
+                    isFragmentActive && isUser,
+                })}
+              >
                 <AccordionItem
                   value={message.fragment.id}
                   className="border-b-0"
@@ -101,10 +141,12 @@ const MessageBubble = ({ message }: { message: Message }) => {
                           target="_blank"
                           rel="noopener noreferrer"
                           className={cn(
-                            "text-sm",
+                            "text-sm hover:underline",
                             isUser
-                              ? "text-primary-foreground/80 hover:underline"
-                              : "text-blue-500 hover:underline"
+                              ? isFragmentActive
+                                ? "text-primary/80"
+                                : "text-primary-foreground/80"
+                              : "text-blue-500"
                           )}
                         >
                           View Sandbox
@@ -112,7 +154,7 @@ const MessageBubble = ({ message }: { message: Message }) => {
                       </p>
                     )}
                     {message.fragment.files && (
-                      <pre className="bg-gray-800 text-white p-2 rounded-md text-xs overflow-x-auto">
+                      <pre className="bg-gray-800 text-white p-2 rounded-md text-xs whitespace-pre-wrap break-words">
                         {JSON.stringify(message.fragment.files, null, 2)}
                       </pre>
                     )}
@@ -140,20 +182,31 @@ const MessageBubble = ({ message }: { message: Message }) => {
   );
 };
 
-export const MessagesContainer = ({ projectId }: Props) => {
+import { ProjectHeader } from "./project-header";
+
+export const MessagesContainer = ({
+  projectId,
+  activeFragment,
+  setActiveFragment,
+}: Props) => {
   const [content, setContent] = React.useState("");
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const [showGradient, setShowGradient] = React.useState(false);
-
   const queryClient = useQueryClient();
   const trpc = useTRPC();
-  const {
-    data: messages,
-    refetch,
-    error,
-  } = useSuspenseQuery(
-    trpc.messages.getMany.queryOptions({
-      projectId,
+  const { data: messages, refetch } = useSuspenseQuery(
+    trpc.messages.getMany.queryOptions(
+      {
+        projectId,
+      },
+      { refetchInterval: 5000 }
+    )
+  );
+
+  const { data: projects } = useSuspenseQuery(
+    trpc.projects.getMany.queryOptions(undefined, {
+      refetchInterval: false,
+      refetchOnWindowFocus: false,
     })
   );
 
@@ -194,6 +247,26 @@ export const MessagesContainer = ({ projectId }: Props) => {
     };
   }, [handleScroll]);
 
+  const isFirstRun = React.useRef(true);
+  const prevMessagesLength = React.useRef(messages.length);
+  React.useEffect(() => {
+    const lastAssistantMessage = messages.findLast(
+      (message) => message.role === "ASSISTANT" && message.fragment
+    );
+    if (!lastAssistantMessage?.fragment) return;
+
+    if (isFirstRun.current) {
+      setActiveFragment(lastAssistantMessage.fragment);
+      isFirstRun.current = false;
+    } else if (messages.length > prevMessagesLength.current) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === "ASSISTANT" && lastMessage.fragment) {
+        setActiveFragment(lastMessage.fragment);
+      }
+    }
+    prevMessagesLength.current = messages.length;
+  }, [messages, setActiveFragment]);
+
   const createMessage = useMutation(
     trpc.messages.create.mutationOptions({
       onError: (error) => {
@@ -217,18 +290,31 @@ export const MessagesContainer = ({ projectId }: Props) => {
       createMessage.mutate({ userPrompt: content, projectId });
     }
   };
+
+  const isLoadingMessage = messages[messages.length - 1]?.role === "USER";
   // TOOD: make sure errors are shown as author message
   return (
     <div className="flex flex-col flex-1 min-h-0">
+      <ProjectHeader
+        projects={projects}
+        currentProjectName={
+          projects.find((p) => p.id === projectId)?.name || projectId
+        }
+      />
       <div className="relative flex-1 min-h-0">
         <div className="h-full overflow-y-auto" ref={scrollContainerRef}>
           <div className="pt-2 px-4 pb-4">
             {(messages as Message[]).map((message) => (
-              <MessageBubble key={message.id} message={message} />
+              <MessageBubble
+                key={message.id}
+                message={message}
+                activeFragment={activeFragment}
+                setActiveFragment={setActiveFragment}
+              />
             ))}
+            {isLoadingMessage ? <MessageLoading /> : null}
           </div>
         </div>
-        *
         {showGradient && (
           <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
         )}
