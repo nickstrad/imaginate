@@ -7,13 +7,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardAction, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { BotIcon, Icon, SendIcon, TerminalIcon, UserIcon } from "lucide-react";
+import { BotIcon, SendIcon, TerminalIcon, UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import React from "react";
 import { toast } from "sonner";
@@ -258,7 +252,7 @@ export const MessagesContainer = ({
   const isLoadingMessage = messages[messages.length - 1]?.role === "USER";
   // TOOD: make sure errors are shown as author message
   return (
-    <div className="flex flex-col flex-1 min-h-0">
+    <div className="flex flex-col h-full">
       <ProjectHeader
         projects={projects}
         currentProjectName={
@@ -266,7 +260,7 @@ export const MessagesContainer = ({
         }
       />
       <div className="relative flex-1 min-h-0">
-        <div className="h-full overflow-y-auto" ref={scrollContainerRef}>
+        <div className="h-full overflow-y-auto pb-20" ref={scrollContainerRef}>
           <div className="pt-2 px-4 pb-4">
             {(messages as Message[]).map((message) => (
               <MessageBubble
@@ -280,10 +274,10 @@ export const MessagesContainer = ({
           </div>
         </div>
         {showGradient && (
-          <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+          <div className="absolute bottom-20 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
         )}
       </div>
-      <div className="p-4 border-t bg-background">
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <Textarea
             value={content}
@@ -291,6 +285,14 @@ export const MessagesContainer = ({
             placeholder="Type a message..."
             disabled={createMessage.isPending}
             autoComplete="off"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (content.trim()) {
+                  createMessage.mutate({ userPrompt: content, projectId });
+                }
+              }
+            }}
           />
           <Button
             type="submit"
