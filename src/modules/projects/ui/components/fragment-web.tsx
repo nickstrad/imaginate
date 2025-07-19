@@ -104,7 +104,7 @@ export const FragmentWeb: React.FC<Props> = ({ data }) => {
       ) : (
         <div className="p-4 flex-1 overflow-auto">
           {data.files ? (
-            <pre className="bg-gray-800 text-white p-4 rounded-md text-sm">
+            <pre className="bg-muted text-muted-foreground p-4 rounded-md text-sm">
               {JSON.stringify(data.files, null, 2)}
             </pre>
           ) : (

@@ -7,7 +7,15 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardAction, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { BotIcon, SendIcon, TerminalIcon, UserIcon, PlayIcon, CheckCircleIcon, MousePointerClickIcon } from "lucide-react";
+import {
+  BotIcon,
+  SendIcon,
+  TerminalIcon,
+  UserIcon,
+  PlayIcon,
+  CheckCircleIcon,
+  MousePointerClickIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import React from "react";
 import { toast } from "sonner";
@@ -113,11 +121,15 @@ const MessageBubble = ({
                   "w-full mt-3 p-3 rounded-lg border transition-all duration-200 group hover:shadow-md",
                   {
                     // Active states
-                    "bg-primary/10 border-primary/30 shadow-sm ring-1 ring-primary/20": isFragmentActive && !isUser,
-                    "bg-primary-foreground/80 border-primary shadow-sm ring-1 ring-primary/30": isFragmentActive && isUser,
+                    "bg-primary/10 border-primary/30 shadow-sm ring-1 ring-primary/20":
+                      isFragmentActive && !isUser,
+                    "bg-primary-foreground/80 border-primary shadow-sm ring-1 ring-primary/30":
+                      isFragmentActive && isUser,
                     // Inactive states
-                    "bg-muted/40 border-muted-foreground/20 hover:bg-muted/60 hover:border-muted-foreground/30": !isFragmentActive && !isUser,
-                    "bg-primary-foreground/20 border-primary-foreground/30 hover:bg-primary-foreground/40": !isFragmentActive && isUser,
+                    "bg-muted/40 border-muted-foreground/20 hover:bg-muted/60 hover:border-muted-foreground/30":
+                      !isFragmentActive && !isUser,
+                    "bg-primary-foreground/20 border-primary-foreground/30 hover:bg-primary-foreground/40":
+                      !isFragmentActive && isUser,
                   }
                 )}
               >
@@ -127,10 +139,12 @@ const MessageBubble = ({
                   ) : (
                     <PlayIcon className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
                   )}
-                  <span className={cn(
-                    "font-medium text-sm",
-                    isFragmentActive ? "text-primary" : "text-foreground"
-                  )}>
+                  <span
+                    className={cn(
+                      "font-medium text-sm",
+                      isFragmentActive ? "text-primary" : "text-foreground"
+                    )}
+                  >
                     {message.fragment.title}
                   </span>
                   {!isFragmentActive && (
@@ -208,11 +222,11 @@ export const MessagesContainer = ({
         current.scrollHeight - current.scrollTop <= current.clientHeight + 1;
       const isOverflowing = current.scrollHeight > current.clientHeight;
       setShowGradient(isOverflowing && !isScrolledToBottom);
-      
+
       // Detect if user is manually scrolling
       if (!isScrolledToBottom && isOverflowing) {
         setIsUserScrolling(true);
-        
+
         // Reset user scrolling flag after a delay
         if (autoScrollTimeoutRef.current) {
           clearTimeout(autoScrollTimeoutRef.current);
@@ -339,7 +353,7 @@ export const MessagesContainer = ({
             disabled={createMessage.isPending}
             autoComplete="off"
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 if (content.trim()) {
                   // Reset user scrolling flag when user sends a message

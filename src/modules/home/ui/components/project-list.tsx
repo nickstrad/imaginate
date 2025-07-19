@@ -20,7 +20,7 @@ export const ProjectList = () => {
   if (isLoading) {
     return (
       <div className="w-full max-w-3xl mx-auto">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        <h2 className="text-lg font-semibold text-foreground mb-4">
           Your Projects
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -35,7 +35,7 @@ export const ProjectList = () => {
   if (!projects || projects.length === 0) {
     return (
       <div className="w-full max-w-3xl mx-auto">
-        <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+        <p className="text-sm text-muted-foreground text-center">
           No projects yet. Create your first one above!
         </p>
       </div>
@@ -75,26 +75,26 @@ export const ProjectList = () => {
 
   return (
     <div className="w-full max-w-3xl mx-auto">
-      <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4 text-left">
+      <h2 className="text-3xl font-bold text-foreground mb-4 text-left">
         Your Projects
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {projects.map((project) => (
           <Card
             key={project.id}
-            className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 border-2 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-400 py-0"
+            className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 border-2 border-border hover:border-primary/50 py-0"
             onClick={() => handleProjectClick(project.id)}
           >
             <CardContent className="px-3 py-2">
               <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center">
-                  <BotIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                  <BotIcon className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-medium text-gray-900 dark:text-gray-100 text-sm whitespace-nowrap">
+                  <span className="font-medium text-foreground text-sm whitespace-nowrap">
                     {project.name}
                   </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {getTimeAgo(project.updatedAt)}
                   </span>
                 </div>

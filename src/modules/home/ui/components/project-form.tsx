@@ -47,13 +47,13 @@ export const ProjectForm = () => {
     <div className="w-full max-w-3xl mx-auto">
       <form
         onSubmit={handleSubmit}
-        className="border-2 border-gray-300 rounded-xl p-6 space-y-4 bg-white shadow-sm"
+        className="border-2 border-border rounded-xl p-6 space-y-4 bg-card shadow-sm"
       >
         <Textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="Describe the web application you want to build..."
-          className="min-h-[120px] resize-none text-base border-0 focus:ring-0 focus:outline-none p-0 text-black"
+          className="min-h-[120px] resize-none text-base border-0 focus:ring-0 focus:outline-none p-0 text-foreground"
           disabled={createProject.isPending}
           onKeyDown={handleKeyDown}
         />

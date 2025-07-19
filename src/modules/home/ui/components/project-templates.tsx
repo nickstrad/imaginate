@@ -64,11 +64,11 @@ export const ProjectTemplates = ({
         {PROJECT_TEMPLATES.map((template, index) => (
           <Card
             key={index}
-            className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 border-2 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-400 w-fit py-0"
+            className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 border-2 border-border hover:border-primary/50 w-fit py-0"
             onClick={() => onTemplateSelect(template.prompt)}
           >
             <CardContent className="px-3 py-1">
-              <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm leading-tight flex items-center gap-2 whitespace-nowrap">
+              <h4 className="font-medium text-foreground text-sm leading-tight flex items-center gap-2 whitespace-nowrap">
                 <span className="text-lg">{template.emoji}</span>
                 {template.title}
               </h4>
