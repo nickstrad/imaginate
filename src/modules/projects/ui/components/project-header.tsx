@@ -44,15 +44,15 @@ export function ProjectHeader({
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className="p-2 border-b bg-background sticky top-0 z-10 flex items-center justify-center">
+    <div className="p-2 border-b bg-background sticky top-0 z-10 flex items-center h-full">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="w-[250px] justify-between">
+          <Button variant="outline" className="w-full h-full justify-between">
             <span className="truncate">{currentProjectName}</span>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-[250px]">
+        <DropdownMenuContent className="w-full min-w-[250px]">
           <DropdownMenuLabel>Projects</DropdownMenuLabel>
           <DropdownMenuGroup>
             <DropdownMenuItem

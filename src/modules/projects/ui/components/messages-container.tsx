@@ -7,7 +7,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardAction, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { BotIcon, SendIcon, TerminalIcon, UserIcon } from "lucide-react";
+import { BotIcon, SendIcon, TerminalIcon, UserIcon, PlayIcon, CheckCircleIcon, MousePointerClickIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import React from "react";
 import { toast } from "sonner";
@@ -109,15 +109,39 @@ const MessageBubble = ({
                     setActiveFragment(null);
                   }
                 }}
-                className={cn("w-full mt-2", {
-                  "rounded-md p-2": isFragmentActive,
-                  "bg-accent text-accent-foreground":
-                    isFragmentActive && !isUser,
-                  "bg-primary-foreground text-primary":
-                    isFragmentActive && isUser,
-                })}
+                className={cn(
+                  "w-full mt-3 p-3 rounded-lg border transition-all duration-200 group hover:shadow-md",
+                  {
+                    // Active states
+                    "bg-primary/10 border-primary/30 shadow-sm ring-1 ring-primary/20": isFragmentActive && !isUser,
+                    "bg-primary-foreground/80 border-primary shadow-sm ring-1 ring-primary/30": isFragmentActive && isUser,
+                    // Inactive states
+                    "bg-muted/40 border-muted-foreground/20 hover:bg-muted/60 hover:border-muted-foreground/30": !isFragmentActive && !isUser,
+                    "bg-primary-foreground/20 border-primary-foreground/30 hover:bg-primary-foreground/40": !isFragmentActive && isUser,
+                  }
+                )}
               >
-                {message.fragment.title}
+                <div className="flex items-center gap-2">
+                  {isFragmentActive ? (
+                    <CheckCircleIcon className="w-4 h-4 text-primary shrink-0" />
+                  ) : (
+                    <PlayIcon className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+                  )}
+                  <span className={cn(
+                    "font-medium text-sm",
+                    isFragmentActive ? "text-primary" : "text-foreground"
+                  )}>
+                    {message.fragment.title}
+                  </span>
+                  {!isFragmentActive && (
+                    <MousePointerClickIcon className="w-3 h-3 text-muted-foreground/60 group-hover:text-muted-foreground transition-colors ml-auto" />
+                  )}
+                </div>
+                {isFragmentActive && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Currently viewing
+                  </div>
+                )}
               </CardAction>
             )}
           </CardContent>
@@ -150,6 +174,8 @@ export const MessagesContainer = ({
   const [content, setContent] = React.useState("");
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const [showGradient, setShowGradient] = React.useState(false);
+  const [isUserScrolling, setIsUserScrolling] = React.useState(false);
+  const autoScrollTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const queryClient = useQueryClient();
   const trpc = useTRPC();
   const { data: messages, refetch } = useSuspenseQuery(
@@ -168,6 +194,13 @@ export const MessagesContainer = ({
     })
   );
 
+  const scrollToBottom = React.useCallback(() => {
+    const current = scrollContainerRef.current;
+    if (current) {
+      current.scrollTop = current.scrollHeight;
+    }
+  }, []);
+
   const handleScroll = React.useCallback(() => {
     const current = scrollContainerRef.current;
     if (current) {
@@ -175,16 +208,31 @@ export const MessagesContainer = ({
         current.scrollHeight - current.scrollTop <= current.clientHeight + 1;
       const isOverflowing = current.scrollHeight > current.clientHeight;
       setShowGradient(isOverflowing && !isScrolledToBottom);
+      
+      // Detect if user is manually scrolling
+      if (!isScrolledToBottom && isOverflowing) {
+        setIsUserScrolling(true);
+        
+        // Reset user scrolling flag after a delay
+        if (autoScrollTimeoutRef.current) {
+          clearTimeout(autoScrollTimeoutRef.current);
+        }
+        autoScrollTimeoutRef.current = setTimeout(() => {
+          setIsUserScrolling(false);
+        }, 3000); // 3 seconds of inactivity
+      } else if (isScrolledToBottom) {
+        setIsUserScrolling(false);
+      }
     }
   }, []);
 
   React.useLayoutEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop =
-        scrollContainerRef.current.scrollHeight;
+    // Only auto-scroll if user is not manually scrolling
+    if (!isUserScrolling) {
+      scrollToBottom();
     }
     handleScroll();
-  }, [messages, handleScroll]);
+  }, [messages, handleScroll, isUserScrolling, scrollToBottom]);
 
   React.useEffect(() => {
     const current = scrollContainerRef.current;
@@ -202,6 +250,9 @@ export const MessagesContainer = ({
         current.removeEventListener("scroll", handleScroll);
       }
       window.removeEventListener("resize", handleResize);
+      if (autoScrollTimeoutRef.current) {
+        clearTimeout(autoScrollTimeoutRef.current);
+      }
     };
   }, [handleScroll]);
 
@@ -245,6 +296,8 @@ export const MessagesContainer = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (content.trim()) {
+      // Reset user scrolling flag when user sends a message
+      setIsUserScrolling(false);
       createMessage.mutate({ userPrompt: content, projectId });
     }
   };
@@ -289,6 +342,8 @@ export const MessagesContainer = ({
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 if (content.trim()) {
+                  // Reset user scrolling flag when user sends a message
+                  setIsUserScrolling(false);
                   createMessage.mutate({ userPrompt: content, projectId });
                 }
               }

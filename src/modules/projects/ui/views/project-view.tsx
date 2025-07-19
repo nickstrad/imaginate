@@ -62,9 +62,9 @@ export default function ProjectView({ projectId }: Props) {
                 </TabsList>
               </div>
               <TabsContent value="demo" className="flex-1 m-0 h-0">
-                <ScrollArea className="h-full">
+                <div className="h-full">
                   <FragmentWeb data={activeFragment} />
-                </ScrollArea>
+                </div>
               </TabsContent>
               <TabsContent value="code" className="flex-1 m-0 h-0">
                 <div className="h-full">
