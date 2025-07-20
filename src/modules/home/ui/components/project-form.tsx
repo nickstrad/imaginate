@@ -9,16 +9,22 @@ import { toast } from "sonner";
 import { ArrowUp } from "lucide-react";
 import React from "react";
 import { ProjectTemplates } from "./project-templates";
+import { useClerk } from "@clerk/nextjs";
 
 export const ProjectForm = () => {
   const [prompt, setPrompt] = React.useState("");
   const router = useRouter();
   const trpc = useTRPC();
+  const clerk = useClerk();
 
   const createProject = useMutation(
     trpc.projects.create.mutationOptions({
       onError: (error) => {
         toast.error(error.message);
+
+        if (error.data?.code === "UNAUTHORIZED") {
+          clerk.openSignIn();
+        }
       },
       onSuccess: (project) => {
         setPrompt("");

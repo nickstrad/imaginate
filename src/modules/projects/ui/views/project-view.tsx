@@ -13,8 +13,12 @@ import { Suspense } from "react";
 import React from "react";
 import { Fragment } from "@/generated/prisma";
 import { FragmentWeb } from "../components/fragment-web";
-import { CodeIcon, EyeIcon } from "lucide-react";
+import { CodeIcon, CrownIcon, EyeIcon } from "lucide-react";
 import { FileExplorer } from "../components/file-explorer";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { User } from "@clerk/nextjs/server";
+import { UserControl } from "@/components/user-control";
 
 interface Props {
   projectId: string;
@@ -49,7 +53,7 @@ export default function ProjectView({ projectId }: Props) {
         <ResizablePanel defaultSize={75} minSize={50} className="h-full">
           {!!activeFragment ? (
             <Tabs defaultValue="demo" className="h-full flex flex-col">
-              <div className="flex-shrink-0 p-2 border-b">
+              <div className="flex-shrink-0 p-2 border-b flex flex-row">
                 <TabsList>
                   <TabsTrigger value="demo">
                     <EyeIcon className="w-4 h-4 mr-2" />
@@ -60,6 +64,14 @@ export default function ProjectView({ projectId }: Props) {
                     Code
                   </TabsTrigger>
                 </TabsList>
+                <div className="ml-auto flex items-center gap-x-2">
+                  <Button asChild size="sm">
+                    <Link href="/pricing">
+                      <CrownIcon /> Upgrade
+                    </Link>
+                  </Button>
+                  <UserControl />
+                </div>
               </div>
               <TabsContent value="demo" className="flex-1 m-0 h-0">
                 <div className="h-full">

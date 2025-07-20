@@ -1,32 +1,61 @@
 "use client";
 
 import { useTRPC } from "@/trpc/client";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BotIcon } from "lucide-react";
+import { BotIcon, AlertCircle } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 
 export const ProjectList = () => {
   const trpc = useTRPC();
   const router = useRouter();
+  const { user } = useUser();
 
-  const { data: projects, isLoading } = useSuspenseQuery(
-    trpc.projects.getMany.queryOptions(undefined, {
-      refetchOnWindowFocus: false,
-    })
-  );
+  const {
+    data: projects,
+    isLoading,
+    error,
+  } = useQuery(trpc.projects.getMany.queryOptions());
+
+  if (!user) {
+    return null;
+  }
 
   if (isLoading) {
     return (
       <div className="w-full max-w-3xl mx-auto">
         <h2 className="text-lg font-semibold text-foreground mb-4">
-          Your Projects
+          {user?.firstName} Projects
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(3)].map((_, i) => (
             <Skeleton key={i} className="h-16 w-full" />
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full max-w-3xl mx-auto">
+        <h2 className="text-3xl font-bold text-foreground mb-4 text-left">
+          {user?.firstName} Projects
+        </h2>
+        <div className="flex items-center justify-center p-8 border-2 border-border rounded-xl bg-card">
+          <div className="text-center space-y-4">
+            <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-foreground">
+                Failed to Load Projects
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                There was an error loading your projects. Please try again.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -76,7 +105,7 @@ export const ProjectList = () => {
   return (
     <div className="w-full max-w-3xl mx-auto">
       <h2 className="text-3xl font-bold text-foreground mb-4 text-left">
-        Your Projects
+        {user?.firstName} Projects
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {projects.map((project) => (

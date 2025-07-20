@@ -1,20 +1,20 @@
 import { prisma } from "@/db";
-import { baseProcedure, createTRPCRouter } from "@/trpc/init";
+import { protectedProcedure, createTRPCRouter } from "@/trpc/init";
 import z from "zod";
 import { generateSlug } from "random-word-slugs";
 import { inngest } from "@/inngest/client";
 import { TRPCError } from "@trpc/server";
 
 export const projectsRouter = createTRPCRouter({
-  getOne: baseProcedure
+  getOne: protectedProcedure
     .input(
       z.object({
         id: z.string().min(1, { message: "Project ID is required." }),
       })
     )
-    .query(async ({ input: { id } }) => {
+    .query(async ({ input: { id }, ctx }) => {
       const existingProject = await prisma.project.findUnique({
-        where: { id },
+        where: { id, userId: ctx.auth.userId },
       });
 
       if (!existingProject) {
@@ -26,12 +26,13 @@ export const projectsRouter = createTRPCRouter({
 
       return existingProject;
     }),
-  getMany: baseProcedure.query(async () => {
+  getMany: protectedProcedure.query(async ({ ctx }) => {
     return prisma.project.findMany({
+      where: { userId: ctx.auth.userId },
       orderBy: { updatedAt: "asc" },
     });
   }),
-  create: baseProcedure
+  create: protectedProcedure
     .input(
       z.object({
         userPrompt: z
@@ -42,15 +43,16 @@ export const projectsRouter = createTRPCRouter({
           }),
       })
     )
-    .mutation(async ({ input: { userPrompt } }) => {
+    .mutation(async ({ input, ctx }) => {
       const project = await prisma.project.create({
         data: {
           name: generateSlug(2, {
             format: "kebab",
           }),
+          userId: ctx.auth.userId,
           messages: {
             create: {
-              content: userPrompt,
+              content: input.userPrompt,
               role: "USER",
               type: "RESULT",
             },
@@ -60,7 +62,7 @@ export const projectsRouter = createTRPCRouter({
 
       await inngest.send({
         name: "codeAgent/run",
-        data: { userPrompt, projectId: project.id },
+        data: { userPrompt: input.userPrompt, projectId: project.id },
       });
 
       return project;

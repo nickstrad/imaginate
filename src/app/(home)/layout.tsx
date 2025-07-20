@@ -1,4 +1,4 @@
-import { Logo } from "@/components/logo/logo";
+import Navbar from "@/modules/home/ui/components/navbar";
 
 interface Props {
   children: React.ReactNode;
@@ -7,8 +7,8 @@ interface Props {
 const Layout: React.FC<Props> = ({ children }) => {
   return (
     <div className="flex flex-col h-screen bg-background">
-      <header className="sticky top-0 z-10 p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <Logo />
+      <header className="sticky top-0 z-10">
+        <Navbar />
       </header>
       <main
         className="flex-1 overflow-y-auto"
