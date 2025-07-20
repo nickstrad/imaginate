@@ -21,6 +21,9 @@ export default function Navbar() {
           <div className="flex items-center space-x-6 pr-4">
             <SignedOut>
               <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/pricing">Pricing</Link>
+                </Button>
                 <SignInButton>
                   <Button variant="default" size="sm">
                     Sign In

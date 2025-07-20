@@ -8,7 +8,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessagesContainer } from "../components/messages-container";
+import { MessagesContainer } from "../components/messages-container/messages-container";
 import { Suspense } from "react";
 import React from "react";
 import { Fragment } from "@/generated/prisma";
