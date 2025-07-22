@@ -1,7 +1,7 @@
 "use client";
 
 import { useTRPC } from "@/trpc/client";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -16,6 +16,7 @@ export const ProjectForm = () => {
   const router = useRouter();
   const trpc = useTRPC();
   const clerk = useClerk();
+  const queryClient = useQueryClient();
 
   const createProject = useMutation(
     trpc.projects.create.mutationOptions({
@@ -25,9 +26,14 @@ export const ProjectForm = () => {
         if (error.data?.code === "UNAUTHORIZED") {
           clerk.openSignIn();
         }
+
+        if (error.data?.code === "TOO_MANY_REQUESTS") {
+          router.push("/pricing");
+        }
       },
       onSuccess: (project) => {
-        setPrompt("");
+        queryClient.invalidateQueries(trpc.projects.getMany.queryOptions());
+        queryClient.invalidateQueries(trpc.usage.status.queryOptions());
         router.push(`/projects/${project.id}`);
       },
     })

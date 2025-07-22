@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { User } from "@clerk/nextjs/server";
 import { UserControl } from "@/components/user-control";
+import { useAuth } from "@clerk/nextjs";
 
 interface Props {
   projectId: string;
@@ -28,6 +29,9 @@ export default function ProjectView({ projectId }: Props) {
   const [activeFragment, setActiveFragment] = React.useState<Fragment | null>(
     null
   );
+
+  const { has } = useAuth();
+  const hasProAccess = has?.({ plan: "pro" });
 
   return (
     <div className="h-screen overflow-hidden">
@@ -65,11 +69,13 @@ export default function ProjectView({ projectId }: Props) {
                   </TabsTrigger>
                 </TabsList>
                 <div className="ml-auto flex items-center gap-x-2">
-                  <Button asChild size="sm">
-                    <Link href="/pricing">
-                      <CrownIcon /> Upgrade
-                    </Link>
-                  </Button>
+                  {!hasProAccess ? (
+                    <Button asChild size="sm">
+                      <Link href="/pricing">
+                        <CrownIcon /> Upgrade
+                      </Link>
+                    </Button>
+                  ) : null}
                   <UserControl />
                 </div>
               </div>

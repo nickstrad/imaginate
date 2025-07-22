@@ -1,6 +1,7 @@
 import { useTRPC } from "@/trpc/client";
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
@@ -23,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Fragment } from "@/generated/prisma";
 import { MessageLoading } from "./message-loading";
+import { useRouter } from "next/navigation";
 
 interface Props {
   projectId: string;
@@ -179,6 +181,7 @@ const MessageBubble = ({
 };
 
 import { ProjectHeader } from "./project-header";
+import { Usage } from "./usage";
 
 export const MessagesContainer = ({
   projectId,
@@ -191,6 +194,7 @@ export const MessagesContainer = ({
   const [isUserScrolling, setIsUserScrolling] = React.useState(false);
   const autoScrollTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const queryClient = useQueryClient();
+  const router = useRouter();
   const trpc = useTRPC();
   const { data: messages, refetch } = useSuspenseQuery(
     trpc.messages.getMany.queryOptions(
@@ -208,6 +212,7 @@ export const MessagesContainer = ({
     })
   );
 
+  const { data: usage } = useQuery(trpc.usage.status.queryOptions());
   const scrollToBottom = React.useCallback(() => {
     const current = scrollContainerRef.current;
     if (current) {
@@ -293,16 +298,20 @@ export const MessagesContainer = ({
   const createMessage = useMutation(
     trpc.messages.create.mutationOptions({
       onError: (error) => {
-        // redirect to pricing page if specific error occurs
         toast.error(error.message);
+
+        if (error.data?.code === "TOO_MANY_REQUESTS") {
+          router.push("/pricing");
+          return;
+        }
       },
       onSuccess: () => {
         setContent("");
         refetch();
-        queryClient.invalidateQueries({
-          queryKey: trpc.messages.getMany.queryKey({ projectId }),
-        });
-        //TODO: invalidate usage status
+        queryClient.invalidateQueries(
+          trpc.messages.getMany.queryOptions({ projectId })
+        );
+        queryClient.invalidateQueries(trpc.usage.status.queryOptions());
       },
     })
   );
@@ -316,6 +325,7 @@ export const MessagesContainer = ({
     }
   };
 
+  const showUsage = !!usage;
   const isLoadingMessage = messages[messages.length - 1]?.role === "USER";
   // TOOD: make sure errors are shown as author message
   return (
@@ -345,6 +355,12 @@ export const MessagesContainer = ({
         )}
       </div>
       <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        {showUsage ? (
+          <Usage
+            points={usage.remainingPoints}
+            msBeforeNext={usage.msBeforeNext}
+          />
+        ) : null}
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <Textarea
             value={content}
