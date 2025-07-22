@@ -4,13 +4,20 @@ import {
   createTool,
   createNetwork,
   Tool,
+  createState,
+  Message,
 } from "@inngest/agent-kit";
 import { inngest } from "./client";
 import { Sandbox } from "@e2b/code-interpreter";
 import { getSandbox, lastAssistantTextMessageContent } from "./utils";
 import { z } from "zod";
-import { AGENT_PROMPT } from "@/prompts/prompts";
+import {
+  AGENT_PROMPT,
+  FRAGMENT_TITLE_PROMPT,
+  RESPONSE_PROMPT,
+} from "@/prompts/prompts";
 import { prisma } from "@/db";
+import { parseAgentOutput } from "@/lib/utils";
 
 interface AgentState {
   summary?: string;
@@ -25,6 +32,39 @@ export const codeAgentFunction = inngest.createFunction(
       const sandbox = await Sandbox.create("imaginate-dev");
       return sandbox.sandboxId;
     });
+
+    const previousMessages = await step.run(
+      "get-previous-messages",
+      async () => {
+        const formattedMessages: Message[] = [];
+        const messages = await prisma.message.findMany({
+          where: {
+            projectId: event.data.projectId,
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+        });
+
+        for (const message of messages) {
+          formattedMessages.push({
+            type: "text",
+            role: message.role === "ASSISTANT" ? "assistant" : "user",
+            content: message.content,
+          });
+        }
+
+        return formattedMessages;
+      }
+    );
+
+    const state = createState<AgentState>(
+      {
+        files: {},
+        summary: "",
+      },
+      { messages: previousMessages }
+    );
 
     const codeAgent = createAgent<AgentState>({
       model: openai({
@@ -145,6 +185,7 @@ export const codeAgentFunction = inngest.createFunction(
     const network = createNetwork<AgentState>({
       name: "codingAgentNetwork",
       agents: [codeAgent],
+      defaultState: state,
       maxIter: 15,
       router: async ({ network }) => {
         const summary = network.state.data.summary;
@@ -156,7 +197,33 @@ export const codeAgentFunction = inngest.createFunction(
       },
     });
 
-    const result = await network.run(event.data.userPrompt);
+    const result = await network.run(event.data.userPrompt, { state });
+
+    const fragmentTitleGenerator = createAgent({
+      name: "fragment-title=generator",
+      description: "A fragment title generator",
+      system: FRAGMENT_TITLE_PROMPT,
+      model: openai({
+        model: "gpt-4o",
+      }),
+    });
+
+    const responseGenerator = createAgent({
+      name: "response-generator",
+      description: "A response generator",
+      system: RESPONSE_PROMPT,
+      model: openai({
+        model: "gpt-4o",
+      }),
+    });
+
+    const summary = result.state.data.summary || "";
+
+    const { output: fragmentTitleOutput } = await fragmentTitleGenerator.run(
+      summary
+    );
+
+    const { output: responseOutput } = await responseGenerator.run(summary);
 
     const isError =
       !result.state.data.summary ||
@@ -168,6 +235,7 @@ export const codeAgentFunction = inngest.createFunction(
       return `https://${host}`;
     });
 
+    const fragmentTitle = parseAgentOutput(fragmentTitleOutput, "Fragment");
     await step.run("save-result", async () => {
       if (isError) {
         return await prisma.message.create({
@@ -183,13 +251,13 @@ export const codeAgentFunction = inngest.createFunction(
       return prisma.message.create({
         data: {
           projectId: event.data.projectId,
-          content: result.state.data.summary || "",
+          content: parseAgentOutput(responseOutput, "Here you go."),
           role: "ASSISTANT",
           type: "RESULT",
           fragment: {
             create: {
               sandboxUrl,
-              title: "Fragment",
+              title: fragmentTitle,
               files: result.state.data.files || {},
             },
           },
@@ -199,7 +267,7 @@ export const codeAgentFunction = inngest.createFunction(
 
     return {
       url: sandboxUrl,
-      title: "Fragment",
+      title: fragmentTitle,
       files: result.state.data.files,
       summary: result.state.data.summary,
     };
