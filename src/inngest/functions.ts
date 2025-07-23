@@ -9,7 +9,11 @@ import {
 } from "@inngest/agent-kit";
 import { inngest } from "./client";
 import { Sandbox } from "@e2b/code-interpreter";
-import { getSandbox, lastAssistantTextMessageContent } from "./utils";
+import {
+  getSandbox,
+  lastAssistantTextMessageContent,
+  SANDBOX_TIMEOUT,
+} from "./utils";
 import { z } from "zod";
 import {
   AGENT_PROMPT,
@@ -30,6 +34,7 @@ export const codeAgentFunction = inngest.createFunction(
   async ({ event, step }) => {
     const sandboxId = await step.run("get-sandbox-id", async () => {
       const sandbox = await Sandbox.create("imaginate-dev");
+      await sandbox.setTimeout(SANDBOX_TIMEOUT);
       return sandbox.sandboxId;
     });
 
@@ -42,8 +47,9 @@ export const codeAgentFunction = inngest.createFunction(
             projectId: event.data.projectId,
           },
           orderBy: {
-            createdAt: "asc",
+            createdAt: "desc",
           },
+          take: 5,
         });
 
         for (const message of messages) {
@@ -54,7 +60,7 @@ export const codeAgentFunction = inngest.createFunction(
           });
         }
 
-        return formattedMessages;
+        return formattedMessages.reverse();
       }
     );
 
@@ -238,6 +244,7 @@ export const codeAgentFunction = inngest.createFunction(
     const fragmentTitle = parseAgentOutput(fragmentTitleOutput, "Fragment");
     await step.run("save-result", async () => {
       if (isError) {
+        console.log(result.state.data);
         return await prisma.message.create({
           data: {
             projectId: event.data.projectId,

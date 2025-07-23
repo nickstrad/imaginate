@@ -20,6 +20,7 @@ import Link from "next/link";
 import { User } from "@clerk/nextjs/server";
 import { UserControl } from "@/components/user-control";
 import { useAuth } from "@clerk/nextjs";
+import { ErrorBoundary } from "react-error-boundary";
 
 interface Props {
   projectId: string;
@@ -40,15 +41,17 @@ export default function ProjectView({ projectId }: Props) {
           <Card className="h-full rounded-none border-r border-t-0 border-b-0 border-l-0">
             <CardContent className="p-0 h-full">
               <ScrollArea className="h-full">
-                <Suspense
-                  fallback={<div className="p-4">Loading messages...</div>}
-                >
-                  <MessagesContainer
-                    projectId={projectId}
-                    activeFragment={activeFragment}
-                    setActiveFragment={setActiveFragment}
-                  />
-                </Suspense>
+                <ErrorBoundary fallback={<div>Something went wrong</div>}>
+                  <Suspense
+                    fallback={<div className="p-4">Loading messages...</div>}
+                  >
+                    <MessagesContainer
+                      projectId={projectId}
+                      activeFragment={activeFragment}
+                      setActiveFragment={setActiveFragment}
+                    />
+                  </Suspense>
+                </ErrorBoundary>
               </ScrollArea>
             </CardContent>
           </Card>

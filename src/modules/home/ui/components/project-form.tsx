@@ -65,7 +65,7 @@ export const ProjectForm = () => {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="Describe the web application you want to build..."
-          className="min-h-[120px] resize-none text-base border-0 focus:ring-0 focus:outline-none p-0 text-foreground"
+          className="min-h-[120px] resize-none text-base border-0 focus:ring-0 focus:outline-none p-4 text-foreground"
           disabled={createProject.isPending}
           onKeyDown={handleKeyDown}
         />
