@@ -101,9 +101,9 @@ const FileTreeNodeDisplay: React.FC<{
   onSelectFile: (path: string) => void;
   level: number;
 }> = ({ node, selectedFile, onSelectFile, level }) => {
-  if (node.type === "directory") {
-    const [isOpen, setIsOpen] = React.useState(true);
+  const [isOpen, setIsOpen] = React.useState(true);
 
+  if (node.type === "directory") {
     return (
       <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
         <CollapsibleTrigger asChild>

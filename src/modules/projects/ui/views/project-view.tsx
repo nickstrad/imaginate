@@ -17,7 +17,6 @@ import { CodeIcon, CrownIcon, EyeIcon } from "lucide-react";
 import { FileExplorer } from "../components/file-explorer";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { User } from "@clerk/nextjs/server";
 import { UserControl } from "@/components/user-control";
 import { useAuth } from "@clerk/nextjs";
 import { ErrorBoundary } from "react-error-boundary";
