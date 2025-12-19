@@ -1,4 +1,6 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Imaginate
+
+Imaginate(imaginate.run) is a vibe coding web app. It allows users to chat with
 
 ## Getting Started
 
@@ -14,23 +16,22 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Screenshots
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Landing Page(Tic-tac-toe question)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+![Chat Page](screenshots/landing_page.png)
 
-## Learn More
+### Chat Page App View(Tic-tac-toe app)
 
-To learn more about Next.js, take a look at the following resources:
+![Chat Page App](screenshots/app_view.png)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Chat Page Code View(Tic-tac-toe app)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+![Chat Page Code](screenshots/code_view.png)
 
-## Deploy on Vercel
+### Technology Used
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This application uses OpenAI models for agent logic, E2B for sandboxes to run code in,
+Inngest to make long running task async, and clerk for authentication and payments.
+The webapp is made with Next.js and Shadcn primarily.
