@@ -75,9 +75,6 @@ export const codeAgentFunction = inngest.createFunction(
     const codeAgent = createAgent<AgentState>({
       model: openai({
         model: "gpt-5",
-        defaultParameters: {
-          temperature: 0.1,
-        },
       }),
       description: "An expert coding agent",
       system: AGENT_PROMPT,
