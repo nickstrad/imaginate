@@ -66,3 +66,17 @@ model Usage {
   points Int
   expire DateTime?
 }
+
+model Settings {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+
+  geminiApiKey    String @default("")
+  openaiApiKey    String @default("")
+  anthropicApiKey String @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}

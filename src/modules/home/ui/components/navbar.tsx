@@ -4,6 +4,7 @@ import { SignedIn, SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { UserControl } from "@/components/user-control";
+import { SettingsButton } from "@/modules/settings/ui/components/settings-button";
 
 export default function Navbar() {
   return (
@@ -35,7 +36,10 @@ export default function Navbar() {
             </SignedOut>
 
             <SignedIn>
-              <UserControl showName />
+              <div className="flex items-center gap-2">
+                <SettingsButton />
+                <UserControl showName />
+              </div>
             </SignedIn>
           </div>
         </div>
