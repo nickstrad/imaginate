@@ -32,50 +32,64 @@ export const messagesRouter = createTRPCRouter({
             message: "Prompt is too long.",
           }),
         projectId: z.string().min(1, { message: "Project ID is required." }),
+        selectedModels: z
+          .object({
+            openai: z.string().optional(),
+            anthropic: z.string().optional(),
+            gemini: z.string().optional(),
+          })
+          .optional(),
       })
     )
-    .mutation(async ({ input: { userPrompt, projectId }, ctx }) => {
-      const existingProject = await prisma.project.findUnique({
-        where: { id: projectId, userId: ctx.auth.userId },
-      });
-
-      if (!existingProject) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: `Project with ID ${projectId} not found.`,
+    .mutation(
+      async ({ input: { userPrompt, projectId, selectedModels }, ctx }) => {
+        const existingProject = await prisma.project.findUnique({
+          where: { id: projectId, userId: ctx.auth.userId },
         });
-      }
 
-      try {
-        await consumeCredits();
-      } catch (error) {
-        if (error instanceof Error) {
+        if (!existingProject) {
           throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Something went wrong",
-          });
-        } else {
-          throw new TRPCError({
-            code: "TOO_MANY_REQUESTS",
-            message: "You have run out of credits",
+            code: "NOT_FOUND",
+            message: `Project with ID ${projectId} not found.`,
           });
         }
+
+        try {
+          await consumeCredits();
+        } catch (error) {
+          if (error instanceof Error) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Something went wrong",
+            });
+          } else {
+            throw new TRPCError({
+              code: "TOO_MANY_REQUESTS",
+              message: "You have run out of credits",
+            });
+          }
+        }
+
+        const createdMessage = await prisma.message.create({
+          data: {
+            projectId: existingProject.id,
+            content: userPrompt,
+            role: "USER",
+            type: "RESULT",
+          },
+        });
+
+        await inngest.send({
+          name: "codeAgent/run",
+          data: {
+            userPrompt,
+            projectId,
+            userId: ctx.auth.userId,
+            selectedModels: selectedModels || {},
+          },
+        });
+
+        return createdMessage;
       }
-
-      const createdMessage = await prisma.message.create({
-        data: {
-          projectId: existingProject.id,
-          content: userPrompt,
-          role: "USER",
-          type: "RESULT",
-        },
-      });
-
-      await inngest.send({
-        name: "codeAgent/run",
-        data: { userPrompt, projectId },
-      });
-
-      return createdMessage;
-    }),
+    ),
 });

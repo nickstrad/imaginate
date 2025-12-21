@@ -1,5 +1,7 @@
 import {
   openai,
+  anthropic,
+  gemini,
   createAgent,
   createTool,
   createNetwork,
@@ -22,10 +24,32 @@ import {
 } from "@/prompts/prompts";
 import { prisma } from "@/db";
 import { parseAgentOutput } from "@/lib/utils";
+import { decryptApiKeys } from "@/lib/encryption";
 
 interface AgentState {
   summary?: string;
   files?: { [path: string]: string };
+}
+
+function createModelProvider(
+  provider: "openai" | "anthropic" | "gemini",
+  model: string,
+  apiKey: string
+) {
+  switch (provider) {
+    case "openai":
+      return openai({ model, apiKey });
+    case "anthropic":
+      return anthropic({
+        model,
+        apiKey,
+        defaultParameters: { max_tokens: 4096 },
+      });
+    case "gemini":
+      return gemini({ model, apiKey });
+    default:
+      throw new Error(`Unsupported provider: ${provider}`);
+  }
 }
 
 export const codeAgentFunction = inngest.createFunction(
@@ -36,6 +60,51 @@ export const codeAgentFunction = inngest.createFunction(
       const sandbox = await Sandbox.create("imaginate-dev");
       await sandbox.setTimeout(SANDBOX_TIMEOUT);
       return sandbox.sandboxId;
+    });
+
+    const modelConfig = await step.run("get-model-config", async () => {
+      const userSettings = await prisma.settings.findUnique({
+        where: { userId: event.data.userId },
+      });
+
+      if (!userSettings) {
+        throw new Error("User settings not found");
+      }
+
+      const decryptedKeys = decryptApiKeys(
+        {
+          geminiApiKey: userSettings.geminiApiKey,
+          openaiApiKey: userSettings.openaiApiKey,
+          anthropicApiKey: userSettings.anthropicApiKey,
+        },
+        event.data.userId
+      );
+
+      const selectedModels = event.data.selectedModels || {};
+
+      let provider: "openai" | "anthropic" | "gemini" = "openai";
+      let model = "gpt-4o-mini";
+      let apiKey = "";
+
+      if (selectedModels.openai && decryptedKeys.openaiApiKey) {
+        provider = "openai";
+        model = selectedModels.openai;
+        apiKey = decryptedKeys.openaiApiKey;
+      } else if (selectedModels.anthropic && decryptedKeys.anthropicApiKey) {
+        provider = "anthropic";
+        model = selectedModels.anthropic;
+        apiKey = decryptedKeys.anthropicApiKey;
+      } else if (selectedModels.gemini && decryptedKeys.geminiApiKey) {
+        provider = "gemini";
+        model = selectedModels.gemini;
+        apiKey = decryptedKeys.geminiApiKey;
+      } else if (decryptedKeys.openaiApiKey) {
+        apiKey = decryptedKeys.openaiApiKey;
+      } else {
+        throw new Error("No API key available for selected model");
+      }
+
+      return { provider, model, apiKey };
     });
 
     const previousMessages = await step.run(
@@ -73,9 +142,11 @@ export const codeAgentFunction = inngest.createFunction(
     );
 
     const codeAgent = createAgent<AgentState>({
-      model: openai({
-        model: "gpt-5-mini",
-      }),
+      model: createModelProvider(
+        modelConfig.provider,
+        modelConfig.model,
+        modelConfig.apiKey
+      ),
       description: "An expert coding agent",
       system: AGENT_PROMPT,
       name: "writer",
@@ -203,11 +274,11 @@ export const codeAgentFunction = inngest.createFunction(
     const result = await network.run(event.data.userPrompt, { state });
 
     const fragmentTitleGenerator = createAgent({
-      name: "fragment-title=generator",
+      name: "fragment-title-generator",
       description: "A fragment title generator",
       system: FRAGMENT_TITLE_PROMPT,
       model: openai({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
       }),
     });
 
@@ -216,7 +287,7 @@ export const codeAgentFunction = inngest.createFunction(
       description: "A response generator",
       system: RESPONSE_PROMPT,
       model: openai({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
       }),
     });
 
@@ -241,7 +312,6 @@ export const codeAgentFunction = inngest.createFunction(
     const fragmentTitle = parseAgentOutput(fragmentTitleOutput, "Fragment");
     await step.run("save-result", async () => {
       if (isError) {
-        console.log(result.state.data);
         return await prisma.message.create({
           data: {
             projectId: event.data.projectId,

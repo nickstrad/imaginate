@@ -11,8 +11,7 @@ import {
   SelectGroup,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { trpc } from "@/trpc/server";
-import { useQuery } from "@tanstack/react-query";
+import { useUserSettings } from "@/hooks/use-user-settings";
 
 // Available models for each provider based on intellisense screenshots
 const AVAILABLE_MODELS = {
@@ -83,7 +82,7 @@ export function useModelSelector() {
     data: userSettings,
     isLoading,
     error,
-  } = useQuery(trpc.settings.get.queryOptions());
+  } = useUserSettings();
   const [selectedModels, setSelectedModels] = useState<SelectedModels>({});
 
   // Determine which providers have API keys
@@ -130,20 +129,26 @@ export function useModelSelector() {
 // Props for the ModelSelector component
 interface ModelSelectorProps {
   className?: string;
+  selectedModels: SelectedModels;
+  availableProviders: Provider[];
+  unavailableProviders: Provider[];
+  setModelForProvider: (provider: Provider, model: string) => void;
+  availableModels: typeof AVAILABLE_MODELS;
+  isLoading: boolean;
+  error?: Error | null;
 }
 
-// UI Component for model selection
-export function ModelSelector({ className }: ModelSelectorProps) {
-  const {
-    selectedModels,
-    availableProviders,
-    unavailableProviders,
-    setModelForProvider,
-    availableModels,
-    isLoading,
-    error,
-  } = useModelSelector();
-
+// UI Component for model selection (presentational component)
+export function ModelSelector({
+  className,
+  selectedModels,
+  availableProviders,
+  unavailableProviders,
+  setModelForProvider,
+  availableModels,
+  isLoading,
+  error,
+}: ModelSelectorProps) {
   const providerLabels: Record<Provider, string> = {
     openai: "OpenAI",
     anthropic: "Anthropic",

@@ -25,6 +25,12 @@ import { Button } from "@/components/ui/button";
 import { Fragment } from "@/generated/prisma";
 import { MessageLoading } from "./message-loading";
 import { useRouter } from "next/navigation";
+import { ProjectHeader } from "./project-header";
+import { Usage } from "./usage";
+import {
+  ModelSelector,
+  useModelSelector,
+} from "@/modules/messages/ui/components/model-selector";
 
 interface Props {
   projectId: string;
@@ -180,9 +186,6 @@ const MessageBubble = ({
   );
 };
 
-import { ProjectHeader } from "./project-header";
-import { Usage } from "./usage";
-
 export const MessagesContainer = ({
   projectId,
   activeFragment,
@@ -196,6 +199,8 @@ export const MessagesContainer = ({
   const queryClient = useQueryClient();
   const router = useRouter();
   const trpc = useTRPC();
+  const modelSelectorState = useModelSelector();
+  const { selectedModels } = modelSelectorState;
   const { data: messages, refetch } = useSuspenseQuery(
     trpc.messages.getMany.queryOptions(
       {
@@ -321,7 +326,7 @@ export const MessagesContainer = ({
     if (content.trim()) {
       // Reset user scrolling flag when user sends a message
       setIsUserScrolling(false);
-      createMessage.mutate({ userPrompt: content, projectId });
+      createMessage.mutate({ userPrompt: content, projectId, selectedModels });
     }
   };
 
@@ -361,6 +366,17 @@ export const MessagesContainer = ({
             msBeforeNext={usage.msBeforeNext}
           />
         ) : null}
+        <div className="mb-3">
+          <ModelSelector
+            selectedModels={modelSelectorState.selectedModels}
+            availableProviders={modelSelectorState.availableProviders}
+            unavailableProviders={modelSelectorState.unavailableProviders}
+            setModelForProvider={modelSelectorState.setModelForProvider}
+            availableModels={modelSelectorState.availableModels}
+            isLoading={modelSelectorState.isLoading}
+            error={modelSelectorState.error}
+          />
+        </div>
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <Textarea
             value={content}
@@ -374,7 +390,11 @@ export const MessagesContainer = ({
                 if (content.trim()) {
                   // Reset user scrolling flag when user sends a message
                   setIsUserScrolling(false);
-                  createMessage.mutate({ userPrompt: content, projectId });
+                  createMessage.mutate({
+                    userPrompt: content,
+                    projectId,
+                    selectedModels,
+                  });
                 }
               }
             }}

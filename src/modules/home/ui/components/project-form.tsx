@@ -10,6 +10,10 @@ import { ArrowUp } from "lucide-react";
 import React from "react";
 import { ProjectTemplates } from "./project-templates";
 import { useClerk } from "@clerk/nextjs";
+import {
+  ModelSelector,
+  useModelSelector,
+} from "@/modules/messages/ui/components/model-selector";
 
 export const ProjectForm = () => {
   const [prompt, setPrompt] = React.useState("");
@@ -17,6 +21,8 @@ export const ProjectForm = () => {
   const trpc = useTRPC();
   const clerk = useClerk();
   const queryClient = useQueryClient();
+  const modelSelectorState = useModelSelector();
+  const { selectedModels } = modelSelectorState;
 
   const createProject = useMutation(
     trpc.projects.create.mutationOptions({
@@ -42,7 +48,7 @@ export const ProjectForm = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim()) {
-      createProject.mutate({ userPrompt: prompt });
+      createProject.mutate({ userPrompt: prompt, selectedModels });
     }
   };
 
@@ -50,7 +56,7 @@ export const ProjectForm = () => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (prompt.trim()) {
-        createProject.mutate({ userPrompt: prompt });
+        createProject.mutate({ userPrompt: prompt, selectedModels });
       }
     }
   };
@@ -61,6 +67,17 @@ export const ProjectForm = () => {
         onSubmit={handleSubmit}
         className="border-2 border-border rounded-xl p-6 space-y-4 bg-card shadow-sm"
       >
+        <div className="mb-4">
+          <ModelSelector
+            selectedModels={modelSelectorState.selectedModels}
+            availableProviders={modelSelectorState.availableProviders}
+            unavailableProviders={modelSelectorState.unavailableProviders}
+            setModelForProvider={modelSelectorState.setModelForProvider}
+            availableModels={modelSelectorState.availableModels}
+            isLoading={modelSelectorState.isLoading}
+            error={modelSelectorState.error}
+          />
+        </div>
         <Textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}

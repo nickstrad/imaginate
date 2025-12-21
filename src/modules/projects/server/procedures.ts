@@ -42,6 +42,13 @@ export const projectsRouter = createTRPCRouter({
           .max(10000, {
             message: "Prompt is too long.",
           }),
+        selectedModels: z
+          .object({
+            openai: z.string().optional(),
+            anthropic: z.string().optional(),
+            gemini: z.string().optional(),
+          })
+          .optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -79,7 +86,12 @@ export const projectsRouter = createTRPCRouter({
 
       await inngest.send({
         name: "codeAgent/run",
-        data: { userPrompt: input.userPrompt, projectId: project.id },
+        data: {
+          userPrompt: input.userPrompt,
+          projectId: project.id,
+          userId: ctx.auth.userId,
+          selectedModels: input.selectedModels || {},
+        },
       });
 
       return project;
