@@ -87,6 +87,7 @@ export const ProjectForm = () => {
             unavailableProviders={modelSelectorState.unavailableProviders}
             isLoading={modelSelectorState.isLoading}
             error={modelSelectorState.error}
+            disabledModes={["ask"]}
           />
         </div>
         <Textarea

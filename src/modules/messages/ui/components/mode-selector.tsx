@@ -119,6 +119,7 @@ interface ModeSelectorProps {
   isLoading?: boolean;
   error?: { message: string } | null;
   className?: string;
+  disabledModes?: Mode[];
 }
 
 export function ModeSelector({
@@ -132,6 +133,7 @@ export function ModeSelector({
   isLoading,
   error,
   className,
+  disabledModes = [],
 }: ModeSelectorProps) {
   const [open, setOpen] = useState(false);
 
@@ -185,8 +187,14 @@ export function ModeSelector({
         >
           {availableModes.map((m) => {
             const ModeIcon = modeLabels[m].icon;
+            const isDisabled = disabledModes.includes(m);
             return (
-              <ToggleGroupItem key={m} value={m} className="gap-2">
+              <ToggleGroupItem
+                key={m}
+                value={m}
+                className="gap-2"
+                disabled={isDisabled}
+              >
                 <ModeIcon className="h-4 w-4" />
                 {modeLabels[m].label}
               </ToggleGroupItem>

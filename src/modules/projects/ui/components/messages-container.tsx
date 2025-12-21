@@ -415,6 +415,7 @@ export const MessagesContainer = ({
             unavailableProviders={modelSelectorState.unavailableProviders}
             isLoading={modelSelectorState.isLoading}
             error={modelSelectorState.error}
+            disabledModes={["ask"]}
           />
         </div>
       </div>
