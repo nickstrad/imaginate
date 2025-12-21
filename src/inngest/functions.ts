@@ -21,6 +21,7 @@ import {
   AGENT_PROMPT,
   FRAGMENT_TITLE_PROMPT,
   RESPONSE_PROMPT,
+  ASK_AGENT_PROMPT,
 } from "@/prompts/prompts";
 import { prisma } from "@/db";
 import { parseAgentOutput } from "@/lib/utils";
@@ -344,6 +345,153 @@ export const codeAgentFunction = inngest.createFunction(
       title: fragmentTitle,
       files: result.state.data.files,
       summary: result.state.data.summary,
+    };
+  }
+);
+
+interface AskAgentState {
+  response?: string;
+}
+
+export const askAgentFunction = inngest.createFunction(
+  { id: "askAgent" },
+  { event: "askAgent/run" },
+  async ({ event, step }) => {
+    const modelConfig = await step.run("get-model-config", async () => {
+      const userSettings = await prisma.settings.findUnique({
+        where: { userId: event.data.userId },
+      });
+
+      if (!userSettings) {
+        throw new Error("User settings not found");
+      }
+
+      const decryptedKeys = decryptApiKeys(
+        {
+          geminiApiKey: userSettings.geminiApiKey,
+          openaiApiKey: userSettings.openaiApiKey,
+          anthropicApiKey: userSettings.anthropicApiKey,
+        },
+        event.data.userId
+      );
+
+      const selectedModels = event.data.selectedModels || {};
+
+      let provider: "openai" | "anthropic" | "gemini" = "openai";
+      let model = "gpt-4o-mini";
+      let apiKey = "";
+
+      if (selectedModels.openai && decryptedKeys.openaiApiKey) {
+        provider = "openai";
+        model = selectedModels.openai;
+        apiKey = decryptedKeys.openaiApiKey;
+      } else if (selectedModels.anthropic && decryptedKeys.anthropicApiKey) {
+        provider = "anthropic";
+        model = selectedModels.anthropic;
+        apiKey = decryptedKeys.anthropicApiKey;
+      } else if (selectedModels.gemini && decryptedKeys.geminiApiKey) {
+        provider = "gemini";
+        model = selectedModels.gemini;
+        apiKey = decryptedKeys.geminiApiKey;
+      } else if (decryptedKeys.openaiApiKey) {
+        apiKey = decryptedKeys.openaiApiKey;
+      } else {
+        throw new Error("No API key available for selected model");
+      }
+
+      return { provider, model, apiKey };
+    });
+
+    const previousMessages = await step.run(
+      "get-previous-messages",
+      async () => {
+        const formattedMessages: Message[] = [];
+        const messages = await prisma.message.findMany({
+          where: {
+            projectId: event.data.projectId,
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 5,
+        });
+
+        for (const message of messages) {
+          formattedMessages.push({
+            type: "text",
+            role: message.role === "ASSISTANT" ? "assistant" : "user",
+            content: message.content,
+          });
+        }
+
+        return formattedMessages.reverse();
+      }
+    );
+
+    const state = createState<AskAgentState>(
+      {
+        response: "",
+      },
+      { messages: previousMessages }
+    );
+
+    const askAgent = createAgent<AskAgentState>({
+      model: createModelProvider(
+        modelConfig.provider,
+        modelConfig.model,
+        modelConfig.apiKey
+      ),
+      description: "An expert Q&A agent",
+      system: ASK_AGENT_PROMPT,
+      name: "ask-agent",
+      tools: [],
+      lifecycle: {
+        onResponse: async ({ result, network }) => {
+          const lastAssistantMessageText =
+            lastAssistantTextMessageContent(result);
+          if (lastAssistantMessageText && network) {
+            network.state.data.response = lastAssistantMessageText;
+          }
+          return result;
+        },
+      },
+    });
+
+    const network = createNetwork<AskAgentState>({
+      name: "askAgentNetwork",
+      agents: [askAgent],
+      defaultState: state,
+      maxIter: 5,
+      router: async ({ network }) => {
+        const response = network.state.data.response;
+
+        if (response) {
+          return;
+        }
+        return askAgent;
+      },
+    });
+
+    const result = await network.run(event.data.userPrompt, { state });
+
+    await step.run("save-result", async () => {
+      const response =
+        result.state.data.response ||
+        "I couldn't generate a response. Please try again.";
+
+      return prisma.message.create({
+        data: {
+          projectId: event.data.projectId,
+          content: response,
+          role: "ASSISTANT",
+          type: result.state.data.response ? "RESULT" : "ERROR",
+          mode: "ASK",
+        },
+      });
+    });
+
+    return {
+      response: result.state.data.response,
     };
   }
 );

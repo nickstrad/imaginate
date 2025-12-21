@@ -39,10 +39,11 @@ export const messagesRouter = createTRPCRouter({
             gemini: z.string().optional(),
           })
           .optional(),
+        mode: z.enum(["code", "ask"]).default("code"),
       })
     )
     .mutation(
-      async ({ input: { userPrompt, projectId, selectedModels }, ctx }) => {
+      async ({ input: { userPrompt, projectId, selectedModels, mode }, ctx }) => {
         const existingProject = await prisma.project.findUnique({
           where: { id: projectId, userId: ctx.auth.userId },
         });
@@ -76,11 +77,14 @@ export const messagesRouter = createTRPCRouter({
             content: userPrompt,
             role: "USER",
             type: "RESULT",
+            mode: mode.toUpperCase() as "CODE" | "ASK",
           },
         });
 
+        const eventName = mode === "ask" ? "askAgent/run" : "codeAgent/run";
+
         await inngest.send({
-          name: "codeAgent/run",
+          name: eventName,
           data: {
             userPrompt,
             projectId,

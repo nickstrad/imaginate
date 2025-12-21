@@ -10,6 +10,17 @@ import {
   SelectLabel,
   SelectGroup,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { SlidersHorizontal as SlidersHorizontalIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserSettings } from "@/hooks/use-user-settings";
 
@@ -76,6 +87,12 @@ export type SelectedModels = {
   [K in Provider]?: string;
 };
 
+// Single model selection - only one model can be selected at a time
+export interface SingleModelSelection {
+  provider: Provider;
+  model: string;
+}
+
 // Custom hook for model selection logic
 export function useModelSelector() {
   const {
@@ -83,7 +100,7 @@ export function useModelSelector() {
     isLoading,
     error,
   } = useUserSettings();
-  const [selectedModels, setSelectedModels] = useState<SelectedModels>({});
+  const [selectedModel, setSelectedModel] = useState<string>("");
 
   // Determine which providers have API keys
   const availableProviders = useMemo(() => {
@@ -101,25 +118,41 @@ export function useModelSelector() {
     userSettings?.anthropicApiKey,
     userSettings?.geminiApiKey,
   ]);
+
   // Get unavailable providers (those without API keys)
   const unavailableProviders = useMemo(() => {
     const allProviders: Provider[] = ["openai", "anthropic", "gemini"];
     return allProviders.filter((p) => !availableProviders.includes(p));
   }, [availableProviders]);
 
-  // Update model selection for a provider
-  const setModelForProvider = (provider: Provider, model: string) => {
-    setSelectedModels((prev) => ({
-      ...prev,
-      [provider]: model,
-    }));
-  };
+  // Parse selected model to get provider and model name
+  const selectedModelInfo = useMemo((): SingleModelSelection | null => {
+    if (!selectedModel) return null;
+
+    for (const provider of availableProviders) {
+      const models = AVAILABLE_MODELS[provider];
+      if (models.find((m) => m.value === selectedModel)) {
+        return { provider, model: selectedModel };
+      }
+    }
+    return null;
+  }, [selectedModel, availableProviders]);
+
+  // Convert to the format expected by TRPC (for backward compatibility)
+  const selectedModels = useMemo((): SelectedModels => {
+    if (!selectedModelInfo) return {};
+    return {
+      [selectedModelInfo.provider]: selectedModelInfo.model,
+    };
+  }, [selectedModelInfo]);
 
   return {
-    selectedModels,
+    selectedModel,
+    setSelectedModel,
+    selectedModels, // For backward compatibility with existing code
+    selectedModelInfo,
     availableProviders,
     unavailableProviders,
-    setModelForProvider,
     isLoading,
     error,
     availableModels: AVAILABLE_MODELS,
@@ -129,10 +162,10 @@ export function useModelSelector() {
 // Props for the ModelSelector component
 interface ModelSelectorProps {
   className?: string;
-  selectedModels: SelectedModels;
+  selectedModel: string;
+  setSelectedModel: (model: string) => void;
   availableProviders: Provider[];
   unavailableProviders: Provider[];
-  setModelForProvider: (provider: Provider, model: string) => void;
   availableModels: typeof AVAILABLE_MODELS;
   isLoading: boolean;
   error?: Error | null;
@@ -141,10 +174,10 @@ interface ModelSelectorProps {
 // UI Component for model selection (presentational component)
 export function ModelSelector({
   className,
-  selectedModels,
+  selectedModel,
+  setSelectedModel,
   availableProviders,
   unavailableProviders,
-  setModelForProvider,
   availableModels,
   isLoading,
   error,
@@ -162,56 +195,115 @@ export function ModelSelector({
   return (
     <div className={cn("space-y-4", className)}>
       <div className="space-y-3">
-        {/* Show dropdowns for providers with API keys */}
         {isLoading ? (
           <>Loading settings...</>
         ) : (
           <>
-            {availableProviders.map((provider) => (
-              <div key={provider} className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-foreground">
-                  {providerLabels[provider]} Model
-                </label>
-                <Select
-                  value={selectedModels[provider]}
-                  onValueChange={(value) =>
-                    setModelForProvider(provider, value)
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue
-                      placeholder={`Select ${providerLabels[provider]} model`}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectLabel>
-                        {providerLabels[provider]} Models
-                      </SelectLabel>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-foreground">
+                AI Model
+              </label>
+              <p className="text-xs text-muted-foreground">
+                Select one model to use for this request. Only one model can be active at a time.
+              </p>
+              <Select value={selectedModel} onValueChange={setSelectedModel}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableProviders.map((provider) => (
+                    <SelectGroup key={provider}>
+                      <SelectLabel>{providerLabels[provider]}</SelectLabel>
                       {availableModels[provider].map((model) => (
                         <SelectItem key={model.value} value={model.value}>
                           {model.label}
                         </SelectItem>
                       ))}
                     </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-            ))}
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Show messages for providers without API keys */}
-            {unavailableProviders.map((provider) => (
-              <div key={provider} className="flex flex-col gap-2 opacity-50">
-                <label className="text-sm font-medium text-muted-foreground">
-                  {providerLabels[provider]} Model
-                </label>
-                <div className="border border-dashed border-muted-foreground/30 rounded-md px-3 py-2 text-sm text-muted-foreground">
-                  API Key not saved for {providerLabels[provider]}
-                </div>
+            {unavailableProviders.length > 0 && (
+              <div className="pt-2 border-t">
+                <p className="text-xs font-medium text-muted-foreground mb-2">
+                  Unavailable Providers
+                </p>
+                {unavailableProviders.map((provider) => (
+                  <div
+                    key={provider}
+                    className="text-xs text-muted-foreground py-1"
+                  >
+                    • {providerLabels[provider]} - API key not configured
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </>
         )}
       </div>
     </div>
+  );
+}
+
+// Dialog wrapper for model selector
+export function ModelSelectorDialog({
+  selectedModel,
+  setSelectedModel,
+  availableProviders,
+  unavailableProviders,
+  availableModels,
+  isLoading,
+  error,
+}: ModelSelectorProps) {
+  const [open, setOpen] = useState(false);
+
+  // Get the display label for the selected model
+  const selectedModelLabel = useMemo(() => {
+    if (!selectedModel) return null;
+
+    for (const provider of Object.keys(availableModels) as Provider[]) {
+      const model = availableModels[provider].find(
+        (m) => m.value === selectedModel
+      );
+      if (model) return model.label;
+    }
+    return null;
+  }, [selectedModel, availableModels]);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-2">
+          <SlidersHorizontalIcon className="h-4 w-4" />
+          {selectedModelLabel || "Model"}
+          {selectedModelLabel && (
+            <Badge variant="secondary" className="ml-1">
+              ✓
+            </Badge>
+          )}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Select AI Model</DialogTitle>
+          <DialogDescription>
+            Choose which AI model to use for generating responses. Only one
+            model can be selected at a time.
+          </DialogDescription>
+        </DialogHeader>
+        <ModelSelector
+          selectedModel={selectedModel}
+          setSelectedModel={setSelectedModel}
+          availableProviders={availableProviders}
+          unavailableProviders={unavailableProviders}
+          availableModels={availableModels}
+          isLoading={isLoading}
+          error={error}
+        />
+      </DialogContent>
+    </Dialog>
   );
 }

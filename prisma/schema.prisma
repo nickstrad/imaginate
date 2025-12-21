@@ -34,11 +34,17 @@ enum MessageType {
   ERROR
 }
 
+enum MessageMode {
+  CODE
+  ASK
+}
+
 model Message {
   id        String      @id @default(uuid())
   content   String
   role      MessageRole
   type      MessageType
+  mode      MessageMode @default(CODE)
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 

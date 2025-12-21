@@ -49,6 +49,7 @@ export const projectsRouter = createTRPCRouter({
             gemini: z.string().optional(),
           })
           .optional(),
+        mode: z.enum(["code", "ask"]).default("code"),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -79,13 +80,16 @@ export const projectsRouter = createTRPCRouter({
               content: input.userPrompt,
               role: "USER",
               type: "RESULT",
+              mode: input.mode.toUpperCase() as "CODE" | "ASK",
             },
           },
         },
       });
 
+      const eventName = input.mode === "ask" ? "askAgent/run" : "codeAgent/run";
+
       await inngest.send({
-        name: "codeAgent/run",
+        name: eventName,
         data: {
           userPrompt: input.userPrompt,
           projectId: project.id,

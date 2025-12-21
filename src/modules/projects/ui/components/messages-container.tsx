@@ -27,10 +27,11 @@ import { MessageLoading } from "./message-loading";
 import { useRouter } from "next/navigation";
 import { ProjectHeader } from "./project-header";
 import { Usage } from "./usage";
+import { useModelSelector } from "@/modules/messages/ui/components/model-selector";
 import {
-  ModelSelector,
-  useModelSelector,
-} from "@/modules/messages/ui/components/model-selector";
+  ModeSelector,
+  useModeSelector,
+} from "@/modules/messages/ui/components/mode-selector";
 
 interface Props {
   projectId: string;
@@ -200,7 +201,7 @@ export const MessagesContainer = ({
   const router = useRouter();
   const trpc = useTRPC();
   const modelSelectorState = useModelSelector();
-  const { selectedModels } = modelSelectorState;
+  const modeSelectorState = useModeSelector();
   const { data: messages, refetch } = useSuspenseQuery(
     trpc.messages.getMany.queryOptions(
       {
@@ -326,7 +327,12 @@ export const MessagesContainer = ({
     if (content.trim()) {
       // Reset user scrolling flag when user sends a message
       setIsUserScrolling(false);
-      createMessage.mutate({ userPrompt: content, projectId, selectedModels });
+      createMessage.mutate({
+        userPrompt: content,
+        projectId,
+        selectedModels: modelSelectorState.selectedModels,
+        mode: modeSelectorState.mode,
+      });
     }
   };
 
@@ -366,17 +372,7 @@ export const MessagesContainer = ({
             msBeforeNext={usage.msBeforeNext}
           />
         ) : null}
-        <div className="mb-3">
-          <ModelSelector
-            selectedModels={modelSelectorState.selectedModels}
-            availableProviders={modelSelectorState.availableProviders}
-            unavailableProviders={modelSelectorState.unavailableProviders}
-            setModelForProvider={modelSelectorState.setModelForProvider}
-            availableModels={modelSelectorState.availableModels}
-            isLoading={modelSelectorState.isLoading}
-            error={modelSelectorState.error}
-          />
-        </div>
+
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <Textarea
             value={content}
@@ -393,7 +389,8 @@ export const MessagesContainer = ({
                   createMessage.mutate({
                     userPrompt: content,
                     projectId,
-                    selectedModels,
+                    selectedModels: modelSelectorState.selectedModels,
+                    mode: modeSelectorState.mode,
                   });
                 }
               }
@@ -407,6 +404,19 @@ export const MessagesContainer = ({
             <SendIcon className="h-4 w-4" />
           </Button>
         </form>
+        <div className="mb-3">
+          <ModeSelector
+            mode={modeSelectorState.mode}
+            setMode={modeSelectorState.setMode}
+            availableModes={modeSelectorState.availableModes}
+            selectedModel={modelSelectorState.selectedModel}
+            setSelectedModel={modelSelectorState.setSelectedModel}
+            availableProviders={modelSelectorState.availableProviders}
+            unavailableProviders={modelSelectorState.unavailableProviders}
+            isLoading={modelSelectorState.isLoading}
+            error={modelSelectorState.error}
+          />
+        </div>
       </div>
     </div>
   );
