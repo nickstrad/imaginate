@@ -348,7 +348,7 @@ export const MessagesContainer = ({
         }
       />
       <div className="relative flex-1 min-h-0">
-        <div className="h-full overflow-y-auto pb-20" ref={scrollContainerRef}>
+        <div className="h-full overflow-y-auto pb-72" ref={scrollContainerRef}>
           <div className="pt-2 px-4 pb-4">
             {(messages as Message[]).map((message) => (
               <MessageBubble
@@ -362,7 +362,7 @@ export const MessagesContainer = ({
           </div>
         </div>
         {showGradient && (
-          <div className="absolute bottom-20 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+          <div className="absolute bottom-72 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
         )}
       </div>
       <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -415,7 +415,6 @@ export const MessagesContainer = ({
             unavailableProviders={modelSelectorState.unavailableProviders}
             isLoading={modelSelectorState.isLoading}
             error={modelSelectorState.error}
-            disabledModes={["ask"]}
           />
         </div>
       </div>
