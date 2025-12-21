@@ -39,11 +39,6 @@ export interface UseModeSelector {
 // Types for model selection
 type Provider = "openai" | "anthropic" | "gemini";
 
-interface ModelOption {
-  value: string;
-  label: string;
-}
-
 const AVAILABLE_MODELS = {
   openai: [
     { value: "gpt-5", label: "GPT-5" },
@@ -258,7 +253,10 @@ export function ModeSelector({
                                 {providerLabels[provider]}
                               </SelectLabel>
                               {AVAILABLE_MODELS[provider].map((model) => (
-                                <SelectItem key={model.value} value={model.value}>
+                                <SelectItem
+                                  key={model.value}
+                                  value={model.value}
+                                >
                                   {model.label}
                                 </SelectItem>
                               ))}
@@ -279,7 +277,8 @@ export function ModeSelector({
                             key={provider}
                             className="text-xs text-muted-foreground py-1"
                           >
-                            • {providerLabels[provider]} - API key not configured
+                            • {providerLabels[provider]} - API key not
+                            configured
                           </div>
                         ))}
                       </div>
