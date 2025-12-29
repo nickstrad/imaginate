@@ -19,6 +19,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Imaginate",
   description: "Build all you imagine!",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

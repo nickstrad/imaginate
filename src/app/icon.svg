@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Background (matches dark UI) -->
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="#121212"/>
+
+  <!-- Accent dot grid hint (very subtle; still survives downscaling) -->
+  <g fill="#FFFFFF" opacity="0.06">
+    <!-- a few dots only (avoid heavy patterns for favicons) -->
+    <circle cx="172" cy="168" r="4"/>
+    <circle cx="220" cy="168" r="4"/>
+    <circle cx="268" cy="168" r="4"/>
+    <circle cx="316" cy="168" r="4"/>
+    <circle cx="172" cy="216" r="4"/>
+    <circle cx="220" cy="216" r="4"/>
+    <circle cx="268" cy="216" r="4"/>
+    <circle cx="316" cy="216" r="4"/>
+  </g>
+
+  <!-- Monogram "I" (thick + rounded = reads well at 16px) -->
+  <rect x="224" y="154" width="64" height="204" rx="22" fill="#C97B5A"/>
+
+  <!-- Small creative “spark” notch (subtle brand flair, still clean) -->
+  <path d="M305 170 L330 160 L320 185 Z" fill="#C97B5A" opacity="0.95"/>
+</svg>
