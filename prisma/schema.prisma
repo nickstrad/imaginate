@@ -38,14 +38,22 @@ enum MessageMode {
   ASK
 }
 
+enum MessageStatus {
+  PENDING
+  COMPLETE
+  ERROR
+}
+
 model Message {
-  id        String      @id @default(uuid())
+  id        String        @id @default(uuid())
   content   String
   role      MessageRole
   type      MessageType
-  mode      MessageMode @default(CODE)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  mode      MessageMode   @default(CODE)
+  status    MessageStatus @default(COMPLETE)
+  thoughts  Json?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   fragment Fragment?
 

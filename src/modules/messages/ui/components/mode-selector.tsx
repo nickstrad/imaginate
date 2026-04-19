@@ -69,7 +69,7 @@ export function ModeSelector({
   };
 
   return (
-    <div className={cn("flex items-start gap-2", className)}>
+    <div className={cn("flex flex-col items-start gap-1", className)}>
       <div className="space-y-2 flex-1">
         <label className="text-sm font-medium text-foreground">Mode</label>
         <ToggleGroup

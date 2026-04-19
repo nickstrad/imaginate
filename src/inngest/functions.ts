@@ -16,6 +16,61 @@ import {
   ASK_AGENT_PROMPT,
 } from "@/prompts/prompts";
 import { prisma } from "@/db";
+import {
+  MessageRole,
+  MessageType,
+  MessageStatus,
+  MessageMode,
+} from "@/generated/prisma";
+import {
+  ThoughtSchema,
+  ThoughtsSchema,
+  thoughtsToPrismaJson,
+  type Thought,
+} from "@/lib/schemas/thought";
+
+function formatProviderError(err: unknown): string {
+  const raw =
+    err instanceof Error
+      ? err.message
+      : typeof err === "string"
+        ? err
+        : JSON.stringify(err);
+
+  const lower = raw.toLowerCase();
+
+  if (
+    lower.includes("credit") ||
+    lower.includes("balance") ||
+    lower.includes("quota") ||
+    lower.includes("insufficient")
+  ) {
+    return `Provider account limit reached: ${raw}`;
+  }
+  if (
+    lower.includes("rate limit") ||
+    lower.includes("429") ||
+    lower.includes("too many requests")
+  ) {
+    return `Provider rate limit exceeded: ${raw}`;
+  }
+  if (
+    lower.includes("unauthorized") ||
+    lower.includes("401") ||
+    lower.includes("api key") ||
+    lower.includes("authentication")
+  ) {
+    return `Provider authentication failed: ${raw}`;
+  }
+  if (
+    lower.includes("timeout") ||
+    lower.includes("econnreset") ||
+    lower.includes("etimedout")
+  ) {
+    return `Provider connection error: ${raw}`;
+  }
+  return `Provider error: ${raw}`;
+}
 
 export const codeAgentFunction = inngest.createFunction(
   { id: "codeAgent" },
@@ -29,9 +84,24 @@ export const codeAgentFunction = inngest.createFunction(
 
     const modelConfig = resolveModelConfig(event.data.selectedModels);
 
+    const persistedMessage = await step.run("create-message", async () =>
+      prisma.message.create({
+        data: {
+          projectId: event.data.projectId,
+          role: MessageRole.ASSISTANT,
+          content: "",
+          type: MessageType.RESULT,
+          status: MessageStatus.PENDING,
+          thoughts: [],
+        },
+      })
+    );
+
     const previousMessages = await step.run("get-previous-messages", async () =>
       getPreviousMessages(event.data.projectId)
     );
+
+    let thoughts: Thought[] = [];
 
     const messages: ModelMessage[] = [
       ...(previousMessages as ModelMessage[]),
@@ -117,27 +187,67 @@ export const codeAgentFunction = inngest.createFunction(
         }),
     });
 
-    const result = await generateText({
-      model: createModelProvider(modelConfig),
-      system: AGENT_PROMPT,
-      messages,
-      tools: {
-        terminal: terminalTool,
-        createOrUpdateFiles: createOrUpdateFilesTool,
-        readFiles: readFilesTool,
-      },
-      maxOutputTokens: 4096,
-      stopWhen: [
-        stepCountIs(15),
-        ({ steps }) => {
-          const last = steps[steps.length - 1];
-          return (
-            typeof last?.text === "string" &&
-            last.text.includes("<task_summary>")
-          );
+    let result;
+    try {
+      result = await generateText({
+        model: createModelProvider(modelConfig),
+        system: AGENT_PROMPT,
+        messages,
+        tools: {
+          terminal: terminalTool,
+          createOrUpdateFiles: createOrUpdateFilesTool,
+          readFiles: readFilesTool,
         },
-      ],
-    });
+        maxOutputTokens: 4096,
+        stopWhen: [
+          stepCountIs(15),
+          ({ steps }) => {
+            const last = steps[steps.length - 1];
+            return (
+              typeof last?.text === "string" &&
+              last.text.includes("<task_summary>")
+            );
+          },
+        ],
+        onStepFinish: async (stepResult) => {
+          const newThought = ThoughtSchema.parse({
+            stepIndex: stepResult.stepNumber,
+            text: stepResult.text ?? "",
+            toolCalls: stepResult.toolCalls?.map((tc) => ({
+              toolName: tc.toolName,
+              args: tc.input,
+            })),
+            toolResults: stepResult.toolResults?.map((tr) =>
+              typeof tr.output === "string"
+                ? tr.output
+                : JSON.stringify(tr.output)
+            ),
+            reasoningText: stepResult.reasoning?.[0]?.text,
+            finishReason: stepResult.finishReason,
+          });
+
+          thoughts.push(newThought);
+
+          await prisma.message.update({
+            where: { id: persistedMessage.id },
+            data: { thoughts: thoughtsToPrismaJson(thoughts) },
+          });
+        },
+      });
+    } catch (err) {
+      const errorMessage = formatProviderError(err);
+      await step.run("save-provider-error", async () =>
+        prisma.message.update({
+          where: { id: persistedMessage.id },
+          data: {
+            content: errorMessage,
+            type: MessageType.ERROR,
+            status: MessageStatus.ERROR,
+          },
+        })
+      );
+      return { error: errorMessage };
+    }
 
     const summary = result.text?.includes("<task_summary>") ? result.text : "";
     const postprocModel = resolvePostprocModel(modelConfig);
@@ -172,22 +282,22 @@ export const codeAgentFunction = inngest.createFunction(
 
     await step.run("save-result", async () => {
       if (isError) {
-        return prisma.message.create({
+        return prisma.message.update({
+          where: { id: persistedMessage.id },
           data: {
-            projectId: event.data.projectId,
             content: "Something went wrong. Please try again..",
-            role: "ASSISTANT",
-            type: "ERROR",
+            type: MessageType.ERROR,
+            status: MessageStatus.ERROR,
           },
         });
       }
 
-      return prisma.message.create({
+      return prisma.message.update({
+        where: { id: persistedMessage.id },
         data: {
-          projectId: event.data.projectId,
           content: responseText,
-          role: "ASSISTANT",
-          type: "RESULT",
+          type: MessageType.RESULT,
+          status: MessageStatus.COMPLETE,
           fragment: {
             create: {
               sandboxUrl,
@@ -224,24 +334,41 @@ export const askAgentFunction = inngest.createFunction(
     ];
 
     const response = await step.run("ask-agent", async () => {
-      const { text } = await generateText({
-        model: createModelProvider(modelConfig),
-        system: ASK_AGENT_PROMPT,
-        messages,
-        maxOutputTokens: 4096,
-      });
-      return text;
+      try {
+        const { text } = await generateText({
+          model: createModelProvider(modelConfig),
+          system: ASK_AGENT_PROMPT,
+          messages,
+          maxOutputTokens: 4096,
+        });
+        return { text, error: null };
+      } catch (err) {
+        return { text: "", error: formatProviderError(err) };
+      }
     });
 
     await step.run("save-result", async () => {
+      if (response.error) {
+        return prisma.message.create({
+          data: {
+            projectId: event.data.projectId,
+            content: response.error,
+            role: MessageRole.ASSISTANT,
+            type: MessageType.ERROR,
+            status: MessageStatus.ERROR,
+            mode: MessageMode.ASK,
+          },
+        });
+      }
       return prisma.message.create({
         data: {
           projectId: event.data.projectId,
           content:
-            response || "I couldn't generate a response. Please try again.",
-          role: "ASSISTANT",
-          type: response ? "RESULT" : "ERROR",
-          mode: "ASK",
+            response.text ||
+            "I couldn't generate a response. Please try again.",
+          role: MessageRole.ASSISTANT,
+          type: response.text ? MessageType.RESULT : MessageType.ERROR,
+          mode: MessageMode.ASK,
         },
       });
     });

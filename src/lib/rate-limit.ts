@@ -32,6 +32,9 @@ function getLimiter(): RateLimiterPrisma {
 }
 
 export async function consumeRateLimit(ip: string | null): Promise<void> {
+  if (process.env.NODE_ENV === "development") {
+    return;
+  }
   const key = hashKey(ip ?? GLOBAL_FALLBACK_KEY);
   try {
     await getLimiter().consume(key, 1);

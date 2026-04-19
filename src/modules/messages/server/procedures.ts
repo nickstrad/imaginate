@@ -6,6 +6,7 @@ import { TRPCError } from "@trpc/server";
 import z from "zod";
 import { MessageMode } from "@/generated/prisma";
 import { SelectedModelsSchema } from "@/lib/providers";
+import type { Thought } from "@/lib/schemas/thought";
 
 export const messagesRouter = createTRPCRouter({
   getMany: publicProcedure
@@ -15,11 +16,15 @@ export const messagesRouter = createTRPCRouter({
       })
     )
     .query(async ({ input }) => {
-      return prisma.message.findMany({
+      const messages = await prisma.message.findMany({
         where: { projectId: input.projectId },
         include: { fragment: true },
         orderBy: { updatedAt: "asc" },
       });
+      return messages.map((msg) => ({
+        ...msg,
+        thoughts: (msg.thoughts as Thought[] | null) ?? undefined,
+      }));
     }),
   create: publicProcedure
     .input(

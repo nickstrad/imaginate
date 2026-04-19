@@ -3,6 +3,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { LanguageModel, ModelMessage } from "ai";
 import { prisma } from "@/db";
+import { MessageRole, MessageStatus } from "@/generated/prisma";
 import { getProviderKey } from "@/lib/provider-config";
 import {
   PROVIDERS,
@@ -69,14 +70,18 @@ export async function getPreviousMessages(
   projectId: string
 ): Promise<ModelMessage[]> {
   const messages = await prisma.message.findMany({
-    where: { projectId },
+    where: {
+      projectId,
+      content: { not: "" },
+      status: { not: MessageStatus.PENDING },
+    },
     orderBy: { createdAt: "desc" },
     take: 5,
   });
 
   return messages
     .map<ModelMessage>((m) => ({
-      role: m.role === "ASSISTANT" ? "assistant" : "user",
+      role: m.role === MessageRole.ASSISTANT ? "assistant" : "user",
       content: m.content,
     }))
     .reverse();

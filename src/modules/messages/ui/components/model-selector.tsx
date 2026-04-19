@@ -20,7 +20,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { SlidersHorizontal as SlidersHorizontalIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
@@ -277,11 +276,6 @@ export function ModelSelectorDialog({
         <Button variant="outline" size="sm" className="gap-2">
           <SlidersHorizontalIcon className="h-4 w-4" />
           {selectedModelLabel || "Model"}
-          {selectedModelLabel && (
-            <Badge variant="secondary" className="ml-1">
-              ✓
-            </Badge>
-          )}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
