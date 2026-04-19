@@ -1,22 +1,14 @@
-import {
-  openai,
-  anthropic,
-  gemini,
-  createAgent,
-  createTool,
-  createNetwork,
-  Tool,
-  createState,
-  Message,
-} from "@inngest/agent-kit";
-import { inngest } from "./client";
-import { Sandbox } from "@e2b/code-interpreter";
-import {
-  getSandbox,
-  lastAssistantTextMessageContent,
-  SANDBOX_TIMEOUT,
-} from "./utils";
+import { generateText, stepCountIs, tool, type ModelMessage } from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
+import { Sandbox } from "@e2b/code-interpreter";
+import { inngest } from "./client";
+import { getSandbox, SANDBOX_TIMEOUT } from "./utils";
+import {
+  createModelProvider,
+  resolveModelConfig,
+  getPreviousMessages,
+} from "./model-factory";
 import {
   AGENT_PROMPT,
   FRAGMENT_TITLE_PROMPT,
@@ -24,34 +16,6 @@ import {
   ASK_AGENT_PROMPT,
 } from "@/prompts/prompts";
 import { prisma } from "@/db";
-import { parseAgentOutput } from "@/lib/utils";
-import { decryptApiKeys } from "@/lib/encryption";
-
-interface AgentState {
-  summary?: string;
-  files?: { [path: string]: string };
-}
-
-function createModelProvider(
-  provider: "openai" | "anthropic" | "gemini",
-  model: string,
-  apiKey: string
-) {
-  switch (provider) {
-    case "openai":
-      return openai({ model, apiKey });
-    case "anthropic":
-      return anthropic({
-        model,
-        apiKey,
-        defaultParameters: { max_tokens: 4096 },
-      });
-    case "gemini":
-      return gemini({ model, apiKey });
-    default:
-      throw new Error(`Unsupported provider: ${provider}`);
-  }
-}
 
 export const codeAgentFunction = inngest.createFunction(
   { id: "codeAgent" },
@@ -63,257 +27,158 @@ export const codeAgentFunction = inngest.createFunction(
       return sandbox.sandboxId;
     });
 
-    const modelConfig = await step.run("get-model-config", async () => {
-      const userSettings = await prisma.settings.findUnique({
-        where: { userId: event.data.userId },
-      });
+    const modelConfig = await step.run("get-model-config", async () =>
+      resolveModelConfig(event.data.userId, event.data.selectedModels),
+    );
 
-      if (!userSettings) {
-        throw new Error("User settings not found");
-      }
+    const previousMessages = await step.run("get-previous-messages", async () =>
+      getPreviousMessages(event.data.projectId),
+    );
 
-      const decryptedKeys = decryptApiKeys(
-        {
-          geminiApiKey: userSettings.geminiApiKey,
-          openaiApiKey: userSettings.openaiApiKey,
-          anthropicApiKey: userSettings.anthropicApiKey,
-        },
-        event.data.userId
-      );
+    const messages: ModelMessage[] = [
+      ...(previousMessages as ModelMessage[]),
+      { role: "user", content: event.data.userPrompt as string },
+    ];
 
-      const selectedModels = event.data.selectedModels || {};
+    const filesState: Record<string, string> = {};
+    let toolStepCounter = 0;
+    const nextStepId = (base: string) => `${base}-${++toolStepCounter}`;
 
-      let provider: "openai" | "anthropic" | "gemini" = "openai";
-      let model = "gpt-4o-mini";
-      let apiKey = "";
-
-      if (selectedModels.openai && decryptedKeys.openaiApiKey) {
-        provider = "openai";
-        model = selectedModels.openai;
-        apiKey = decryptedKeys.openaiApiKey;
-      } else if (selectedModels.anthropic && decryptedKeys.anthropicApiKey) {
-        provider = "anthropic";
-        model = selectedModels.anthropic;
-        apiKey = decryptedKeys.anthropicApiKey;
-      } else if (selectedModels.gemini && decryptedKeys.geminiApiKey) {
-        provider = "gemini";
-        model = selectedModels.gemini;
-        apiKey = decryptedKeys.geminiApiKey;
-      } else if (decryptedKeys.openaiApiKey) {
-        apiKey = decryptedKeys.openaiApiKey;
-      } else {
-        throw new Error("No API key available for selected model");
-      }
-
-      return { provider, model, apiKey };
+    const terminalTool = tool({
+      description: "Use the terminal to run commands",
+      inputSchema: z.object({ command: z.string() }),
+      execute: async ({ command }) =>
+        step.run(nextStepId("terminal"), async () => {
+          const buffers = { stdout: "", stderr: "" };
+          try {
+            const sandbox = await getSandbox(sandboxId);
+            const result = await sandbox.commands.run(command, {
+              onStdout: (data) => {
+                buffers.stdout += data;
+              },
+              onStderr: (data) => {
+                buffers.stderr += data;
+              },
+            });
+            return result.stdout;
+          } catch (error) {
+            const errMsg = `Command failed:\nerror: ${error}\nstdout: ${buffers.stdout}\nstderr: ${buffers.stderr}`;
+            console.error(errMsg);
+            return errMsg;
+          }
+        }),
     });
 
-    const previousMessages = await step.run(
-      "get-previous-messages",
-      async () => {
-        const formattedMessages: Message[] = [];
-        const messages = await prisma.message.findMany({
-          where: {
-            projectId: event.data.projectId,
+    const createOrUpdateFilesTool = tool({
+      description: "Create or update files in the sandbox",
+      inputSchema: z.object({
+        files: z.array(
+          z.object({ path: z.string(), content: z.string() }),
+        ),
+      }),
+      execute: async ({ files }) => {
+        const written = await step.run(
+          nextStepId("createOrUpdateFiles"),
+          async () => {
+            try {
+              const sandbox = await getSandbox(sandboxId);
+              const out: Record<string, string> = {};
+              for (const file of files) {
+                await sandbox.files.write(file.path, file.content);
+                out[file.path] = file.content;
+              }
+              return { ok: true as const, files: out };
+            } catch (error) {
+              return { ok: false as const, error: String(error) };
+            }
           },
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 5,
-        });
+        );
 
-        for (const message of messages) {
-          formattedMessages.push({
-            type: "text",
-            role: message.role === "ASSISTANT" ? "assistant" : "user",
-            content: message.content,
-          });
-        }
-
-        return formattedMessages.reverse();
-      }
-    );
-
-    const state = createState<AgentState>(
-      {
-        files: {},
-        summary: "",
+        if (!written.ok) return `Error: ${written.error}`;
+        Object.assign(filesState, written.files);
+        return `Wrote ${Object.keys(written.files).length} file(s).`;
       },
-      { messages: previousMessages }
-    );
+    });
 
-    const codeAgent = createAgent<AgentState>({
+    const readFilesTool = tool({
+      description: "Read files from the sandbox",
+      inputSchema: z.object({ files: z.array(z.string()) }),
+      execute: async ({ files }) =>
+        step.run(nextStepId("readFiles"), async () => {
+          try {
+            const sandbox = await getSandbox(sandboxId);
+            const contents = await Promise.all(
+              files.map(async (file) => ({
+                path: file,
+                content: await sandbox.files.read(file),
+              })),
+            );
+            return JSON.stringify(contents);
+          } catch (error) {
+            console.error(error);
+            return `Error: ${error}`;
+          }
+        }),
+    });
+
+    const result = await generateText({
       model: createModelProvider(
         modelConfig.provider,
         modelConfig.model,
-        modelConfig.apiKey
+        modelConfig.apiKey,
       ),
-      description: "An expert coding agent",
       system: AGENT_PROMPT,
-      name: "writer",
-      tools: [
-        createTool({
-          name: "terminal",
-          description: "Use the terminal to run commands",
-          parameters: z.object({
-            command: z.string(),
-          }),
-          handler: async ({ command }, { step }) => {
-            return await step?.run("terminal", async () => {
-              const buffers = { stdout: "", stderr: "" };
-              try {
-                const sandbox = await getSandbox(sandboxId);
-                const result = await sandbox.commands.run(command, {
-                  onStdout: (data) => {
-                    buffers.stdout += data;
-                  },
-                  onStderr: (data) => {
-                    buffers.stderr += data;
-                  },
-                });
-                return result.stdout;
-              } catch (error) {
-                const errMsg = `Command failed:\nerror: ${error}\nstdout: ${buffers.stdout}\nstderr: ${buffers.stderr}`;
-                console.error(errMsg);
-                return errMsg;
-              }
-            });
-          },
-        }),
-        createTool({
-          name: "createOrUpdateFiles",
-          description: "Create or update files in the sandbox",
-          parameters: z.object({
-            files: z.array(
-              z.object({
-                path: z.string(),
-                content: z.string(),
-              })
-            ),
-          }),
-          handler: async (
-            { files },
-            { step, network }: Tool.Options<AgentState>
-          ) => {
-            const newFiles = await step?.run(
-              "createOrUpdateFiles",
-              async () => {
-                try {
-                  const updatedFiles = network.state.data.files || {};
-                  const sandbox = await getSandbox(sandboxId);
-                  for (const file of files) {
-                    await sandbox.files.write(file.path, file.content);
-                    updatedFiles[file.path] = file.content;
-                  }
-                  return updatedFiles;
-                } catch (error) {
-                  return `Error: ${error}`;
-                }
-              }
-            );
-
-            if (typeof newFiles === "object") {
-              network.state.data.files = newFiles;
-            }
-          },
-        }),
-        createTool({
-          name: "readFiles",
-          description: "Read files from the sandbox",
-          parameters: z.object({
-            files: z.array(z.string()),
-          }),
-          handler: async ({ files }, { step }) => {
-            return await step?.run("readFiles", async () => {
-              try {
-                const sandbox = await getSandbox(sandboxId);
-                const contents = await Promise.all(
-                  files.map((file) => ({
-                    path: file,
-                    content: sandbox.files.read(file),
-                  }))
-                );
-                return JSON.stringify(contents);
-              } catch (error) {
-                console.error(error);
-                return `Error: ${error}`;
-              }
-            });
-          },
-        }),
-      ],
-      lifecycle: {
-        onResponse: async ({ result, network }) => {
-          const lastAssistantMessageText =
-            lastAssistantTextMessageContent(result);
-          if (lastAssistantMessageText && network) {
-            if (lastAssistantMessageText.includes("<task_summary>")) {
-              network.state.data.summary = lastAssistantMessageText;
-            }
-          }
-
-          return result;
+      messages,
+      tools: {
+        terminal: terminalTool,
+        createOrUpdateFiles: createOrUpdateFilesTool,
+        readFiles: readFilesTool,
+      },
+      maxOutputTokens: 4096,
+      stopWhen: [
+        stepCountIs(15),
+        ({ steps }) => {
+          const last = steps[steps.length - 1];
+          return typeof last?.text === "string" && last.text.includes("<task_summary>");
         },
-      },
+      ],
     });
 
-    const network = createNetwork<AgentState>({
-      name: "codingAgentNetwork",
-      agents: [codeAgent],
-      defaultState: state,
-      maxIter: 15,
-      router: async ({ network }) => {
-        const summary = network.state.data.summary;
+    const summary = result.text?.includes("<task_summary>") ? result.text : "";
 
-        if (summary) {
-          return;
-        }
-        return codeAgent;
-      },
+    const openaiForPostproc = createOpenAI({ apiKey: modelConfig.openaiApiKey });
+
+    const fragmentTitle = await step.run("fragment-title", async () => {
+      if (!summary) return "Fragment";
+      const { text } = await generateText({
+        model: openaiForPostproc("gpt-4o-mini"),
+        system: FRAGMENT_TITLE_PROMPT,
+        prompt: summary,
+      });
+      return text || "Fragment";
     });
 
-    const result = await network.run(event.data.userPrompt, { state });
-
-    const fragmentTitleGenerator = createAgent({
-      name: "fragment-title-generator",
-      description: "A fragment title generator",
-      system: FRAGMENT_TITLE_PROMPT,
-      model: openai({
-        model: "gpt-4o-mini",
-      }),
+    const responseText = await step.run("response-text", async () => {
+      if (!summary) return "Here you go.";
+      const { text } = await generateText({
+        model: openaiForPostproc("gpt-4o-mini"),
+        system: RESPONSE_PROMPT,
+        prompt: summary,
+      });
+      return text || "Here you go.";
     });
 
-    const responseGenerator = createAgent({
-      name: "response-generator",
-      description: "A response generator",
-      system: RESPONSE_PROMPT,
-      model: openai({
-        model: "gpt-4o-mini",
-      }),
-    });
+    const isError = !summary || !Object.keys(filesState).length;
 
-    const summary = result.state.data.summary || "";
-
-    const { output: fragmentTitleOutput } = await fragmentTitleGenerator.run(
-      summary
-    );
-
-    const { output: responseOutput } = await responseGenerator.run(summary);
-
-    const isError =
-      !result.state.data.summary ||
-      !Object.keys(result.state.data.files || {}).length;
     const sandboxUrl = await step.run("get-sandbox-url", async () => {
       const sandbox = await getSandbox(sandboxId);
       const host = sandbox.getHost(3000);
-
       return `https://${host}`;
     });
 
-    const fragmentTitle = parseAgentOutput(fragmentTitleOutput, "Fragment");
     await step.run("save-result", async () => {
       if (isError) {
-        return await prisma.message.create({
+        return prisma.message.create({
           data: {
             projectId: event.data.projectId,
             content: "Something went wrong. Please try again..",
@@ -326,14 +191,14 @@ export const codeAgentFunction = inngest.createFunction(
       return prisma.message.create({
         data: {
           projectId: event.data.projectId,
-          content: parseAgentOutput(responseOutput, "Here you go."),
+          content: responseText,
           role: "ASSISTANT",
           type: "RESULT",
           fragment: {
             create: {
               sandboxUrl,
               title: fragmentTitle,
-              files: result.state.data.files || {},
+              files: filesState,
             },
           },
         },
@@ -343,155 +208,55 @@ export const codeAgentFunction = inngest.createFunction(
     return {
       url: sandboxUrl,
       title: fragmentTitle,
-      files: result.state.data.files,
-      summary: result.state.data.summary,
+      files: filesState,
+      summary,
     };
-  }
+  },
 );
-
-interface AskAgentState {
-  response?: string;
-}
 
 export const askAgentFunction = inngest.createFunction(
   { id: "askAgent" },
   { event: "askAgent/run" },
   async ({ event, step }) => {
-    const modelConfig = await step.run("get-model-config", async () => {
-      const userSettings = await prisma.settings.findUnique({
-        where: { userId: event.data.userId },
+    const modelConfig = await step.run("get-model-config", async () =>
+      resolveModelConfig(event.data.userId, event.data.selectedModels),
+    );
+
+    const previousMessages = await step.run("get-previous-messages", async () =>
+      getPreviousMessages(event.data.projectId),
+    );
+
+    const messages: ModelMessage[] = [
+      ...(previousMessages as ModelMessage[]),
+      { role: "user", content: event.data.userPrompt as string },
+    ];
+
+    const response = await step.run("ask-agent", async () => {
+      const { text } = await generateText({
+        model: createModelProvider(
+          modelConfig.provider,
+          modelConfig.model,
+          modelConfig.apiKey,
+        ),
+        system: ASK_AGENT_PROMPT,
+        messages,
+        maxOutputTokens: 4096,
       });
-
-      if (!userSettings) {
-        throw new Error("User settings not found");
-      }
-
-      const decryptedKeys = decryptApiKeys(
-        {
-          geminiApiKey: userSettings.geminiApiKey,
-          openaiApiKey: userSettings.openaiApiKey,
-          anthropicApiKey: userSettings.anthropicApiKey,
-        },
-        event.data.userId
-      );
-
-      const selectedModels = event.data.selectedModels || {};
-
-      let provider: "openai" | "anthropic" | "gemini" = "openai";
-      let model = "gpt-4o-mini";
-      let apiKey = "";
-
-      if (selectedModels.openai && decryptedKeys.openaiApiKey) {
-        provider = "openai";
-        model = selectedModels.openai;
-        apiKey = decryptedKeys.openaiApiKey;
-      } else if (selectedModels.anthropic && decryptedKeys.anthropicApiKey) {
-        provider = "anthropic";
-        model = selectedModels.anthropic;
-        apiKey = decryptedKeys.anthropicApiKey;
-      } else if (selectedModels.gemini && decryptedKeys.geminiApiKey) {
-        provider = "gemini";
-        model = selectedModels.gemini;
-        apiKey = decryptedKeys.geminiApiKey;
-      } else if (decryptedKeys.openaiApiKey) {
-        apiKey = decryptedKeys.openaiApiKey;
-      } else {
-        throw new Error("No API key available for selected model");
-      }
-
-      return { provider, model, apiKey };
+      return text;
     });
-
-    const previousMessages = await step.run(
-      "get-previous-messages",
-      async () => {
-        const formattedMessages: Message[] = [];
-        const messages = await prisma.message.findMany({
-          where: {
-            projectId: event.data.projectId,
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 5,
-        });
-
-        for (const message of messages) {
-          formattedMessages.push({
-            type: "text",
-            role: message.role === "ASSISTANT" ? "assistant" : "user",
-            content: message.content,
-          });
-        }
-
-        return formattedMessages.reverse();
-      }
-    );
-
-    const state = createState<AskAgentState>(
-      {
-        response: "",
-      },
-      { messages: previousMessages }
-    );
-
-    const askAgent = createAgent<AskAgentState>({
-      model: createModelProvider(
-        modelConfig.provider,
-        modelConfig.model,
-        modelConfig.apiKey
-      ),
-      description: "An expert Q&A agent",
-      system: ASK_AGENT_PROMPT,
-      name: "ask-agent",
-      tools: [],
-      lifecycle: {
-        onResponse: async ({ result, network }) => {
-          const lastAssistantMessageText =
-            lastAssistantTextMessageContent(result);
-          if (lastAssistantMessageText && network) {
-            network.state.data.response = lastAssistantMessageText;
-          }
-          return result;
-        },
-      },
-    });
-
-    const network = createNetwork<AskAgentState>({
-      name: "askAgentNetwork",
-      agents: [askAgent],
-      defaultState: state,
-      maxIter: 5,
-      router: async ({ network }) => {
-        const response = network.state.data.response;
-
-        if (response) {
-          return;
-        }
-        return askAgent;
-      },
-    });
-
-    const result = await network.run(event.data.userPrompt, { state });
 
     await step.run("save-result", async () => {
-      const response =
-        result.state.data.response ||
-        "I couldn't generate a response. Please try again.";
-
       return prisma.message.create({
         data: {
           projectId: event.data.projectId,
-          content: response,
+          content: response || "I couldn't generate a response. Please try again.",
           role: "ASSISTANT",
-          type: result.state.data.response ? "RESULT" : "ERROR",
+          type: response ? "RESULT" : "ERROR",
           mode: "ASK",
         },
       });
     });
 
-    return {
-      response: result.state.data.response,
-    };
-  }
+    return { response };
+  },
 );
