@@ -13,12 +13,8 @@ import { Suspense } from "react";
 import React from "react";
 import { Fragment } from "@/generated/prisma";
 import { FragmentWeb } from "../components/fragment-web";
-import { CodeIcon, CrownIcon, EyeIcon } from "lucide-react";
+import { CodeIcon, EyeIcon } from "lucide-react";
 import { FileExplorer } from "../components/file-explorer";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { UserControl } from "@/components/user-control";
-import { useAuth } from "@clerk/nextjs";
 import { ErrorBoundary } from "react-error-boundary";
 
 interface Props {
@@ -29,9 +25,6 @@ export default function ProjectView({ projectId }: Props) {
   const [activeFragment, setActiveFragment] = React.useState<Fragment | null>(
     null
   );
-
-  const { has } = useAuth();
-  const hasProAccess = has?.({ plan: "pro" });
 
   return (
     <div className="h-screen overflow-hidden">
@@ -70,16 +63,6 @@ export default function ProjectView({ projectId }: Props) {
                     Code
                   </TabsTrigger>
                 </TabsList>
-                <div className="ml-auto flex items-center gap-x-2">
-                  {!hasProAccess ? (
-                    <Button asChild size="sm">
-                      <Link href="/pricing">
-                        <CrownIcon /> Upgrade
-                      </Link>
-                    </Button>
-                  ) : null}
-                  <UserControl />
-                </div>
               </div>
               <TabsContent value="demo" className="flex-1 m-0 h-0">
                 <div className="h-full">

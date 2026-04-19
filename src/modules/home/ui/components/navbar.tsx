@@ -1,10 +1,4 @@
-"use client";
-
-import { SignedIn, SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { UserControl } from "@/components/user-control";
-import { SettingsButton } from "@/modules/settings/ui/components/settings-button";
 
 export default function Navbar() {
   return (
@@ -17,30 +11,6 @@ export default function Navbar() {
                 Imaginate
               </h1>
             </Link>
-          </div>
-
-          <div className="flex items-center space-x-6 pr-4">
-            <SignedOut>
-              <div className="flex items-center gap-2">
-                <SignInButton>
-                  <Button variant="default" size="sm">
-                    Sign In
-                  </Button>
-                </SignInButton>
-                <SignUpButton>
-                  <Button variant="secondary" size="sm">
-                    Sign Up
-                  </Button>
-                </SignUpButton>
-              </div>
-            </SignedOut>
-
-            <SignedIn>
-              <div className="flex items-center gap-2">
-                <SettingsButton />
-                <UserControl showName />
-              </div>
-            </SignedIn>
           </div>
         </div>
       </div>

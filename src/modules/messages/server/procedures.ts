@@ -1,28 +1,27 @@
 import { prisma } from "@/db";
 import { inngest } from "@/inngest/client";
-import { consumeCredits } from "@/lib/usage";
-import { protectedProcedure, createTRPCRouter } from "@/trpc/init";
+import { consumeRateLimit } from "@/lib/rate-limit";
+import { publicProcedure, createTRPCRouter } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 import z from "zod";
+import { MessageMode } from "@/generated/prisma";
+import { SelectedModelsSchema } from "@/lib/providers";
 
 export const messagesRouter = createTRPCRouter({
-  getMany: protectedProcedure
+  getMany: publicProcedure
     .input(
       z.object({
         projectId: z.string().min(1, { message: "Project ID is required." }),
       })
     )
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input }) => {
       return prisma.message.findMany({
-        where: {
-          projectId: input.projectId,
-          project: { userId: ctx.auth.userId },
-        },
+        where: { projectId: input.projectId },
         include: { fragment: true },
         orderBy: { updatedAt: "asc" },
       });
     }),
-  create: protectedProcedure
+  create: publicProcedure
     .input(
       z.object({
         userPrompt: z
@@ -32,20 +31,17 @@ export const messagesRouter = createTRPCRouter({
             message: "Prompt is too long.",
           }),
         projectId: z.string().min(1, { message: "Project ID is required." }),
-        selectedModels: z
-          .object({
-            openai: z.string().optional(),
-            anthropic: z.string().optional(),
-            gemini: z.string().optional(),
-          })
-          .optional(),
+        selectedModels: SelectedModelsSchema.optional(),
         mode: z.enum(["code", "ask"]).default("code"),
       })
     )
     .mutation(
-      async ({ input: { userPrompt, projectId, selectedModels, mode }, ctx }) => {
+      async ({
+        input: { userPrompt, projectId, selectedModels, mode },
+        ctx,
+      }) => {
         const existingProject = await prisma.project.findUnique({
-          where: { id: projectId, userId: ctx.auth.userId },
+          where: { id: projectId },
         });
 
         if (!existingProject) {
@@ -55,31 +51,23 @@ export const messagesRouter = createTRPCRouter({
           });
         }
 
-        try {
-          await consumeCredits();
-        } catch (error) {
-          if (error instanceof Error) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: "Something went wrong",
-            });
-          } else {
-            throw new TRPCError({
-              code: "TOO_MANY_REQUESTS",
-              message: "You have run out of credits",
-            });
-          }
-        }
+        await consumeRateLimit(ctx.ip);
 
-        const createdMessage = await prisma.message.create({
-          data: {
-            projectId: existingProject.id,
-            content: userPrompt,
-            role: "USER",
-            type: "RESULT",
-            mode: mode.toUpperCase() as "CODE" | "ASK",
-          },
-        });
+        const [createdMessage] = await prisma.$transaction([
+          prisma.message.create({
+            data: {
+              projectId: existingProject.id,
+              content: userPrompt,
+              role: "USER",
+              type: "RESULT",
+              mode: mode === "ask" ? MessageMode.ASK : MessageMode.CODE,
+            },
+          }),
+          prisma.project.update({
+            where: { id: existingProject.id },
+            data: { updatedAt: new Date() },
+          }),
+        ]);
 
         const eventName = mode === "ask" ? "askAgent/run" : "codeAgent/run";
 
@@ -88,7 +76,6 @@ export const messagesRouter = createTRPCRouter({
           data: {
             userPrompt,
             projectId,
-            userId: ctx.auth.userId,
             selectedModels: selectedModels || {},
           },
         });

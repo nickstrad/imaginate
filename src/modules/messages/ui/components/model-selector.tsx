@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -9,6 +9,7 @@ import {
   SelectValue,
   SelectLabel,
   SelectGroup,
+  SelectSeparator,
 } from "@/components/ui/select";
 import {
   Dialog,
@@ -22,134 +23,133 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SlidersHorizontal as SlidersHorizontalIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useUserSettings } from "@/hooks/use-user-settings";
+import { useTRPC } from "@/trpc/client";
+import { useQuery } from "@tanstack/react-query";
+import {
+  PROVIDERS,
+  PROVIDER_LABELS,
+  type Provider,
+  type SelectedModels,
+} from "@/lib/providers";
 
-// Available models for each provider based on intellisense screenshots
-const AVAILABLE_MODELS = {
+const STORAGE_KEY = "imaginate:selected-model";
+
+// Anthropic + Gemini entries confirmed against the official model list pages;
+// OpenAI entries are the current GPT-5 / GPT-4.1 / GPT-4o / o-series families.
+export const AVAILABLE_MODELS = {
   openai: [
+    { value: "gpt-5.4", label: "GPT-5.4" },
+    { value: "gpt-5.4-pro", label: "GPT-5.4 Pro" },
+    { value: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
+    { value: "gpt-5.4-nano", label: "GPT-5.4 Nano" },
     { value: "gpt-5", label: "GPT-5" },
     { value: "gpt-5-mini", label: "GPT-5 Mini" },
     { value: "gpt-5-nano", label: "GPT-5 Nano" },
-    { value: "gpt-4.5-preview", label: "GPT-4.5 Preview" },
-    { value: "gpt-4.1", label: "GPT-4.1" },
-    { value: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
-    { value: "gpt-4o", label: "GPT-4o" },
-    { value: "gpt-4o-mini", label: "GPT-4o Mini" },
-    { value: "o1", label: "O1" },
-    { value: "o1-preview", label: "O1 Preview" },
-    { value: "o1-mini", label: "O1 Mini" },
-    { value: "o3-mini", label: "O3 Mini" },
   ],
   anthropic: [
-    {
-      value: "claude-sonnet-4-20250514",
-      label: "Claude Sonnet 4 (2025-05-14)",
-    },
-    { value: "claude-sonnet-4-0", label: "Claude Sonnet 4.0" },
-    { value: "claude-opus-4-20250514", label: "Claude Opus 4 (2025-05-14)" },
-    { value: "claude-opus-4-0", label: "Claude Opus 4.0" },
-    { value: "claude-3-7-sonnet-latest", label: "Claude 3.7 Sonnet (Latest)" },
-    {
-      value: "claude-3-7-sonnet-20250219",
-      label: "Claude 3.7 Sonnet (2025-02-19)",
-    },
-    { value: "claude-3-5-sonnet-latest", label: "Claude 3.5 Sonnet (Latest)" },
-    { value: "claude-3-opus-latest", label: "Claude 3 Opus (Latest)" },
-    { value: "claude-3-opus-20240229", label: "Claude 3 Opus (2024-02-29)" },
-    {
-      value: "claude-3-sonnet-20240229",
-      label: "Claude 3 Sonnet (2024-02-29)",
-    },
-    { value: "claude-3-haiku-20240307", label: "Claude 3 Haiku (2024-03-07)" },
-    { value: "claude-instant-1.2", label: "Claude Instant 1.2" },
+    { value: "claude-opus-4-7", label: "Claude Opus 4.7" },
+    { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+    { value: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+    { value: "claude-opus-4-6", label: "Claude Opus 4.6" },
+    { value: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
+    { value: "claude-opus-4-5", label: "Claude Opus 4.5" },
+    { value: "claude-opus-4-1", label: "Claude Opus 4.1" },
   ],
   gemini: [
+    { value: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro (Preview)" },
+    { value: "gemini-3-flash-preview", label: "Gemini 3 Flash (Preview)" },
+    {
+      value: "gemini-3.1-flash-lite-preview",
+      label: "Gemini 3.1 Flash Lite (Preview)",
+    },
     { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
     { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-    {
-      value: "gemini-2.5-flash-lite-preview-06-17",
-      label: "Gemini 2.5 Flash Lite Preview",
-    },
-    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
-    { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite" },
-    { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
-    { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
-    { value: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash 8B" },
-    { value: "gemini-1.0-pro", label: "Gemini 1.0 Pro" },
-    { value: "text-embedding-004", label: "Text Embedding 004" },
-    { value: "aqa", label: "AQA" },
+    { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
   ],
-} as const;
+} as const satisfies Record<
+  Provider,
+  ReadonlyArray<{ value: string; label: string }>
+>;
 
-type Provider = keyof typeof AVAILABLE_MODELS;
-
-export type SelectedModels = {
-  [K in Provider]?: string;
-};
-
-// Single model selection - only one model can be selected at a time
 export interface SingleModelSelection {
   provider: Provider;
   model: string;
 }
 
-// Custom hook for model selection logic
+function findProviderForModel(model: string): Provider | null {
+  for (const provider of PROVIDERS) {
+    if (AVAILABLE_MODELS[provider].some((m) => m.value === model)) {
+      return provider;
+    }
+  }
+  return null;
+}
+
+function getModelLabel(model: string): string | null {
+  const provider = findProviderForModel(model);
+  if (!provider) return null;
+  return (
+    AVAILABLE_MODELS[provider].find((m) => m.value === model)?.label ?? null
+  );
+}
+
 export function useModelSelector() {
+  const trpc = useTRPC();
   const {
-    data: userSettings,
+    data: providers,
     isLoading,
     error,
-  } = useUserSettings();
-  const [selectedModel, setSelectedModel] = useState<string>("");
+  } = useQuery(
+    trpc.providers.list.queryOptions(undefined, { staleTime: Infinity })
+  );
+  const [selectedModel, setSelectedModelState] = useState<string>("");
 
-  // Determine which providers have API keys
   const availableProviders = useMemo(() => {
-    const providers: Provider[] = [
-      [userSettings?.openaiApiKey, "openai"],
-      [userSettings?.anthropicApiKey, "anthropic"],
-      [userSettings?.geminiApiKey, "gemini"],
-    ]
-      .filter(([apiKey]) => Boolean(apiKey))
-      .map((tuple) => tuple[1] as Provider);
+    return PROVIDERS.filter((p) => providers?.[p]);
+  }, [providers]);
 
-    return providers;
-  }, [
-    userSettings?.openaiApiKey,
-    userSettings?.anthropicApiKey,
-    userSettings?.geminiApiKey,
-  ]);
-
-  // Get unavailable providers (those without API keys)
   const unavailableProviders = useMemo(() => {
-    const allProviders: Provider[] = ["openai", "anthropic", "gemini"];
-    return allProviders.filter((p) => !availableProviders.includes(p));
+    return PROVIDERS.filter((p) => !availableProviders.includes(p));
   }, [availableProviders]);
 
-  // Parse selected model to get provider and model name
+  // Hydrate from localStorage once providers load; discard the stored value
+  // if its provider no longer has a key or the model was removed from the list.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!providers) return;
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (!stored) return;
+    const provider = findProviderForModel(stored);
+    if (provider && providers[provider]) {
+      setSelectedModelState(stored);
+    } else {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+  }, [providers]);
+
+  const setSelectedModel = useCallback((value: string) => {
+    setSelectedModelState(value);
+    if (typeof window === "undefined") return;
+    if (value) window.localStorage.setItem(STORAGE_KEY, value);
+    else window.localStorage.removeItem(STORAGE_KEY);
+  }, []);
+
   const selectedModelInfo = useMemo((): SingleModelSelection | null => {
     if (!selectedModel) return null;
-
-    for (const provider of availableProviders) {
-      const models = AVAILABLE_MODELS[provider];
-      if (models.find((m) => m.value === selectedModel)) {
-        return { provider, model: selectedModel };
-      }
-    }
-    return null;
+    const provider = findProviderForModel(selectedModel);
+    if (!provider || !availableProviders.includes(provider)) return null;
+    return { provider, model: selectedModel };
   }, [selectedModel, availableProviders]);
 
-  // Convert to the format expected by TRPC (for backward compatibility)
   const selectedModels = useMemo((): SelectedModels => {
     if (!selectedModelInfo) return {};
-    return {
-      [selectedModelInfo.provider]: selectedModelInfo.model,
-    };
+    return { [selectedModelInfo.provider]: selectedModelInfo.model };
   }, [selectedModelInfo]);
 
   return {
     selectedModel,
     setSelectedModel,
-    selectedModels, // For backward compatibility with existing code
+    selectedModels,
     selectedModelInfo,
     availableProviders,
     unavailableProviders,
@@ -159,7 +159,6 @@ export function useModelSelector() {
   };
 }
 
-// Props for the ModelSelector component
 interface ModelSelectorProps {
   className?: string;
   selectedModel: string;
@@ -168,10 +167,9 @@ interface ModelSelectorProps {
   unavailableProviders: Provider[];
   availableModels: typeof AVAILABLE_MODELS;
   isLoading: boolean;
-  error?: Error | null;
+  error?: { message: string } | null;
 }
 
-// UI Component for model selection (presentational component)
 export function ModelSelector({
   className,
   selectedModel,
@@ -182,21 +180,25 @@ export function ModelSelector({
   isLoading,
   error,
 }: ModelSelectorProps) {
-  const providerLabels: Record<Provider, string> = {
-    openai: "OpenAI",
-    anthropic: "Anthropic",
-    gemini: "Google Gemini",
-  };
-
   if (error) {
-    return <>Error loading settings: {error.message}</>;
+    return <>Error loading providers: {error.message}</>;
   }
+
+  const noProvidersConfigured = !isLoading && availableProviders.length === 0;
 
   return (
     <div className={cn("space-y-4", className)}>
       <div className="space-y-3">
         {isLoading ? (
-          <>Loading settings...</>
+          <>Loading providers...</>
+        ) : noProvidersConfigured ? (
+          <div className="text-sm text-destructive">
+            No LLM providers are configured. Set{" "}
+            <code className="font-mono text-xs">OPENAI_API_KEY</code>,{" "}
+            <code className="font-mono text-xs">ANTHROPIC_API_KEY</code>, or{" "}
+            <code className="font-mono text-xs">GEMINI_API_KEY</code> and
+            restart.
+          </div>
         ) : (
           <>
             <div className="flex flex-col gap-2">
@@ -204,7 +206,7 @@ export function ModelSelector({
                 AI Model
               </label>
               <p className="text-xs text-muted-foreground">
-                Select one model to use for this request. Only one model can be active at a time.
+                Pick one model for this request. Your choice is saved locally.
               </p>
               <Select value={selectedModel} onValueChange={setSelectedModel}>
                 <SelectTrigger className="w-full">
@@ -213,7 +215,7 @@ export function ModelSelector({
                 <SelectContent>
                   {availableProviders.map((provider) => (
                     <SelectGroup key={provider}>
-                      <SelectLabel>{providerLabels[provider]}</SelectLabel>
+                      <SelectLabel>{PROVIDER_LABELS[provider]}</SelectLabel>
                       {availableModels[provider].map((model) => (
                         <SelectItem key={model.value} value={model.value}>
                           {model.label}
@@ -221,26 +223,31 @@ export function ModelSelector({
                       ))}
                     </SelectGroup>
                   ))}
+
+                  {unavailableProviders.length > 0 && (
+                    <>
+                      <SelectSeparator />
+                      {unavailableProviders.map((provider) => (
+                        <SelectGroup key={provider}>
+                          <SelectLabel className="text-muted-foreground">
+                            {PROVIDER_LABELS[provider]} — API key not set
+                          </SelectLabel>
+                          {availableModels[provider].map((model) => (
+                            <SelectItem
+                              key={model.value}
+                              value={model.value}
+                              disabled
+                            >
+                              {model.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))}
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Show messages for providers without API keys */}
-            {unavailableProviders.length > 0 && (
-              <div className="pt-2 border-t">
-                <p className="text-xs font-medium text-muted-foreground mb-2">
-                  Unavailable Providers
-                </p>
-                {unavailableProviders.map((provider) => (
-                  <div
-                    key={provider}
-                    className="text-xs text-muted-foreground py-1"
-                  >
-                    • {providerLabels[provider]} - API key not configured
-                  </div>
-                ))}
-              </div>
-            )}
           </>
         )}
       </div>
@@ -248,7 +255,6 @@ export function ModelSelector({
   );
 }
 
-// Dialog wrapper for model selector
 export function ModelSelectorDialog({
   selectedModel,
   setSelectedModel,
@@ -260,18 +266,10 @@ export function ModelSelectorDialog({
 }: ModelSelectorProps) {
   const [open, setOpen] = useState(false);
 
-  // Get the display label for the selected model
-  const selectedModelLabel = useMemo(() => {
-    if (!selectedModel) return null;
-
-    for (const provider of Object.keys(availableModels) as Provider[]) {
-      const model = availableModels[provider].find(
-        (m) => m.value === selectedModel
-      );
-      if (model) return model.label;
-    }
-    return null;
-  }, [selectedModel, availableModels]);
+  const selectedModelLabel = useMemo(
+    () => (selectedModel ? getModelLabel(selectedModel) : null),
+    [selectedModel]
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -290,8 +288,8 @@ export function ModelSelectorDialog({
         <DialogHeader>
           <DialogTitle>Select AI Model</DialogTitle>
           <DialogDescription>
-            Choose which AI model to use for generating responses. Only one
-            model can be selected at a time.
+            Choose which AI model to use. Providers without an API key are
+            listed at the bottom and cannot be selected.
           </DialogDescription>
         </DialogHeader>
         <ModelSelector

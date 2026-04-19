@@ -1,5 +1,4 @@
 import { generateText, stepCountIs, tool, type ModelMessage } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 import { Sandbox } from "@e2b/code-interpreter";
 import { inngest } from "./client";
@@ -7,6 +6,7 @@ import { getSandbox, SANDBOX_TIMEOUT } from "./utils";
 import {
   createModelProvider,
   resolveModelConfig,
+  resolvePostprocModel,
   getPreviousMessages,
 } from "./model-factory";
 import {
@@ -27,12 +27,10 @@ export const codeAgentFunction = inngest.createFunction(
       return sandbox.sandboxId;
     });
 
-    const modelConfig = await step.run("get-model-config", async () =>
-      resolveModelConfig(event.data.userId, event.data.selectedModels),
-    );
+    const modelConfig = resolveModelConfig(event.data.selectedModels);
 
     const previousMessages = await step.run("get-previous-messages", async () =>
-      getPreviousMessages(event.data.projectId),
+      getPreviousMessages(event.data.projectId)
     );
 
     const messages: ModelMessage[] = [
@@ -72,9 +70,7 @@ export const codeAgentFunction = inngest.createFunction(
     const createOrUpdateFilesTool = tool({
       description: "Create or update files in the sandbox",
       inputSchema: z.object({
-        files: z.array(
-          z.object({ path: z.string(), content: z.string() }),
-        ),
+        files: z.array(z.object({ path: z.string(), content: z.string() })),
       }),
       execute: async ({ files }) => {
         const written = await step.run(
@@ -91,7 +87,7 @@ export const codeAgentFunction = inngest.createFunction(
             } catch (error) {
               return { ok: false as const, error: String(error) };
             }
-          },
+          }
         );
 
         if (!written.ok) return `Error: ${written.error}`;
@@ -111,7 +107,7 @@ export const codeAgentFunction = inngest.createFunction(
               files.map(async (file) => ({
                 path: file,
                 content: await sandbox.files.read(file),
-              })),
+              }))
             );
             return JSON.stringify(contents);
           } catch (error) {
@@ -122,11 +118,7 @@ export const codeAgentFunction = inngest.createFunction(
     });
 
     const result = await generateText({
-      model: createModelProvider(
-        modelConfig.provider,
-        modelConfig.model,
-        modelConfig.apiKey,
-      ),
+      model: createModelProvider(modelConfig),
       system: AGENT_PROMPT,
       messages,
       tools: {
@@ -139,19 +131,21 @@ export const codeAgentFunction = inngest.createFunction(
         stepCountIs(15),
         ({ steps }) => {
           const last = steps[steps.length - 1];
-          return typeof last?.text === "string" && last.text.includes("<task_summary>");
+          return (
+            typeof last?.text === "string" &&
+            last.text.includes("<task_summary>")
+          );
         },
       ],
     });
 
     const summary = result.text?.includes("<task_summary>") ? result.text : "";
-
-    const openaiForPostproc = createOpenAI({ apiKey: modelConfig.openaiApiKey });
+    const postprocModel = resolvePostprocModel(modelConfig);
 
     const fragmentTitle = await step.run("fragment-title", async () => {
       if (!summary) return "Fragment";
       const { text } = await generateText({
-        model: openaiForPostproc("gpt-4o-mini"),
+        model: postprocModel,
         system: FRAGMENT_TITLE_PROMPT,
         prompt: summary,
       });
@@ -161,7 +155,7 @@ export const codeAgentFunction = inngest.createFunction(
     const responseText = await step.run("response-text", async () => {
       if (!summary) return "Here you go.";
       const { text } = await generateText({
-        model: openaiForPostproc("gpt-4o-mini"),
+        model: postprocModel,
         system: RESPONSE_PROMPT,
         prompt: summary,
       });
@@ -211,19 +205,17 @@ export const codeAgentFunction = inngest.createFunction(
       files: filesState,
       summary,
     };
-  },
+  }
 );
 
 export const askAgentFunction = inngest.createFunction(
   { id: "askAgent" },
   { event: "askAgent/run" },
   async ({ event, step }) => {
-    const modelConfig = await step.run("get-model-config", async () =>
-      resolveModelConfig(event.data.userId, event.data.selectedModels),
-    );
+    const modelConfig = resolveModelConfig(event.data.selectedModels);
 
     const previousMessages = await step.run("get-previous-messages", async () =>
-      getPreviousMessages(event.data.projectId),
+      getPreviousMessages(event.data.projectId)
     );
 
     const messages: ModelMessage[] = [
@@ -233,11 +225,7 @@ export const askAgentFunction = inngest.createFunction(
 
     const response = await step.run("ask-agent", async () => {
       const { text } = await generateText({
-        model: createModelProvider(
-          modelConfig.provider,
-          modelConfig.model,
-          modelConfig.apiKey,
-        ),
+        model: createModelProvider(modelConfig),
         system: ASK_AGENT_PROMPT,
         messages,
         maxOutputTokens: 4096,
@@ -249,7 +237,8 @@ export const askAgentFunction = inngest.createFunction(
       return prisma.message.create({
         data: {
           projectId: event.data.projectId,
-          content: response || "I couldn't generate a response. Please try again.",
+          content:
+            response || "I couldn't generate a response. Please try again.",
           role: "ASSISTANT",
           type: response ? "RESULT" : "ERROR",
           mode: "ASK",
@@ -258,5 +247,5 @@ export const askAgentFunction = inngest.createFunction(
     });
 
     return { response };
-  },
+  }
 );

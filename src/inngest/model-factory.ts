@@ -3,92 +3,70 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { LanguageModel, ModelMessage } from "ai";
 import { prisma } from "@/db";
-import { decryptApiKeys } from "@/lib/encryption";
-
-export type Provider = "openai" | "anthropic" | "gemini";
-
-export interface SelectedModels {
-  openai?: string;
-  anthropic?: string;
-  gemini?: string;
-}
+import { getProviderKey } from "@/lib/provider-config";
+import {
+  PROVIDERS,
+  DEFAULT_FALLBACK_MODEL,
+  type Provider,
+  type SelectedModels,
+} from "@/lib/providers";
 
 export interface ResolvedModelConfig {
   provider: Provider;
   model: string;
   apiKey: string;
-  openaiApiKey: string;
 }
 
 export function createModelProvider(
-  provider: Provider,
-  model: string,
-  apiKey: string,
+  config: ResolvedModelConfig
 ): LanguageModel {
-  switch (provider) {
+  switch (config.provider) {
     case "openai":
-      return createOpenAI({ apiKey })(model);
+      return createOpenAI({ apiKey: config.apiKey })(config.model);
     case "anthropic":
-      return createAnthropic({ apiKey })(model);
+      return createAnthropic({ apiKey: config.apiKey })(config.model);
     case "gemini":
-      return createGoogleGenerativeAI({ apiKey })(model);
+      return createGoogleGenerativeAI({ apiKey: config.apiKey })(config.model);
   }
 }
 
-export async function resolveModelConfig(
-  userId: string,
-  selectedModels: SelectedModels | undefined,
-): Promise<ResolvedModelConfig> {
-  const userSettings = await prisma.settings.findUnique({
-    where: { userId },
-  });
+export function resolveModelConfig(
+  selectedModels: SelectedModels | undefined
+): ResolvedModelConfig {
+  const sel = selectedModels ?? {};
 
-  if (!userSettings) {
-    throw new Error("User settings not found");
+  for (const provider of PROVIDERS) {
+    const requested = sel[provider];
+    if (!requested) continue;
+    const apiKey = getProviderKey(provider);
+    if (!apiKey) continue;
+    return { provider, model: requested, apiKey };
   }
 
-  const decryptedKeys = decryptApiKeys(
-    {
-      geminiApiKey: userSettings.geminiApiKey,
-      openaiApiKey: userSettings.openaiApiKey,
-      anthropicApiKey: userSettings.anthropicApiKey,
-    },
-    userId,
-  );
-
-  const sel = selectedModels || {};
-  let provider: Provider = "openai";
-  let model = "gpt-4o-mini";
-  let apiKey = "";
-
-  if (sel.openai && decryptedKeys.openaiApiKey) {
-    provider = "openai";
-    model = sel.openai;
-    apiKey = decryptedKeys.openaiApiKey;
-  } else if (sel.anthropic && decryptedKeys.anthropicApiKey) {
-    provider = "anthropic";
-    model = sel.anthropic;
-    apiKey = decryptedKeys.anthropicApiKey;
-  } else if (sel.gemini && decryptedKeys.geminiApiKey) {
-    provider = "gemini";
-    model = sel.gemini;
-    apiKey = decryptedKeys.geminiApiKey;
-  } else if (decryptedKeys.openaiApiKey) {
-    apiKey = decryptedKeys.openaiApiKey;
-  } else {
-    throw new Error("No API key available for selected model");
+  const openaiKey = getProviderKey("openai");
+  if (openaiKey) {
+    return {
+      provider: "openai",
+      model: DEFAULT_FALLBACK_MODEL,
+      apiKey: openaiKey,
+    };
   }
 
-  return {
-    provider,
-    model,
-    apiKey,
-    openaiApiKey: decryptedKeys.openaiApiKey ?? "",
-  };
+  throw new Error("No API key available for selected model");
+}
+
+export function resolvePostprocModel(
+  modelConfig: ResolvedModelConfig
+): LanguageModel {
+  const openaiKey = getProviderKey("openai");
+  if (openaiKey) {
+    return createOpenAI({ apiKey: openaiKey })(DEFAULT_FALLBACK_MODEL);
+  }
+  return createModelProvider(modelConfig);
 }
 
 export async function getPreviousMessages(
-  projectId: string,
+  projectId: string
 ): Promise<ModelMessage[]> {
   const messages = await prisma.message.findMany({
     where: { projectId },
