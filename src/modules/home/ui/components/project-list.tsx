@@ -6,12 +6,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BotIcon, AlertCircle } from "lucide-react";
-import { useUser } from "@clerk/nextjs";
 
 export const ProjectList = () => {
   const trpc = useTRPC();
   const router = useRouter();
-  const { user } = useUser();
 
   const {
     data: projects,
@@ -19,15 +17,11 @@ export const ProjectList = () => {
     error,
   } = useQuery(trpc.projects.getMany.queryOptions());
 
-  if (!user) {
-    return null;
-  }
-
   if (isLoading) {
     return (
       <div className="w-full max-w-3xl mx-auto">
         <h2 className="text-lg font-semibold text-foreground mb-4">
-          {user?.firstName} Projects
+          Recent projects
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(3)].map((_, i) => (
@@ -42,7 +36,7 @@ export const ProjectList = () => {
     return (
       <div className="w-full max-w-3xl mx-auto">
         <h2 className="text-3xl font-bold text-foreground mb-4 text-left">
-          {user?.firstName} Projects
+          Recent projects
         </h2>
         <div className="flex items-center justify-center p-8 border-2 border-border rounded-xl bg-card">
           <div className="text-center space-y-4">
@@ -105,7 +99,7 @@ export const ProjectList = () => {
   return (
     <div className="w-full max-w-3xl mx-auto">
       <h2 className="text-3xl font-bold text-foreground mb-4 text-left">
-        {user?.firstName} Projects
+        Recent projects
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {projects.map((project) => (

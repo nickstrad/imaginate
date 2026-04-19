@@ -25,7 +25,32 @@ import {
 } from "@/prompts/prompts";
 import { prisma } from "@/db";
 import { parseAgentOutput } from "@/lib/utils";
-import { decryptApiKeys } from "@/lib/encryption";
+import {
+  PROVIDERS,
+  DEFAULT_FALLBACK_MODEL,
+  type Provider,
+  type SelectedModels,
+} from "@/lib/providers";
+import { getProviderKey } from "@/lib/provider-config";
+
+function resolveModelConfig(selectedModels: SelectedModels) {
+  for (const provider of PROVIDERS) {
+    const requestedModel = selectedModels[provider];
+    if (!requestedModel) continue;
+    const apiKey = getProviderKey(provider);
+    if (!apiKey) continue;
+    return { provider, model: requestedModel, apiKey };
+  }
+  const openaiKey = getProviderKey("openai");
+  if (openaiKey) {
+    return {
+      provider: "openai" as const,
+      model: DEFAULT_FALLBACK_MODEL,
+      apiKey: openaiKey,
+    };
+  }
+  return null;
+}
 
 interface AgentState {
   summary?: string;
@@ -33,7 +58,7 @@ interface AgentState {
 }
 
 function createModelProvider(
-  provider: "openai" | "anthropic" | "gemini",
+  provider: Provider,
   model: string,
   apiKey: string
 ) {
@@ -64,48 +89,11 @@ export const codeAgentFunction = inngest.createFunction(
     });
 
     const modelConfig = await step.run("get-model-config", async () => {
-      const userSettings = await prisma.settings.findUnique({
-        where: { userId: event.data.userId },
-      });
-
-      if (!userSettings) {
-        throw new Error("User settings not found");
+      const resolved = resolveModelConfig(event.data.selectedModels || {});
+      if (!resolved) {
+        throw new Error("No API key configured for any provider");
       }
-
-      const decryptedKeys = decryptApiKeys(
-        {
-          geminiApiKey: userSettings.geminiApiKey,
-          openaiApiKey: userSettings.openaiApiKey,
-          anthropicApiKey: userSettings.anthropicApiKey,
-        },
-        event.data.userId
-      );
-
-      const selectedModels = event.data.selectedModels || {};
-
-      let provider: "openai" | "anthropic" | "gemini" = "openai";
-      let model = "gpt-4o-mini";
-      let apiKey = "";
-
-      if (selectedModels.openai && decryptedKeys.openaiApiKey) {
-        provider = "openai";
-        model = selectedModels.openai;
-        apiKey = decryptedKeys.openaiApiKey;
-      } else if (selectedModels.anthropic && decryptedKeys.anthropicApiKey) {
-        provider = "anthropic";
-        model = selectedModels.anthropic;
-        apiKey = decryptedKeys.anthropicApiKey;
-      } else if (selectedModels.gemini && decryptedKeys.geminiApiKey) {
-        provider = "gemini";
-        model = selectedModels.gemini;
-        apiKey = decryptedKeys.geminiApiKey;
-      } else if (decryptedKeys.openaiApiKey) {
-        apiKey = decryptedKeys.openaiApiKey;
-      } else {
-        throw new Error("No API key available for selected model");
-      }
-
-      return { provider, model, apiKey };
+      return resolved;
     });
 
     const previousMessages = await step.run(
@@ -279,7 +267,7 @@ export const codeAgentFunction = inngest.createFunction(
       description: "A fragment title generator",
       system: FRAGMENT_TITLE_PROMPT,
       model: openai({
-        model: "gpt-4o-mini",
+        model: DEFAULT_FALLBACK_MODEL,
       }),
     });
 
@@ -288,15 +276,14 @@ export const codeAgentFunction = inngest.createFunction(
       description: "A response generator",
       system: RESPONSE_PROMPT,
       model: openai({
-        model: "gpt-4o-mini",
+        model: DEFAULT_FALLBACK_MODEL,
       }),
     });
 
     const summary = result.state.data.summary || "";
 
-    const { output: fragmentTitleOutput } = await fragmentTitleGenerator.run(
-      summary
-    );
+    const { output: fragmentTitleOutput } =
+      await fragmentTitleGenerator.run(summary);
 
     const { output: responseOutput } = await responseGenerator.run(summary);
 
@@ -358,48 +345,11 @@ export const askAgentFunction = inngest.createFunction(
   { event: "askAgent/run" },
   async ({ event, step }) => {
     const modelConfig = await step.run("get-model-config", async () => {
-      const userSettings = await prisma.settings.findUnique({
-        where: { userId: event.data.userId },
-      });
-
-      if (!userSettings) {
-        throw new Error("User settings not found");
+      const resolved = resolveModelConfig(event.data.selectedModels || {});
+      if (!resolved) {
+        throw new Error("No API key configured for any provider");
       }
-
-      const decryptedKeys = decryptApiKeys(
-        {
-          geminiApiKey: userSettings.geminiApiKey,
-          openaiApiKey: userSettings.openaiApiKey,
-          anthropicApiKey: userSettings.anthropicApiKey,
-        },
-        event.data.userId
-      );
-
-      const selectedModels = event.data.selectedModels || {};
-
-      let provider: "openai" | "anthropic" | "gemini" = "openai";
-      let model = "gpt-4o-mini";
-      let apiKey = "";
-
-      if (selectedModels.openai && decryptedKeys.openaiApiKey) {
-        provider = "openai";
-        model = selectedModels.openai;
-        apiKey = decryptedKeys.openaiApiKey;
-      } else if (selectedModels.anthropic && decryptedKeys.anthropicApiKey) {
-        provider = "anthropic";
-        model = selectedModels.anthropic;
-        apiKey = decryptedKeys.anthropicApiKey;
-      } else if (selectedModels.gemini && decryptedKeys.geminiApiKey) {
-        provider = "gemini";
-        model = selectedModels.gemini;
-        apiKey = decryptedKeys.geminiApiKey;
-      } else if (decryptedKeys.openaiApiKey) {
-        apiKey = decryptedKeys.openaiApiKey;
-      } else {
-        throw new Error("No API key available for selected model");
-      }
-
-      return { provider, model, apiKey };
+      return resolved;
     });
 
     const previousMessages = await step.run(
