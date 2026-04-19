@@ -11,17 +11,7 @@ import {
   SelectGroup,
   SelectSeparator,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { SlidersHorizontal as SlidersHorizontalIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -82,14 +72,6 @@ function findProviderForModel(model: string): Provider | null {
     }
   }
   return null;
-}
-
-function getModelLabel(model: string): string | null {
-  const provider = findProviderForModel(model);
-  if (!provider) return null;
-  return (
-    AVAILABLE_MODELS[provider].find((m) => m.value === model)?.label ?? null
-  );
 }
 
 export function useModelSelector() {
@@ -159,7 +141,6 @@ export function useModelSelector() {
 }
 
 interface ModelSelectorProps {
-  className?: string;
   selectedModel: string;
   setSelectedModel: (model: string) => void;
   availableProviders: Provider[];
@@ -167,91 +148,6 @@ interface ModelSelectorProps {
   availableModels: typeof AVAILABLE_MODELS;
   isLoading: boolean;
   error?: { message: string } | null;
-}
-
-export function ModelSelector({
-  className,
-  selectedModel,
-  setSelectedModel,
-  availableProviders,
-  unavailableProviders,
-  availableModels,
-  isLoading,
-  error,
-}: ModelSelectorProps) {
-  if (error) {
-    return <>Error loading providers: {error.message}</>;
-  }
-
-  const noProvidersConfigured = !isLoading && availableProviders.length === 0;
-
-  return (
-    <div className={cn("space-y-4", className)}>
-      <div className="space-y-3">
-        {isLoading ? (
-          <>Loading providers...</>
-        ) : noProvidersConfigured ? (
-          <div className="text-sm text-destructive">
-            No LLM providers are configured. Set{" "}
-            <code className="font-mono text-xs">OPENAI_API_KEY</code>,{" "}
-            <code className="font-mono text-xs">ANTHROPIC_API_KEY</code>, or{" "}
-            <code className="font-mono text-xs">GEMINI_API_KEY</code> and
-            restart.
-          </div>
-        ) : (
-          <>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-foreground">
-                AI Model
-              </label>
-              <p className="text-xs text-muted-foreground">
-                Pick one model for this request. Your choice is saved locally.
-              </p>
-              <Select value={selectedModel} onValueChange={setSelectedModel}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a model" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableProviders.map((provider) => (
-                    <SelectGroup key={provider}>
-                      <SelectLabel>{PROVIDER_LABELS[provider]}</SelectLabel>
-                      {availableModels[provider].map((model) => (
-                        <SelectItem key={model.value} value={model.value}>
-                          {model.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ))}
-
-                  {unavailableProviders.length > 0 && (
-                    <>
-                      <SelectSeparator />
-                      {unavailableProviders.map((provider) => (
-                        <SelectGroup key={provider}>
-                          <SelectLabel className="text-muted-foreground">
-                            {PROVIDER_LABELS[provider]} — API key not set
-                          </SelectLabel>
-                          {availableModels[provider].map((model) => (
-                            <SelectItem
-                              key={model.value}
-                              value={model.value}
-                              disabled
-                            >
-                              {model.label}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      ))}
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
 }
 
 export function ModelSelectorDialog({
@@ -263,39 +159,65 @@ export function ModelSelectorDialog({
   isLoading,
   error,
 }: ModelSelectorProps) {
-  const [open, setOpen] = useState(false);
+  if (error) {
+    return (
+      <span className="text-sm text-destructive">
+        Error loading providers: {error.message}
+      </span>
+    );
+  }
 
-  const selectedModelLabel = useMemo(
-    () => (selectedModel ? getModelLabel(selectedModel) : null),
-    [selectedModel]
-  );
+  const noProvidersConfigured = !isLoading && availableProviders.length === 0;
+  const placeholder = isLoading
+    ? "Loading…"
+    : noProvidersConfigured
+      ? "No providers"
+      : "Model";
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <SlidersHorizontalIcon className="h-4 w-4" />
-          {selectedModelLabel || "Model"}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Select AI Model</DialogTitle>
-          <DialogDescription>
-            Choose which AI model to use. Providers without an API key are
-            listed at the bottom and cannot be selected.
-          </DialogDescription>
-        </DialogHeader>
-        <ModelSelector
-          selectedModel={selectedModel}
-          setSelectedModel={setSelectedModel}
-          availableProviders={availableProviders}
-          unavailableProviders={unavailableProviders}
-          availableModels={availableModels}
-          isLoading={isLoading}
-          error={error}
-        />
-      </DialogContent>
-    </Dialog>
+    <Select
+      value={selectedModel}
+      onValueChange={setSelectedModel}
+      disabled={isLoading || noProvidersConfigured}
+    >
+      <SelectTrigger
+        size="sm"
+        className="gap-2 min-w-[10rem]"
+        aria-label="Select AI model"
+      >
+        <SlidersHorizontalIcon className="h-4 w-4" />
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {availableProviders.map((provider) => (
+          <SelectGroup key={provider}>
+            <SelectLabel>{PROVIDER_LABELS[provider]}</SelectLabel>
+            {availableModels[provider].map((model) => (
+              <SelectItem key={model.value} value={model.value}>
+                {model.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        ))}
+
+        {unavailableProviders.length > 0 && (
+          <>
+            {availableProviders.length > 0 && <SelectSeparator />}
+            {unavailableProviders.map((provider) => (
+              <SelectGroup key={provider}>
+                <SelectLabel className="text-muted-foreground">
+                  {PROVIDER_LABELS[provider]} — API key not set
+                </SelectLabel>
+                {availableModels[provider].map((model) => (
+                  <SelectItem key={model.value} value={model.value} disabled>
+                    {model.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            ))}
+          </>
+        )}
+      </SelectContent>
+    </Select>
   );
 }
