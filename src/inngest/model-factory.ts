@@ -8,6 +8,7 @@ import { getProviderKey } from "@/lib/provider-config";
 import {
   PROVIDERS,
   DEFAULT_FALLBACK_MODEL,
+  CHEAP_POSTPROC_MODEL,
   type Provider,
   type SelectedModels,
 } from "@/lib/providers";
@@ -59,10 +60,20 @@ export function resolveModelConfig(
 export function resolvePostprocModel(
   modelConfig: ResolvedModelConfig
 ): LanguageModel {
-  const openaiKey = getProviderKey("openai");
-  if (openaiKey) {
-    return createOpenAI({ apiKey: openaiKey })(DEFAULT_FALLBACK_MODEL);
+  const order = [
+    ...new Set<Provider>(["gemini", modelConfig.provider, ...PROVIDERS]),
+  ];
+
+  for (const provider of order) {
+    const apiKey = getProviderKey(provider);
+    if (!apiKey) continue;
+    return createModelProvider({
+      provider,
+      model: CHEAP_POSTPROC_MODEL[provider],
+      apiKey,
+    });
   }
+
   return createModelProvider(modelConfig);
 }
 

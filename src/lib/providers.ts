@@ -9,12 +9,16 @@ export const PROVIDER_LABELS: Record<Provider, string> = {
   gemini: "Google Gemini",
 };
 
-export const DEFAULT_FALLBACK_MODEL = "gpt-5-nano";
+export const CHEAP_POSTPROC_MODEL: Record<Provider, string> = {
+  openai: "gpt-5-nano",
+  anthropic: "claude-haiku-4-5-20251001",
+  gemini: "gemini-2.5-flash-lite",
+};
+
+export const DEFAULT_FALLBACK_MODEL = CHEAP_POSTPROC_MODEL.openai;
 
 export const AVAILABLE_MODELS = {
   openai: [
-    { value: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
-    { value: "gpt-5.4-nano", label: "GPT-5.4 Nano" },
     { value: "gpt-5-mini", label: "GPT-5 Mini" },
     { value: "gpt-5-nano", label: "GPT-5 Nano" },
   ],
