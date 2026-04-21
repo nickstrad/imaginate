@@ -101,16 +101,16 @@ async function main() {
   );
 
   const hitStepCap = rows.filter(
-    (r) => r.steps >= AGENT_CONFIG.maxSteps
+    (r) => r.steps >= (AGENT_CONFIG.maxSteps ?? Infinity)
   ).length;
   const hitWriteCap = rows.filter(
-    (r) => r.filesWritten >= AGENT_CONFIG.maxWrites
+    (r) => r.filesWritten >= (AGENT_CONFIG.maxWrites ?? Infinity)
   ).length;
   const hitReadCap = rows.filter(
-    (r) => r.filesRead >= AGENT_CONFIG.maxFileReads
+    (r) => r.filesRead >= (AGENT_CONFIG.maxFileReads ?? Infinity)
   ).length;
   const hitCmdCap = rows.filter(
-    (r) => r.commandsRun >= AGENT_CONFIG.maxTerminalRuns
+    (r) => r.commandsRun >= (AGENT_CONFIG.maxTerminalRuns ?? Infinity)
   ).length;
 
   const zeroWriteRuns = rows.filter((r) => r.filesWritten === 0).length;
@@ -163,7 +163,9 @@ async function main() {
   }
   if (
     tokStats.p90 >
-    AGENT_CONFIG.maxOutputTokens * AGENT_CONFIG.maxSteps * 0.9
+    (AGENT_CONFIG.maxOutputTokens ?? Infinity) *
+      (AGENT_CONFIG.maxSteps ?? Infinity) *
+      0.9
   ) {
     findings.push(
       `TOKEN USAGE HIGH: p90 totalTokens=${tokStats.p90}. Consider tightening maxOutputTokens.`
