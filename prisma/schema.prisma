@@ -55,10 +55,26 @@ model Message {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  fragment Fragment?
+  fragment  Fragment?
+  telemetry Telemetry?
 
   projectId String
   project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Telemetry {
+  id               String   @id @default(uuid())
+  messageId        String   @unique
+  message          Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  steps            Int
+  filesRead        Int
+  filesWritten     Int
+  commandsRun      Int
+  buildSucceeded   Boolean
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int?
+  createdAt        DateTime @default(now())
 }
 
 model Fragment {
