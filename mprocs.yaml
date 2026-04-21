@@ -1,0 +1,5 @@
+procs:
+  next:
+    shell: "npm run dev"
+  inngest:
+    shell: "npx inngest-cli@latest dev"

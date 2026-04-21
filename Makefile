@@ -2,6 +2,10 @@
 run/inngest:
 	npx inngest-cli@latest dev
 
+.PHONY: run/all
+run/all:
+	npx mprocs
+
 
 .PHONY: db/reset
 db/reset:
