@@ -1,6 +1,7 @@
 import { prisma } from "@/db";
 import { publicProcedure, createTRPCRouter } from "@/trpc/init";
 import z from "zod";
+import { randomUUID } from "crypto";
 import { generateSlug } from "random-word-slugs";
 import { generateText } from "ai";
 import { inngest } from "@/inngest/client";
@@ -14,11 +15,10 @@ import { EVENT_NAMES } from "@/inngest/events";
 
 const PROJECT_LIMIT = 50;
 
-const NAMER_CANDIDATES: ReadonlyArray<{ provider: Provider; model: string }> = [
-  { provider: "openai", model: "gpt-5-nano" },
-  { provider: "anthropic", model: "claude-haiku-4-5-20251001" },
-  { provider: "gemini", model: "gemini-2.5-flash-lite" },
-];
+const NAMER: { provider: Provider; model: string } = {
+  provider: "gemini",
+  model: "gemini-2.5-flash-lite",
+};
 
 const PROMPT_TRUNCATE_CHARS = 2000;
 
@@ -32,47 +32,46 @@ function sanitizeName(raw: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-async function generateRawProjectName(userPrompt: string): Promise<string> {
-  for (const candidate of NAMER_CANDIDATES) {
-    const apiKey = getProviderKey(candidate.provider);
-    if (!apiKey) continue;
-    try {
-      const model = createModelProvider({ ...candidate, apiKey });
-      const { text } = await generateText({
-        model,
-        system:
-          "You name software projects. Return a 2-5 word kebab-case name summarizing the user's project idea. No punctuation, no quotes, no explanation. Just the name.",
-        prompt: userPrompt.slice(0, PROMPT_TRUNCATE_CHARS),
-      });
-      const name = sanitizeName(text);
-      if (name.length >= 2) return name;
-    } catch {
-      // fall through to next candidate
-    }
-  }
-  return generateSlug(2, { format: "kebab" });
+function uuidSuffix(): string {
+  return randomUUID().slice(0, 5);
 }
 
-async function ensureUniqueName(base: string): Promise<string> {
-  const existing = await prisma.project.findMany({
-    where: { name: { startsWith: base } },
-    select: { name: true },
-    take: PROJECT_LIMIT + 1,
-  });
-  const taken = new Set(existing.map((p) => p.name));
-  if (!taken.has(base)) return base;
-  const suffixPattern = new RegExp(`^${base}-(\\d+)$`);
-  let maxSuffix = 1;
-  for (const name of taken) {
-    const m = name.match(suffixPattern);
-    if (m) maxSuffix = Math.max(maxSuffix, Number(m[1]));
-  }
-  return `${base}-${maxSuffix + 1}`.slice(0, 40).replace(/^-+|-+$/g, "");
+function placeholderName(): string {
+  return `${generateSlug(2, { format: "kebab" })}-${uuidSuffix()}`.slice(0, 40);
 }
 
-async function generateProjectName(userPrompt: string): Promise<string> {
-  const base = await generateRawProjectName(userPrompt);
-  return ensureUniqueName(base);
+async function generateRawProjectName(
+  userPrompt: string
+): Promise<string | null> {
+  const apiKey = getProviderKey(NAMER.provider);
+  if (!apiKey) return null;
+  try {
+    const model = createModelProvider({ ...NAMER, apiKey });
+    const { text } = await generateText({
+      model,
+      system:
+        "You name software projects. Return a 2-5 word kebab-case name summarizing the user's project idea. No punctuation, no quotes, no explanation. Just the name.",
+      prompt: userPrompt.slice(0, PROMPT_TRUNCATE_CHARS),
+    });
+    const name = sanitizeName(text);
+    return name.length >= 2 ? name : null;
+  } catch {
+    return null;
+  }
+}
+
+async function renameProjectInBackground(
+  projectId: string,
+  userPrompt: string
+) {
+  try {
+    const base = await generateRawProjectName(userPrompt);
+    if (!base) return;
+    const name = `${base}-${uuidSuffix()}`.slice(0, 40);
+    await prisma.project.update({ where: { id: projectId }, data: { name } });
+  } catch {
+    // swallow — placeholder name is acceptable
+  }
 }
 
 export const projectsRouter = createTRPCRouter({
@@ -118,11 +117,9 @@ export const projectsRouter = createTRPCRouter({
     .mutation(async ({ input, ctx }) => {
       await consumeRateLimit(ctx.ip);
 
-      const name = await generateProjectName(input.userPrompt);
-
       const project = await prisma.project.create({
         data: {
-          name,
+          name: placeholderName(),
           messages: {
             create: {
               content: input.userPrompt,
@@ -158,6 +155,8 @@ export const projectsRouter = createTRPCRouter({
           selectedModels: input.selectedModels || {},
         },
       });
+
+      void renameProjectInBackground(project.id, input.userPrompt);
 
       return project;
     }),
