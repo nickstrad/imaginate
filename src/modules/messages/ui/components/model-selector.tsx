@@ -15,6 +15,7 @@ import { SlidersHorizontal as SlidersHorizontalIcon } from "lucide-react";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import {
+  AVAILABLE_MODELS,
   PROVIDERS,
   PROVIDER_LABELS,
   type Provider,
@@ -22,43 +23,6 @@ import {
 } from "@/lib/providers";
 
 const STORAGE_KEY = "imaginate:selected-model";
-
-// Anthropic + Gemini entries confirmed against the official model list pages;
-// OpenAI entries are the current GPT-5 / GPT-4.1 / GPT-4o / o-series families.
-export const AVAILABLE_MODELS = {
-  openai: [
-    { value: "gpt-5.4", label: "GPT-5.4" },
-    { value: "gpt-5.4-pro", label: "GPT-5.4 Pro" },
-    { value: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
-    { value: "gpt-5.4-nano", label: "GPT-5.4 Nano" },
-    { value: "gpt-5", label: "GPT-5" },
-    { value: "gpt-5-mini", label: "GPT-5 Mini" },
-    { value: "gpt-5-nano", label: "GPT-5 Nano" },
-  ],
-  anthropic: [
-    { value: "claude-opus-4-7", label: "Claude Opus 4.7" },
-    { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
-    { value: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
-    { value: "claude-opus-4-6", label: "Claude Opus 4.6" },
-    { value: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
-    { value: "claude-opus-4-5", label: "Claude Opus 4.5" },
-    { value: "claude-opus-4-1", label: "Claude Opus 4.1" },
-  ],
-  gemini: [
-    { value: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro (Preview)" },
-    { value: "gemini-3-flash-preview", label: "Gemini 3 Flash (Preview)" },
-    {
-      value: "gemini-3.1-flash-lite-preview",
-      label: "Gemini 3.1 Flash Lite (Preview)",
-    },
-    { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
-    { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-    { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
-  ],
-} as const satisfies Record<
-  Provider,
-  ReadonlyArray<{ value: string; label: string }>
->;
 
 export interface SingleModelSelection {
   provider: Provider;

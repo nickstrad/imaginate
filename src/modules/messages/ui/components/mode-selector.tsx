@@ -7,8 +7,8 @@ import {
   MessageCircleQuestion as MessageCircleQuestionIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { type Provider } from "@/lib/providers";
-import { AVAILABLE_MODELS, ModelSelectorDialog } from "./model-selector";
+import { AVAILABLE_MODELS, type Provider } from "@/lib/providers";
+import { ModelSelectorDialog } from "./model-selector";
 
 export type Mode = "code" | "ask";
 
