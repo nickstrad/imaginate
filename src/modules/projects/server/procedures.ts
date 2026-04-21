@@ -10,12 +10,13 @@ import { MessageMode } from "@/generated/prisma";
 import { SelectedModelsSchema, type Provider } from "@/lib/providers";
 import { getProviderKey } from "@/lib/provider-config";
 import { createModelProvider } from "@/inngest/model-factory";
+import { EVENT_NAMES } from "@/inngest/events";
 
 const PROJECT_LIMIT = 50;
 
 const NAMER_CANDIDATES: ReadonlyArray<{ provider: Provider; model: string }> = [
   { provider: "openai", model: "gpt-5-nano" },
-  { provider: "anthropic", model: "claude-haiku-4-5" },
+  { provider: "anthropic", model: "claude-haiku-4-5-20251001" },
   { provider: "gemini", model: "gemini-2.5-flash-lite" },
 ];
 
@@ -31,7 +32,7 @@ function sanitizeName(raw: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-async function generateProjectName(userPrompt: string): Promise<string> {
+async function generateRawProjectName(userPrompt: string): Promise<string> {
   for (const candidate of NAMER_CANDIDATES) {
     const apiKey = getProviderKey(candidate.provider);
     if (!apiKey) continue;
@@ -50,6 +51,28 @@ async function generateProjectName(userPrompt: string): Promise<string> {
     }
   }
   return generateSlug(2, { format: "kebab" });
+}
+
+async function ensureUniqueName(base: string): Promise<string> {
+  const existing = await prisma.project.findMany({
+    where: { name: { startsWith: base } },
+    select: { name: true },
+    take: PROJECT_LIMIT + 1,
+  });
+  const taken = new Set(existing.map((p) => p.name));
+  if (!taken.has(base)) return base;
+  const suffixPattern = new RegExp(`^${base}-(\\d+)$`);
+  let maxSuffix = 1;
+  for (const name of taken) {
+    const m = name.match(suffixPattern);
+    if (m) maxSuffix = Math.max(maxSuffix, Number(m[1]));
+  }
+  return `${base}-${maxSuffix + 1}`.slice(0, 40).replace(/^-+|-+$/g, "");
+}
+
+async function generateProjectName(userPrompt: string): Promise<string> {
+  const base = await generateRawProjectName(userPrompt);
+  return ensureUniqueName(base);
 }
 
 export const projectsRouter = createTRPCRouter({
@@ -122,7 +145,10 @@ export const projectsRouter = createTRPCRouter({
         )
       `;
 
-      const eventName = input.mode === "ask" ? "askAgent/run" : "codeAgent/run";
+      const eventName =
+        input.mode === "ask"
+          ? EVENT_NAMES.askAgentRun
+          : EVENT_NAMES.codeAgentRun;
 
       await inngest.send({
         name: eventName,
