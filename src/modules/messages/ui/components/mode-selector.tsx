@@ -7,8 +7,6 @@ import {
   MessageCircleQuestion as MessageCircleQuestionIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AVAILABLE_MODELS, type Provider } from "@/lib/providers";
-import { ModelSelectorDialog } from "./model-selector";
 
 export type Mode = "code" | "ask";
 
@@ -29,12 +27,6 @@ interface ModeSelectorProps {
   mode: Mode;
   setMode: (mode: Mode) => void;
   availableModes: readonly Mode[];
-  selectedModel: string;
-  setSelectedModel: (model: string) => void;
-  availableProviders: Provider[];
-  unavailableProviders: Provider[];
-  isLoading?: boolean;
-  error?: { message: string } | null;
   className?: string;
   disabledModes?: Mode[];
 }
@@ -43,12 +35,6 @@ export function ModeSelector({
   mode,
   setMode,
   availableModes,
-  selectedModel,
-  setSelectedModel,
-  availableProviders,
-  unavailableProviders,
-  isLoading,
-  error,
   className,
   disabledModes = [],
 }: ModeSelectorProps) {
@@ -100,18 +86,6 @@ export function ModeSelector({
         <p className="text-xs text-muted-foreground">
           {modeLabels[mode].description}
         </p>
-      </div>
-
-      <div className="pt-7">
-        <ModelSelectorDialog
-          selectedModel={selectedModel}
-          setSelectedModel={setSelectedModel}
-          availableProviders={availableProviders}
-          unavailableProviders={unavailableProviders}
-          availableModels={AVAILABLE_MODELS}
-          isLoading={isLoading ?? false}
-          error={error}
-        />
       </div>
     </div>
   );

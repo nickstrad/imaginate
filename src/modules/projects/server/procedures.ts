@@ -8,7 +8,7 @@ import { inngest } from "@/inngest/client";
 import { TRPCError } from "@trpc/server";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { MessageMode } from "@/generated/prisma";
-import { SelectedModelsSchema, type Provider } from "@/lib/providers";
+import { type Provider } from "@/lib/providers";
 import { getProviderKey } from "@/lib/provider-config";
 import { createModelProvider } from "@/inngest/model-factory";
 import { EVENT_NAMES } from "@/inngest/events";
@@ -110,7 +110,6 @@ export const projectsRouter = createTRPCRouter({
           .max(10000, {
             message: "Prompt is too long.",
           }),
-        selectedModels: SelectedModelsSchema.optional(),
         mode: z.enum(["code", "ask"]).default("code"),
       })
     )
@@ -152,7 +151,6 @@ export const projectsRouter = createTRPCRouter({
         data: {
           userPrompt: input.userPrompt,
           projectId: project.id,
-          selectedModels: input.selectedModels || {},
         },
       });
 

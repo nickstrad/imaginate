@@ -1,7 +1,7 @@
 import { prisma } from "@/db";
 import type { RunState } from "./agent-config";
 
-export type TelemetryPayload = {
+export type PersistedTelemetry = {
   steps: number;
   filesRead: number;
   filesWritten: number;
@@ -10,6 +10,14 @@ export type TelemetryPayload = {
   promptTokens: number | null;
   completionTokens: number | null;
   totalTokens: number | null;
+};
+
+export type TelemetryPayload = PersistedTelemetry & {
+  plannerTaskType: string | null;
+  totalAttempts: number;
+  escalatedTo: string | null;
+  verificationSuccessCount: number;
+  verificationFailureCount: number;
 };
 
 export type UsageTotals = {
@@ -29,21 +37,42 @@ export function readUsage(usage: unknown): UsageTotals {
   };
 }
 
+function summarizeVerification(runState: RunState) {
+  let success = 0;
+  let failure = 0;
+  let buildSucceeded = false;
+  for (const v of runState.verification) {
+    if (v.success) {
+      success++;
+      if (v.kind === "build") buildSucceeded = true;
+    } else {
+      failure++;
+    }
+  }
+  return { success, failure, buildSucceeded };
+}
+
 export function buildTelemetry(
   runState: RunState,
   steps: number,
   usage: UsageTotals
 ): TelemetryPayload {
   const nullIfZero = (n: number) => (n === 0 ? null : n);
+  const v = summarizeVerification(runState);
   return {
     steps,
     filesRead: runState.filesRead.length,
     filesWritten: Object.keys(runState.filesWritten).length,
     commandsRun: runState.commandsRun.length,
-    buildSucceeded: runState.buildSucceeded,
+    buildSucceeded: v.buildSucceeded,
     promptTokens: nullIfZero(usage.promptTokens),
     completionTokens: nullIfZero(usage.completionTokens),
     totalTokens: nullIfZero(usage.totalTokens),
+    plannerTaskType: runState.plan?.taskType ?? null,
+    totalAttempts: runState.totalAttempts,
+    escalatedTo: runState.escalatedTo,
+    verificationSuccessCount: v.success,
+    verificationFailureCount: v.failure,
   };
 }
 
@@ -59,9 +88,19 @@ export async function persistTelemetry(
   messageId: string,
   payload: TelemetryPayload
 ) {
+  const db: PersistedTelemetry = {
+    steps: payload.steps,
+    filesRead: payload.filesRead,
+    filesWritten: payload.filesWritten,
+    commandsRun: payload.commandsRun,
+    buildSucceeded: payload.buildSucceeded,
+    promptTokens: payload.promptTokens,
+    completionTokens: payload.completionTokens,
+    totalTokens: payload.totalTokens,
+  };
   return prisma.telemetry.upsert({
     where: { messageId },
-    create: { messageId, ...payload },
-    update: payload,
+    create: { messageId, ...db },
+    update: db,
   });
 }

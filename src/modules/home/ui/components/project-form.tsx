@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { ArrowUp } from "lucide-react";
 import React from "react";
 import { ProjectTemplates } from "./project-templates";
-import { useModelSelector } from "@/modules/messages/ui/components/model-selector";
 import {
   ModeSelector,
   useModeSelector,
@@ -20,7 +19,6 @@ export const ProjectForm = () => {
   const router = useRouter();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const modelSelectorState = useModelSelector();
   const modeSelectorState = useModeSelector();
 
   const createProject = useMutation(
@@ -35,27 +33,23 @@ export const ProjectForm = () => {
     })
   );
 
+  const submit = () => {
+    if (!prompt.trim()) return;
+    createProject.mutate({
+      userPrompt: prompt,
+      mode: modeSelectorState.mode,
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (prompt.trim()) {
-      createProject.mutate({
-        userPrompt: prompt,
-        selectedModels: modelSelectorState.selectedModels,
-        mode: modeSelectorState.mode,
-      });
-    }
+    submit();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (prompt.trim()) {
-        createProject.mutate({
-          userPrompt: prompt,
-          selectedModels: modelSelectorState.selectedModels,
-          mode: modeSelectorState.mode,
-        });
-      }
+      submit();
     }
   };
 
@@ -70,12 +64,6 @@ export const ProjectForm = () => {
             mode={modeSelectorState.mode}
             setMode={modeSelectorState.setMode}
             availableModes={modeSelectorState.availableModes}
-            selectedModel={modelSelectorState.selectedModel}
-            setSelectedModel={modelSelectorState.setSelectedModel}
-            availableProviders={modelSelectorState.availableProviders}
-            unavailableProviders={modelSelectorState.unavailableProviders}
-            isLoading={modelSelectorState.isLoading}
-            error={modelSelectorState.error}
             disabledModes={["ask"]}
           />
         </div>

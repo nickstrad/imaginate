@@ -1,35 +1,43 @@
-import { generateText, type ModelMessage } from "ai";
+import { generateText, tool, type ModelMessage } from "ai";
 import { Sandbox } from "@e2b/code-interpreter";
 import { inngest } from "./client";
 import { getSandbox, SANDBOX_TIMEOUT } from "./utils";
-import { AGENT_CONFIG, createRunState } from "./agent-config";
+import { AGENT_CONFIG, createRunState, type RunState } from "./agent-config";
 import {
-  computeIsError,
-  createCreateFilesTool,
+  createApplyPatchTool,
+  createFinalizeTool,
   createListFilesTool,
   createReadFilesTool,
   createReplaceInFileTool,
+  createRunBuildTool,
+  createRunLintTool,
+  createRunTestsTool,
   createTerminalTool,
+  createWriteFilesTool,
+  isFinalOutputAcceptable,
 } from "./agent-tools";
-import {
-  buildTelemetry,
-  extractTelemetry,
-  persistTelemetry,
-  readUsage,
-} from "./agent-telemetry";
+import { buildTelemetry, persistTelemetry, readUsage } from "./agent-telemetry";
 import { createLogger, timed, type Logger } from "@/lib/log";
 import {
   createModelProvider,
-  resolveModelConfig,
-  resolvePostprocModel,
+  EXECUTOR_LADDER,
+  resolvePlannerModel,
+  resolveSpec,
   getPreviousMessages,
+  type ModelSpec,
+  type ResolvedModelConfig,
 } from "./model-factory";
 import {
-  AGENT_PROMPT,
-  FRAGMENT_TITLE_PROMPT,
-  RESPONSE_PROMPT,
+  PLANNER_PROMPT,
+  buildExecutorSystemPrompt,
   ASK_AGENT_PROMPT,
 } from "@/prompts/prompts";
+import {
+  PlanOutputSchema,
+  type FinalOutput,
+  type PlanOutput,
+} from "./agent-schemas";
+import { classifyProviderError } from "./provider-errors";
 import { prisma } from "@/db";
 import {
   MessageRole,
@@ -39,53 +47,9 @@ import {
 } from "@/generated/prisma";
 import {
   ThoughtSchema,
-  ThoughtsSchema,
   thoughtsToPrismaJson,
   type Thought,
 } from "@/lib/schemas/thought";
-
-function formatProviderError(err: unknown): string {
-  const raw =
-    err instanceof Error
-      ? err.message
-      : typeof err === "string"
-        ? err
-        : JSON.stringify(err);
-
-  const lower = raw.toLowerCase();
-
-  if (
-    lower.includes("credit") ||
-    lower.includes("balance") ||
-    lower.includes("quota") ||
-    lower.includes("insufficient")
-  ) {
-    return `Provider account limit reached: ${raw}`;
-  }
-  if (
-    lower.includes("rate limit") ||
-    lower.includes("429") ||
-    lower.includes("too many requests")
-  ) {
-    return `Provider rate limit exceeded: ${raw}`;
-  }
-  if (
-    lower.includes("unauthorized") ||
-    lower.includes("401") ||
-    lower.includes("api key") ||
-    lower.includes("authentication")
-  ) {
-    return `Provider authentication failed: ${raw}`;
-  }
-  if (
-    lower.includes("timeout") ||
-    lower.includes("econnreset") ||
-    lower.includes("etimedout")
-  ) {
-    return `Provider connection error: ${raw}`;
-  }
-  return `Provider error: ${raw}`;
-}
 
 function stepTextOf(src: unknown): string {
   if (!src || typeof src !== "object") return "";
@@ -123,6 +87,356 @@ function loggedStep<T>(
   });
 }
 
+const TASK_SUMMARY_RE = /<task_summary>([\s\S]*?)<\/task_summary>/;
+
+function extractTaskSummaryFallback(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  result: any,
+  thoughts: Thought[]
+): string | null {
+  function* candidates() {
+    yield stepTextOf(result);
+    for (const s of result?.steps ?? []) yield stepTextOf(s);
+    for (const t of thoughts) if (t.text) yield t.text;
+  }
+  for (const text of candidates()) {
+    if (!text) continue;
+    const m = text.match(TASK_SUMMARY_RE);
+    if (m) return m[1].trim();
+  }
+  return null;
+}
+
+function shouldEscalate(
+  runState: RunState,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  result: any
+): { escalate: boolean; reason?: string } {
+  if (runState.finalOutput) {
+    if (runState.finalOutput.status === "failed")
+      return { escalate: true, reason: "finalize:failed" };
+    if (runState.finalOutput.status === "partial")
+      return { escalate: true, reason: "finalize:partial" };
+    return { escalate: false };
+  }
+
+  const text = stepTextOf(result) || "";
+  const lower = text.toLowerCase();
+  if (!text.trim()) return { escalate: true, reason: "empty_output" };
+  if (
+    lower.includes("todo") ||
+    lower.includes("placeholder") ||
+    lower.includes("not implemented")
+  ) {
+    return { escalate: true, reason: "stub_language" };
+  }
+
+  const wrote = Object.keys(runState.filesWritten).length > 0;
+  const verified = runState.verification.some((v) => v.success);
+  if (wrote && !verified) {
+    return { escalate: true, reason: "wrote_without_verify" };
+  }
+
+  if (!wrote) return { escalate: true, reason: "no_writes" };
+
+  return { escalate: false };
+}
+
+function planSnippet(plan: PlanOutput | undefined): string {
+  if (!plan) return "(no plan available)";
+  const files = plan.targetFiles.length
+    ? plan.targetFiles.join(", ")
+    : "(none inferred)";
+  return [
+    `taskType: ${plan.taskType}`,
+    `targetFiles: ${files}`,
+    `verification: ${plan.verification}`,
+    `notes: ${plan.notes || "(none)"}`,
+  ].join("\n");
+}
+
+async function runPlanner(
+  userPrompt: string,
+  previousMessages: ModelMessage[],
+  log: Logger
+): Promise<PlanOutput> {
+  const spec = resolvePlannerModel();
+  let captured: PlanOutput | null = null;
+  const submitPlan = tool({
+    description: "Submit the structured plan for this run.",
+    inputSchema: PlanOutputSchema,
+    execute: async (input: PlanOutput) => {
+      captured = input;
+      return { received: true };
+    },
+  });
+
+  try {
+    await generateText({
+      model: createModelProvider(spec),
+      system: PLANNER_PROMPT,
+      messages: [...previousMessages, { role: "user", content: userPrompt }],
+      tools: { submitPlan },
+      maxOutputTokens: 1024,
+      stopWhen: [() => captured !== null],
+    });
+  } catch (err) {
+    log.warn({ event: "planner failed", metadata: { err: String(err) } });
+  }
+
+  if (captured) return captured;
+  // Fallback: assume coding is required, no plan details.
+  log.warn({ event: "planner no output, using fallback" });
+  return {
+    requiresCoding: true,
+    taskType: "other",
+    targetFiles: [],
+    verification: "tsc",
+    notes: "Planner produced no structured output; proceeding with defaults.",
+  };
+}
+
+type ExecutorAttemptResult = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  result: any;
+  escalated: boolean;
+  reason?: string;
+  error?: unknown;
+};
+
+type RunCodingOpts = {
+  persistedMessageId: string;
+  thoughts: Thought[];
+  cumulativeUsage: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  plan: PlanOutput;
+  runState: RunState;
+  previousMessages: ModelMessage[];
+  userPrompt: string;
+  sandboxId: string;
+  log: Logger;
+};
+
+async function runExecutorOnce(
+  spec: ModelSpec,
+  modelConfig: ResolvedModelConfig,
+  opts: RunCodingOpts
+): Promise<ExecutorAttemptResult> {
+  const {
+    persistedMessageId,
+    thoughts,
+    cumulativeUsage,
+    plan,
+    runState,
+    previousMessages,
+    userPrompt,
+    sandboxId,
+    log,
+  } = opts;
+
+  runState.totalAttempts += 1;
+  runState.escalatedTo = `${spec.provider}:${spec.model}`;
+
+  const toolDeps = {
+    getSandbox: () => getSandbox(sandboxId),
+    runState,
+  };
+
+  const systemPrompt = buildExecutorSystemPrompt(planSnippet(plan));
+
+  try {
+    const result = await generateText({
+      model: createModelProvider(modelConfig),
+      system: systemPrompt,
+      messages: [...previousMessages, { role: "user", content: userPrompt }],
+      tools: {
+        terminal: createTerminalTool(toolDeps),
+        listFiles: createListFilesTool(toolDeps),
+        readFiles: createReadFilesTool(toolDeps),
+        writeFiles: createWriteFilesTool(toolDeps),
+        replaceInFile: createReplaceInFileTool(toolDeps),
+        applyPatch: createApplyPatchTool(toolDeps),
+        runBuild: createRunBuildTool(toolDeps),
+        runTests: createRunTestsTool(toolDeps),
+        runLint: createRunLintTool(toolDeps),
+        finalize: createFinalizeTool(toolDeps),
+      },
+      maxOutputTokens: AGENT_CONFIG.maxOutputTokens,
+      stopWhen: [
+        () => runState.finalOutput !== undefined,
+        ({ steps }) => {
+          const last = steps[steps.length - 1];
+          const text = stepTextOf(last);
+          return TASK_SUMMARY_RE.test(text);
+        },
+      ],
+      onStepFinish: async (stepResult) => {
+        const stepText = stepTextOf(stepResult);
+
+        log.info({
+          event: "agent step",
+          metadata: {
+            stepIndex: stepResult.stepNumber,
+            finishReason: stepResult.finishReason,
+            text:
+              stepText.length > 300 ? stepText.slice(0, 300) + "…" : stepText,
+            toolCalls: stepResult.toolCalls?.map((tc) => tc.toolName),
+          },
+        });
+
+        const newThought = ThoughtSchema.parse({
+          stepIndex: stepResult.stepNumber,
+          text: stepText,
+          toolCalls: stepResult.toolCalls?.map((tc) => ({
+            toolName: tc.toolName,
+            args: tc.input,
+          })),
+          toolResults: stepResult.toolResults?.map((tr) =>
+            typeof tr.output === "string"
+              ? tr.output
+              : JSON.stringify(tr.output)
+          ),
+          reasoningText: stepResult.reasoning?.[0]?.text,
+          finishReason: stepResult.finishReason,
+        });
+        thoughts.push(newThought);
+
+        const usage = readUsage(stepResult.usage);
+        cumulativeUsage.promptTokens += usage.promptTokens;
+        cumulativeUsage.completionTokens += usage.completionTokens;
+        cumulativeUsage.totalTokens += usage.totalTokens;
+
+        const stepsCompleted = stepResult.stepNumber + 1;
+        await Promise.all([
+          prisma.message.update({
+            where: { id: persistedMessageId },
+            data: { thoughts: thoughtsToPrismaJson(thoughts) },
+          }),
+          persistTelemetry(
+            persistedMessageId,
+            buildTelemetry(runState, stepsCompleted, cumulativeUsage)
+          ).catch((e) =>
+            log.warn({
+              event: "telemetry snapshot failed",
+              metadata: { err: String(e) },
+            })
+          ),
+        ]);
+      },
+    });
+
+    if (!runState.finalOutput) {
+      const fallback = extractTaskSummaryFallback(result, thoughts);
+      if (fallback) {
+        runState.finalOutput = {
+          status: "success",
+          title: "Fragment",
+          summary: fallback,
+          verification: runState.verification,
+          nextSteps: [],
+        };
+      }
+    }
+
+    const decision = shouldEscalate(runState, result);
+    return { result, escalated: decision.escalate, reason: decision.reason };
+  } catch (err) {
+    return { result: null, escalated: true, reason: "exception", error: err };
+  }
+}
+
+type ExecuteOutcome = {
+  runState: RunState;
+  stepsCount: number;
+  usage: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  lastErrorMessage: string | null;
+};
+
+async function runCodingAgentWithEscalation(
+  opts: RunCodingOpts
+): Promise<ExecuteOutcome> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let lastResult: any = null;
+  let lastError: unknown;
+
+  for (let i = 0; i < EXECUTOR_LADDER.length; i++) {
+    const spec = EXECUTOR_LADDER[i];
+    let modelConfig: ResolvedModelConfig;
+    try {
+      modelConfig = resolveSpec(spec);
+    } catch (err) {
+      opts.log.warn({
+        event: "ladder slot unavailable",
+        metadata: { spec, err: String(err) },
+      });
+      lastError = err;
+      continue;
+    }
+
+    opts.log.info({
+      event: "executor attempt",
+      metadata: {
+        attempt: i + 1,
+        model: `${modelConfig.provider}:${modelConfig.model}`,
+      },
+    });
+
+    const outcome = await runExecutorOnce(spec, modelConfig, opts);
+    lastResult = outcome.result;
+
+    if (outcome.error) {
+      const classified = classifyProviderError(outcome.error);
+      lastError = outcome.error;
+      opts.log.warn({
+        event: "executor threw",
+        metadata: {
+          attempt: i + 1,
+          category: classified.category,
+          retryable: classified.retryable,
+        },
+      });
+      if (!classified.retryable) break;
+      continue;
+    }
+
+    if (!outcome.escalated) {
+      opts.log.info({
+        event: "executor accepted",
+        metadata: { attempt: i + 1 },
+      });
+      break;
+    }
+
+    opts.log.info({
+      event: "escalating",
+      metadata: { attempt: i + 1, reason: outcome.reason },
+    });
+  }
+
+  const stepsCount = Array.isArray(lastResult?.steps)
+    ? lastResult.steps.length
+    : 0;
+
+  return {
+    runState: opts.runState,
+    stepsCount,
+    usage: opts.cumulativeUsage,
+    lastErrorMessage:
+      lastError === undefined
+        ? null
+        : lastError instanceof Error
+          ? lastError.message
+          : String(lastError),
+  };
+}
+
 export const codeAgentFunction = inngest.createFunction(
   { id: "codeAgent" },
   { event: "codeAgent/run" },
@@ -134,16 +448,9 @@ export const codeAgentFunction = inngest.createFunction(
         eventId: event.id,
       },
     });
-    const modelConfig = resolveModelConfig(event.data.selectedModels);
+
     await step.run("log-run-start", async () => {
       log.info({ event: "run start" });
-      log.info({
-        event: "model resolved",
-        metadata: {
-          provider: modelConfig.provider,
-          model: modelConfig.model,
-        },
-      });
     });
 
     const persistedMessage = await loggedStep(log, step, "create-message", () =>
@@ -166,17 +473,48 @@ export const codeAgentFunction = inngest.createFunction(
       () => getPreviousMessages(event.data.projectId)
     );
 
-    let thoughts: Thought[] = [];
+    const userPrompt = event.data.userPrompt as string;
+    const runState = createRunState();
+    const thoughts: Thought[] = [];
     const cumulativeUsage = {
       promptTokens: 0,
       completionTokens: 0,
       totalTokens: 0,
     };
 
-    const messages: ModelMessage[] = [
-      ...(previousMessages as ModelMessage[]),
-      { role: "user", content: event.data.userPrompt as string },
-    ];
+    const plan = await loggedStep(log, step, "plan", () =>
+      runPlanner(userPrompt, previousMessages as ModelMessage[], log)
+    );
+    runState.plan = plan;
+
+    if (!plan.requiresCoding) {
+      log.info({
+        event: "plan: no coding required",
+        metadata: { taskType: plan.taskType },
+      });
+      const answer =
+        plan.answer?.trim() ||
+        "I reviewed your request — no code changes were required.";
+      await loggedStep(log, step, "save-answer-only", () =>
+        prisma.message.update({
+          where: { id: persistedMessage.id },
+          data: {
+            content: answer,
+            type: MessageType.RESULT,
+            status: MessageStatus.COMPLETE,
+          },
+        })
+      );
+      const telemetry = buildTelemetry(runState, 0, cumulativeUsage);
+      await loggedStep(
+        log,
+        step,
+        "save-telemetry",
+        () => persistTelemetry(persistedMessage.id, telemetry),
+        telemetry
+      );
+      return { answer, plan };
+    }
 
     const sandboxId = await loggedStep(
       log,
@@ -189,251 +527,51 @@ export const codeAgentFunction = inngest.createFunction(
       }
     );
 
-    const runState = createRunState();
-    const toolDeps = { sandboxId, runState };
+    const executeOutcome = await loggedStep(log, step, "execute", () =>
+      runCodingAgentWithEscalation({
+        persistedMessageId: persistedMessage.id,
+        thoughts,
+        cumulativeUsage,
+        plan,
+        runState,
+        previousMessages: previousMessages as ModelMessage[],
+        userPrompt,
+        sandboxId,
+        log,
+      })
+    );
 
-    log.info({
-      event: "generate start",
-      metadata: {
-        maxSteps: AGENT_CONFIG.maxSteps,
-        maxOutputTokens: AGENT_CONFIG.maxOutputTokens,
-        previousMessageCount: previousMessages.length,
-      },
-    });
-    const generateStart = Date.now();
+    // Restore post-step state from the cached step return (Inngest replays don't
+    // re-run step.run callbacks, so in-closure runState mutations are lost).
+    const finalRunState = executeOutcome.runState;
+    const finalOutput: FinalOutput | undefined = finalRunState.finalOutput;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let result: any;
-    try {
-      result = await loggedStep(log, step, "agent-generate", () =>
-        generateText({
-          model: createModelProvider(modelConfig),
-          system: AGENT_PROMPT,
-          messages,
-          tools: {
-            terminal: createTerminalTool(toolDeps),
-            createFiles: createCreateFilesTool(toolDeps),
-            readFiles: createReadFilesTool(toolDeps),
-            replaceInFile: createReplaceInFileTool(toolDeps),
-            listFiles: createListFilesTool(toolDeps),
-          },
-          maxOutputTokens: AGENT_CONFIG.maxOutputTokens,
-          stopWhen: [
-            ({ steps }) => {
-              if (AGENT_CONFIG.maxSteps === undefined) return false;
-              const billable = steps.filter((s) => {
-                const calls = s.toolCalls ?? [];
-                if (calls.length === 0) return true;
-                return calls.some(
-                  (tc) =>
-                    tc.toolName !== "readFiles" && tc.toolName !== "listFiles"
-                );
-              }).length;
-              return billable >= AGENT_CONFIG.maxSteps;
-            },
-          ],
-          onStepFinish: async (stepResult) => {
-            const summarizeArgs = (input: unknown): unknown => {
-              if (input == null || typeof input !== "object") return input;
-              const obj = input as Record<string, unknown>;
-              const out: Record<string, unknown> = {};
-              for (const [k, v] of Object.entries(obj)) {
-                if (Array.isArray(v)) {
-                  out[k] = v.map((item) => {
-                    if (item && typeof item === "object" && "content" in item) {
-                      const { content, ...rest } = item as Record<
-                        string,
-                        unknown
-                      >;
-                      const c = typeof content === "string" ? content : "";
-                      return { ...rest, contentChars: c.length };
-                    }
-                    return item;
-                  });
-                } else if (typeof v === "string" && v.length > 200) {
-                  out[k] = v.slice(0, 200) + `…(+${v.length - 200} chars)`;
-                } else {
-                  out[k] = v;
-                }
-              }
-              return out;
-            };
-
-            const summarizeResult = (output: unknown): unknown => {
-              if (typeof output === "string") {
-                return output.length > 300
-                  ? output.slice(0, 300) + `…(+${output.length - 300} chars)`
-                  : output;
-              }
-              if (output && typeof output === "object") {
-                const o = output as Record<string, unknown>;
-                const r: Record<string, unknown> = {};
-                for (const [k, v] of Object.entries(o)) {
-                  if (typeof v === "string" && v.length > 300) {
-                    r[k] = v.slice(0, 300) + `…(+${v.length - 300} chars)`;
-                  } else {
-                    r[k] = v;
-                  }
-                }
-                return r;
-              }
-              return output;
-            };
-
-            const toolCalls =
-              stepResult.toolCalls?.map((tc) => ({
-                name: tc.toolName,
-                args: summarizeArgs(tc.input),
-              })) ?? [];
-            const toolResults =
-              stepResult.toolResults?.map((tr) => ({
-                name: tr.toolName,
-                result: summarizeResult(tr.output),
-              })) ?? [];
-
-            const stepText = stepTextOf(stepResult);
-
-            log.info({
-              event: "agent step",
-              metadata: {
-                stepIndex: stepResult.stepNumber,
-                finishReason: stepResult.finishReason,
-                text:
-                  stepText.length > 300
-                    ? stepText.slice(0, 300) + "…"
-                    : stepText,
-                reasoning: stepResult.reasoning?.[0]?.text?.slice(0, 300),
-                toolCalls,
-                toolResults,
-              },
-            });
-
-            const newThought = ThoughtSchema.parse({
-              stepIndex: stepResult.stepNumber,
-              text: stepText,
-              toolCalls: stepResult.toolCalls?.map((tc) => ({
-                toolName: tc.toolName,
-                args: tc.input,
-              })),
-              toolResults: stepResult.toolResults?.map((tr) =>
-                typeof tr.output === "string"
-                  ? tr.output
-                  : JSON.stringify(tr.output)
-              ),
-              reasoningText: stepResult.reasoning?.[0]?.text,
-              finishReason: stepResult.finishReason,
-            });
-
-            thoughts.push(newThought);
-
-            const stepUsage = readUsage(stepResult.usage);
-            cumulativeUsage.promptTokens += stepUsage.promptTokens;
-            cumulativeUsage.completionTokens += stepUsage.completionTokens;
-            cumulativeUsage.totalTokens += stepUsage.totalTokens;
-
-            const stepsCompleted = stepResult.stepNumber + 1;
-            await Promise.all([
-              prisma.message.update({
-                where: { id: persistedMessage.id },
-                data: { thoughts: thoughtsToPrismaJson(thoughts) },
-              }),
-              persistTelemetry(
-                persistedMessage.id,
-                buildTelemetry(runState, stepsCompleted, cumulativeUsage)
-              ).catch((e) =>
-                log.warn({
-                  event: "telemetry snapshot failed",
-                  metadata: { err: String(e) },
-                })
-              ),
-            ]);
-          },
-        })
-      );
-    } catch (err) {
-      const errorMessage = formatProviderError(err);
-      log.error({
-        event: "generate failed",
-        metadata: { err, ms: Date.now() - generateStart },
-      });
+    if (executeOutcome.lastErrorMessage && !finalOutput) {
+      const classified = classifyProviderError(executeOutcome.lastErrorMessage);
       await loggedStep(log, step, "save-provider-error", () =>
         prisma.message.update({
           where: { id: persistedMessage.id },
           data: {
-            content: errorMessage,
+            content: classified.userMessage,
             type: MessageType.ERROR,
             status: MessageStatus.ERROR,
           },
         })
       );
-      return { error: errorMessage };
+      return { error: classified.userMessage, category: classified.category };
     }
 
-    const extractSummary = (): string => {
-      const SUMMARY_RE = /<task_summary>[\s\S]*?<\/task_summary>/;
-      function* candidates() {
-        yield stepTextOf(result);
-        for (const s of result.steps ?? []) yield stepTextOf(s);
-        for (const t of thoughts) if (t.text) yield t.text;
-      }
-      let openTagFallback = "";
-      for (const text of candidates()) {
-        if (!text) continue;
-        const m = text.match(SUMMARY_RE);
-        if (m) return m[0];
-        if (!openTagFallback && text.includes("<task_summary>")) {
-          openTagFallback = text;
-        }
-      }
-      if (!openTagFallback) log.warn({ event: "extract summary: no match" });
-      return openTagFallback;
-    };
-    const summary = extractSummary();
-    log.info({
-      event: "generate ok",
-      metadata: {
-        ms: Date.now() - generateStart,
-        steps: result.steps?.length ?? 0,
-        hasSummary: !!summary,
-        filesWritten: Object.keys(runState.filesWritten).length,
-        buildSucceeded: runState.buildSucceeded,
-      },
-    });
+    const isError = !finalOutput || finalOutput.status === "failed";
 
-    const postprocModel = resolvePostprocModel(modelConfig);
-
-    const [fragmentTitle, responseText, sandboxUrl] = await Promise.all([
-      loggedStep(log, step, "fragment-title", async () => {
-        if (!summary) return "Fragment";
-        const { text } = await generateText({
-          model: postprocModel,
-          system: FRAGMENT_TITLE_PROMPT,
-          prompt: summary,
-          maxOutputTokens: 32,
-        });
-        return text || "Fragment";
-      }),
-      loggedStep(log, step, "response-text", async () => {
-        if (!summary) return "Here you go.";
-        const { text } = await generateText({
-          model: postprocModel,
-          system: RESPONSE_PROMPT,
-          prompt: summary,
-          maxOutputTokens: 160,
-        });
-        return text || "Here you go.";
-      }),
-      loggedStep(log, step, "get-sandbox-url", async () => {
+    const sandboxUrl = await loggedStep(
+      log,
+      step,
+      "get-sandbox-url",
+      async () => {
         const sandbox = await getSandbox(sandboxId);
         return `https://${sandbox.getHost(3000)}`;
-      }),
-    ]);
-
-    const isError = computeIsError(runState, summary);
-    log.info({
-      event: "outcome",
-      metadata: { isError, hasSummary: !!summary },
-    });
+      }
+    );
 
     await loggedStep(
       log,
@@ -444,7 +582,9 @@ export const codeAgentFunction = inngest.createFunction(
           ? prisma.message.update({
               where: { id: persistedMessage.id },
               data: {
-                content: "Something went wrong. Please try again..",
+                content:
+                  finalOutput?.summary ??
+                  "Something went wrong. Please try again..",
                 type: MessageType.ERROR,
                 status: MessageStatus.ERROR,
               },
@@ -452,14 +592,14 @@ export const codeAgentFunction = inngest.createFunction(
           : prisma.message.update({
               where: { id: persistedMessage.id },
               data: {
-                content: responseText,
+                content: finalOutput!.summary,
                 type: MessageType.RESULT,
                 status: MessageStatus.COMPLETE,
                 fragment: {
                   create: {
                     sandboxUrl,
-                    title: fragmentTitle,
-                    files: runState.filesWritten,
+                    title: finalOutput!.title,
+                    files: finalRunState.filesWritten,
                   },
                 },
               },
@@ -467,7 +607,11 @@ export const codeAgentFunction = inngest.createFunction(
       { isError }
     );
 
-    const telemetry = extractTelemetry(result, runState);
+    const telemetry = buildTelemetry(
+      finalRunState,
+      executeOutcome.stepsCount,
+      executeOutcome.usage
+    );
     await loggedStep(
       log,
       step,
@@ -480,16 +624,18 @@ export const codeAgentFunction = inngest.createFunction(
       event: "run ok",
       metadata: {
         isError,
-        fragmentTitle,
+        title: finalOutput?.title,
+        acceptable: isFinalOutputAcceptable(finalRunState),
         ...telemetry,
       },
     });
 
     return {
       url: sandboxUrl,
-      title: fragmentTitle,
-      files: runState.filesWritten,
-      summary,
+      title: finalOutput?.title,
+      files: finalRunState.filesWritten,
+      summary: finalOutput?.summary,
+      status: finalOutput?.status,
     };
   }
 );
@@ -505,12 +651,15 @@ export const askAgentFunction = inngest.createFunction(
         eventId: event.id,
       },
     });
-    const modelConfig = resolveModelConfig(event.data.selectedModels);
+
+    const plannerSpec = resolvePlannerModel();
     await step.run("log-run-start", async () => {
-      log.info({ event: "run start" });
       log.info({
-        event: "model resolved",
-        metadata: { provider: modelConfig.provider, model: modelConfig.model },
+        event: "run start",
+        metadata: {
+          provider: plannerSpec.provider,
+          model: plannerSpec.model,
+        },
       });
     });
 
@@ -529,15 +678,27 @@ export const askAgentFunction = inngest.createFunction(
     const response = await loggedStep(log, step, "ask-agent", async () => {
       try {
         const { text } = await generateText({
-          model: createModelProvider(modelConfig),
+          model: createModelProvider(plannerSpec),
           system: ASK_AGENT_PROMPT,
           messages,
           maxOutputTokens: 4096,
         });
-        return { text, error: null };
+        return {
+          text,
+          error: null as string | null,
+          category: null as string | null,
+        };
       } catch (err) {
-        log.error({ event: "generate failed", metadata: { err } });
-        return { text: "", error: formatProviderError(err) };
+        const classified = classifyProviderError(err);
+        log.error({
+          event: "generate failed",
+          metadata: { err, category: classified.category },
+        });
+        return {
+          text: "",
+          error: classified.userMessage,
+          category: classified.category,
+        };
       }
     });
 
@@ -575,6 +736,7 @@ export const askAgentFunction = inngest.createFunction(
       event: "run ok",
       metadata: {
         hasError: !!response.error,
+        category: response.category,
         textLength: response.text.length,
       },
     });

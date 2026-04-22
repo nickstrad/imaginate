@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Fragment, MessageRole } from "@/generated/prisma";
 import { AssistantMessage } from "./assistant-message";
 import { ProjectHeader } from "./project-header";
-import { useModelSelector } from "@/modules/messages/ui/components/model-selector";
 import {
   ModeSelector,
   useModeSelector,
@@ -73,7 +72,6 @@ export const MessagesContainer = ({
   >();
   const queryClient = useQueryClient();
   const trpc = useTRPC();
-  const modelSelectorState = useModelSelector();
   const modeSelectorState = useModeSelector();
   const { data: messages, refetch } = useSuspenseQuery(
     trpc.messages.getMany.queryOptions({ projectId }, { refetchInterval: 2000 })
@@ -186,7 +184,6 @@ export const MessagesContainer = ({
       createMessage.mutate({
         userPrompt: content,
         projectId,
-        selectedModels: modelSelectorState.selectedModels,
         mode: modeSelectorState.mode,
       });
     }
@@ -243,7 +240,6 @@ export const MessagesContainer = ({
                   createMessage.mutate({
                     userPrompt: content,
                     projectId,
-                    selectedModels: modelSelectorState.selectedModels,
                     mode: modeSelectorState.mode,
                   });
                 }
@@ -263,12 +259,6 @@ export const MessagesContainer = ({
             mode={modeSelectorState.mode}
             setMode={modeSelectorState.setMode}
             availableModes={modeSelectorState.availableModes}
-            selectedModel={modelSelectorState.selectedModel}
-            setSelectedModel={modelSelectorState.setSelectedModel}
-            availableProviders={modelSelectorState.availableProviders}
-            unavailableProviders={modelSelectorState.unavailableProviders}
-            isLoading={modelSelectorState.isLoading}
-            error={modelSelectorState.error}
           />
         </div>
       </div>

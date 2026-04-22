@@ -5,19 +5,31 @@ import type { LanguageModel, ModelMessage } from "ai";
 import { prisma } from "@/db";
 import { MessageRole, MessageStatus } from "@/generated/prisma";
 import { getProviderKey } from "@/lib/provider-config";
-import {
-  PROVIDERS,
-  DEFAULT_FALLBACK_MODEL,
-  CHEAP_POSTPROC_MODEL,
-  type Provider,
-  type SelectedModels,
-} from "@/lib/providers";
+import { PROVIDERS, type Provider } from "@/lib/providers";
 
 export interface ResolvedModelConfig {
   provider: Provider;
   model: string;
   apiKey: string;
 }
+
+export interface ModelSpec {
+  provider: Provider;
+  model: string;
+}
+
+export const MODEL_REGISTRY = {
+  planner: { provider: "gemini", model: "gemini-3.1-flash-lite-preview" },
+  executorDefault: { provider: "gemini", model: "gemini-3-flash-preview" },
+  executorFallback1: { provider: "openai", model: "gpt-5" },
+  executorFallback2: { provider: "anthropic", model: "claude-sonnet-4-6" },
+} as const satisfies Record<string, ModelSpec>;
+
+export const EXECUTOR_LADDER: readonly ModelSpec[] = [
+  MODEL_REGISTRY.executorDefault,
+  MODEL_REGISTRY.executorFallback1,
+  MODEL_REGISTRY.executorFallback2,
+] as const;
 
 export function createModelProvider(
   config: ResolvedModelConfig
@@ -32,49 +44,23 @@ export function createModelProvider(
   }
 }
 
-export function resolveModelConfig(
-  selectedModels: SelectedModels | undefined
-): ResolvedModelConfig {
-  const sel = selectedModels ?? {};
-
+export function resolveSpec(spec: ModelSpec): ResolvedModelConfig {
+  const apiKey = getProviderKey(spec.provider);
+  if (apiKey) {
+    return { provider: spec.provider, model: spec.model, apiKey };
+  }
   for (const provider of PROVIDERS) {
-    const requested = sel[provider];
-    if (!requested) continue;
-    const apiKey = getProviderKey(provider);
-    if (!apiKey) continue;
-    return { provider, model: requested, apiKey };
+    const key = getProviderKey(provider);
+    if (!key) continue;
+    return { provider, model: spec.model, apiKey: key };
   }
-
-  const openaiKey = getProviderKey("openai");
-  if (openaiKey) {
-    return {
-      provider: "openai",
-      model: DEFAULT_FALLBACK_MODEL,
-      apiKey: openaiKey,
-    };
-  }
-
-  throw new Error("No API key available for selected model");
+  throw new Error(
+    `No API key available (wanted ${spec.provider}:${spec.model})`
+  );
 }
 
-export function resolvePostprocModel(
-  modelConfig: ResolvedModelConfig
-): LanguageModel {
-  const order = [
-    ...new Set<Provider>(["gemini", modelConfig.provider, ...PROVIDERS]),
-  ];
-
-  for (const provider of order) {
-    const apiKey = getProviderKey(provider);
-    if (!apiKey) continue;
-    return createModelProvider({
-      provider,
-      model: CHEAP_POSTPROC_MODEL[provider],
-      apiKey,
-    });
-  }
-
-  return createModelProvider(modelConfig);
+export function resolvePlannerModel(): ResolvedModelConfig {
+  return resolveSpec(MODEL_REGISTRY.planner);
 }
 
 export async function getPreviousMessages(
