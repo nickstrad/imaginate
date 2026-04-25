@@ -13,27 +13,28 @@ npm run dev
 
 Then open <http://localhost:3000>.
 
-## Provider API keys
+## Provider API key
 
-Set at least one provider key in `.env`. Each is individually optional, but
-at least one must be present for the agent to run. Providers without a key
-show up as disabled entries in the model picker.
-
-- `OPENAI_API_KEY` — <https://platform.openai.com/api-keys>
-- `ANTHROPIC_API_KEY` — <https://console.anthropic.com/settings/keys>
-- `GEMINI_API_KEY` — <https://aistudio.google.com/app/projects>
+All LLM calls are routed through [OpenRouter](https://openrouter.ai), which
+proxies OpenAI, Anthropic, Google (Gemini + Gemma), DeepSeek, Kimi, and others under a
+single key. Set `OPENROUTER_API_KEY` in `.env` — get one at
+<https://openrouter.ai/keys>.
 
 ## Environment variables
 
-| Variable              | Required | Notes                                                    |
-| --------------------- | -------- | -------------------------------------------------------- |
-| `DATABASE_URL`        | yes      | Postgres connection string (project targets Neon)        |
-| `NEXT_PUBLIC_APP_URL` | yes      | e.g. `http://localhost:3000`                             |
-| `E2B_API_KEY`         | yes      | <https://e2b.dev> — sandbox for generated code           |
-| `OPENAI_API_KEY`      | any one  | see above                                                |
-| `ANTHROPIC_API_KEY`   | any one  | see above                                                |
-| `GEMINI_API_KEY`      | any one  | see above                                                |
-| `RATE_LIMIT_PER_HOUR` | no       | per-IP limit on project + message creation; default `10` |
+| Variable                    | Required | Notes                                                    |
+| --------------------------- | -------- | -------------------------------------------------------- |
+| `DATABASE_URL`              | yes      | Postgres connection string (project targets Neon)        |
+| `NEXT_PUBLIC_APP_URL`       | yes      | e.g. `http://localhost:3000`                             |
+| `E2B_API_KEY`               | yes      | <https://e2b.dev> — sandbox for generated code           |
+| `OPENROUTER_API_KEY`        | yes      | <https://openrouter.ai/keys>                             |
+| `RATE_LIMIT_PER_HOUR`       | no       | per-IP limit on project + message creation; default `10` |
+| `LOG_LEVEL`                 | no       | `debug` \| `info` \| `warn` \| `error` (default `info`)  |
+| `LOG_PRETTY`                | no       | `auto` \| `true` \| `false` (default `auto`)             |
+| `MODEL_PLANNER`             | no       | model key for the planner role — see **Models**          |
+| `MODEL_EXECUTOR_DEFAULT`    | no       | model key for the default executor                       |
+| `MODEL_EXECUTOR_FALLBACK_1` | no       | model key for the first executor fallback                |
+| `MODEL_EXECUTOR_FALLBACK_2` | no       | model key for the second executor fallback               |
 
 ## How it works
 
@@ -50,6 +51,42 @@ show up as disabled entries in the model picker.
   so active conversations are protected.
 - **Rate limiting.** Project and message creation is capped per IP (see
   `RATE_LIMIT_PER_HOUR`) to protect the shared provider budgets.
+
+## Models
+
+All requests are routed through OpenRouter via `@openrouter/ai-sdk-provider`.
+Wiring lives in `src/inngest/model-factory.ts`.
+
+### Available model keys
+
+Defined in `src/lib/config/models.ts`. Set the env vars below to one of these
+keys to swap the model used for a given role.
+
+| Key                     | OpenRouter slug                        |
+| ----------------------- | -------------------------------------- |
+| `GEMINI_3_1_FLASH_LITE` | `google/gemini-3.1-flash-lite-preview` |
+| `GEMINI_3_FLASH`        | `google/gemini-3-flash-preview`        |
+| `GEMMA_3_27B`           | `google/gemma-3-27b-it`                |
+| `OPENAI_GPT_5`          | `openai/gpt-5`                         |
+| `CLAUDE_SONNET_4_6`     | `anthropic/claude-sonnet-4.6`          |
+| `DEEPSEEK_CHAT_V3_1`    | `deepseek/deepseek-chat-v3.1`          |
+| `KIMI_K2_6`             | `moonshotai/kimi-k2.6`                 |
+
+### Roles and defaults
+
+| Role                  | Env var                     | Default                 |
+| --------------------- | --------------------------- | ----------------------- |
+| Planner               | `MODEL_PLANNER`             | `GEMINI_3_1_FLASH_LITE` |
+| Executor (default)    | `MODEL_EXECUTOR_DEFAULT`    | `GEMINI_3_FLASH`        |
+| Executor (fallback 1) | `MODEL_EXECUTOR_FALLBACK_1` | `OPENAI_GPT_5`          |
+| Executor (fallback 2) | `MODEL_EXECUTOR_FALLBACK_2` | `CLAUDE_SONNET_4_6`     |
+
+Executor ladder order on failure: default → fallback 1 → fallback 2.
+
+To experiment, set e.g. `MODEL_EXECUTOR_DEFAULT=KIMI_K2_6` in `.env` and
+restart. Unknown keys fail Zod validation at startup. To add a new model,
+append it to `MODEL_IDS` in `src/lib/config/models.ts` (confirm the slug is
+live on <https://openrouter.ai/models> first — IDs and pricing change).
 
 ## E2B sandbox template
 

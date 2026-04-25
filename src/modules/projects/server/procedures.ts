@@ -6,30 +6,24 @@ import { inngest } from "@/inngest/client";
 import { TRPCError } from "@trpc/server";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { MessageMode } from "@/generated/prisma";
-import { type Provider } from "@/lib/providers";
 import { getProviderKey } from "@/lib/provider-config";
-import { createModelProvider } from "@/inngest/model-factory";
+import { createModelProvider, MODEL_REGISTRY } from "@/inngest/model-factory";
 import { eventNameForMode } from "@/inngest/events";
 import { buildProjectName, placeholderName } from "./naming";
 
 const PROJECT_LIMIT = 50;
-
-const NAMER: { provider: Provider; model: string } = {
-  provider: "gemini",
-  model: "gemini-2.5-flash-lite",
-};
 
 const PROMPT_TRUNCATE_CHARS = 2000;
 
 async function generateRawProjectName(
   userPrompt: string
 ): Promise<string | null> {
-  const apiKey = getProviderKey(NAMER.provider);
+  const apiKey = getProviderKey(MODEL_REGISTRY.planner.provider);
   if (!apiKey) {
     return null;
   }
   try {
-    const model = createModelProvider({ ...NAMER, apiKey });
+    const model = createModelProvider({ ...MODEL_REGISTRY.planner, apiKey });
     const { text } = await generateText({
       model,
       system:

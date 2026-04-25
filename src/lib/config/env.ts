@@ -1,5 +1,8 @@
 import "server-only";
 import { z } from "zod";
+import { MODEL_KEYS } from "./models";
+
+const ModelIdSchema = z.enum(MODEL_KEYS);
 
 const NodeEnvSchema = z
   .enum(["development", "test", "production"])
@@ -9,12 +12,17 @@ const LogLevelSchema = z
   .enum(["debug", "info", "warn", "error"])
   .default("info");
 
-const EnvSchema = z.object({
+export const EnvSchema = z.object({
   NODE_ENV: NodeEnvSchema,
 
-  OPENAI_API_KEY: z.string().min(1).optional(),
-  ANTHROPIC_API_KEY: z.string().min(1).optional(),
-  GEMINI_API_KEY: z.string().min(1).optional(),
+  OPENROUTER_API_KEY: z.string().min(1).optional(),
+
+  MODEL_PLANNER: ModelIdSchema.default(MODEL_KEYS.GEMINI_3_1_FLASH_LITE),
+  MODEL_EXECUTOR_DEFAULT: ModelIdSchema.default(MODEL_KEYS.GEMINI_3_FLASH),
+  MODEL_EXECUTOR_FALLBACK_1: ModelIdSchema.default(MODEL_KEYS.OPENAI_GPT_5),
+  MODEL_EXECUTOR_FALLBACK_2: ModelIdSchema.default(
+    MODEL_KEYS.CLAUDE_SONNET_4_6
+  ),
 
   LOG_LEVEL: z.preprocess(
     (v) => (typeof v === "string" ? v.toLowerCase() : v),
@@ -34,9 +42,13 @@ const EnvSchema = z.object({
 function readRaw() {
   return {
     NODE_ENV: process.env.NODE_ENV,
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY || undefined,
-    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || undefined,
-    GEMINI_API_KEY: process.env.GEMINI_API_KEY || undefined,
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || undefined,
+    MODEL_PLANNER: process.env.MODEL_PLANNER || undefined,
+    MODEL_EXECUTOR_DEFAULT: process.env.MODEL_EXECUTOR_DEFAULT || undefined,
+    MODEL_EXECUTOR_FALLBACK_1:
+      process.env.MODEL_EXECUTOR_FALLBACK_1 || undefined,
+    MODEL_EXECUTOR_FALLBACK_2:
+      process.env.MODEL_EXECUTOR_FALLBACK_2 || undefined,
     LOG_LEVEL: process.env.LOG_LEVEL,
     RATE_LIMIT_PER_HOUR: process.env.RATE_LIMIT_PER_HOUR || undefined,
     LOG_PRETTY: process.env.LOG_PRETTY || undefined,

@@ -1,29 +1,38 @@
-import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { LanguageModel, ModelMessage } from "ai";
 import { prisma } from "@/db";
 import { MessageRole, MessageStatus } from "@/generated/prisma";
+import { env } from "@/lib/config/env";
+import { MODEL_IDS, type ModelId } from "@/lib/config/models";
 import { getProviderKey } from "@/lib/provider-config";
-import { PROVIDERS, type Provider } from "@/lib/providers";
+import { type Provider } from "@/lib/providers";
 
 export interface ResolvedModelConfig {
   provider: Provider;
-  model: string;
+  model: ModelId;
   apiKey: string;
 }
 
 export interface ModelSpec {
   provider: Provider;
-  model: string;
+  model: ModelId;
 }
 
 export const MODEL_REGISTRY = {
-  planner: { provider: "gemini", model: "gemini-3.1-flash-lite-preview" },
-  executorDefault: { provider: "gemini", model: "gemini-3-flash-preview" },
-  executorFallback1: { provider: "openai", model: "gpt-5" },
-  executorFallback2: { provider: "anthropic", model: "claude-sonnet-4-6" },
-} as const satisfies Record<string, ModelSpec>;
+  planner: { provider: "openrouter", model: env.MODEL_PLANNER },
+  executorDefault: {
+    provider: "openrouter",
+    model: env.MODEL_EXECUTOR_DEFAULT,
+  },
+  executorFallback1: {
+    provider: "openrouter",
+    model: env.MODEL_EXECUTOR_FALLBACK_1,
+  },
+  executorFallback2: {
+    provider: "openrouter",
+    model: env.MODEL_EXECUTOR_FALLBACK_2,
+  },
+} satisfies Record<string, ModelSpec>;
 
 export const EXECUTOR_LADDER: readonly ModelSpec[] = [
   MODEL_REGISTRY.executorDefault,
@@ -34,33 +43,18 @@ export const EXECUTOR_LADDER: readonly ModelSpec[] = [
 export function createModelProvider(
   config: ResolvedModelConfig
 ): LanguageModel {
-  switch (config.provider) {
-    case "openai":
-      return createOpenAI({ apiKey: config.apiKey })(config.model);
-    case "anthropic":
-      return createAnthropic({ apiKey: config.apiKey })(config.model);
-    case "gemini":
-      return createGoogleGenerativeAI({ apiKey: config.apiKey })(config.model);
-  }
+  return createOpenRouter({ apiKey: config.apiKey })(MODEL_IDS[config.model]);
 }
 
 export type KeyResolver = (provider: Provider) => string | null | undefined;
 
 export function resolveSpecWith(
   spec: ModelSpec,
-  resolver: KeyResolver,
-  providers: readonly Provider[] = PROVIDERS
+  resolver: KeyResolver
 ): ResolvedModelConfig {
   const apiKey = resolver(spec.provider);
   if (apiKey) {
     return { provider: spec.provider, model: spec.model, apiKey };
-  }
-  for (const provider of providers) {
-    const key = resolver(provider);
-    if (!key) {
-      continue;
-    }
-    return { provider, model: spec.model, apiKey: key };
   }
   throw new Error(
     `No API key available (wanted ${spec.provider}:${spec.model})`
@@ -73,6 +67,20 @@ export function resolveSpec(spec: ModelSpec): ResolvedModelConfig {
 
 export function resolvePlannerModel(): ResolvedModelConfig {
   return resolveSpec(MODEL_REGISTRY.planner);
+}
+
+export interface MessageRow {
+  role: MessageRole;
+  content: string;
+}
+
+export function toModelMessages(rows: readonly MessageRow[]): ModelMessage[] {
+  return rows
+    .map<ModelMessage>((m) => ({
+      role: m.role === MessageRole.ASSISTANT ? "assistant" : "user",
+      content: m.content,
+    }))
+    .reverse();
 }
 
 export async function getPreviousMessages(
@@ -88,10 +96,5 @@ export async function getPreviousMessages(
     take: 5,
   });
 
-  return messages
-    .map<ModelMessage>((m) => ({
-      role: m.role === MessageRole.ASSISTANT ? "assistant" : "user",
-      content: m.content,
-    }))
-    .reverse();
+  return toModelMessages(messages);
 }

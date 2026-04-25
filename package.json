@@ -19,10 +19,8 @@
     "*.{js,jsx,ts,tsx,json,md,css,yml,yaml}": "prettier --write"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.71",
-    "@ai-sdk/google": "^3.0.64",
-    "@ai-sdk/openai": "^3.0.53",
     "@anthropic-ai/claude-code": "^1.0.55",
+    "@openrouter/ai-sdk-provider": "6.0.0-alpha.1",
     "@e2b/code-interpreter": "^1.5.1",
     "@hookform/resolvers": "^5.1.1",
     "@prisma/client": "^6.11.1",

@@ -1,38 +1,53 @@
 import { describe, it, expect } from "vitest";
+import { MessageRole } from "@/generated/prisma";
 import {
   resolveSpecWith,
   MODEL_REGISTRY,
   EXECUTOR_LADDER,
+  toModelMessages,
 } from "./model-factory";
 
 describe("resolveSpecWith", () => {
-  it("returns the requested provider when its key exists", () => {
-    const cfg = resolveSpecWith({ provider: "openai", model: "gpt-5" }, (p) =>
-      p === "openai" ? "sk-openai" : undefined
+  it("returns the resolved config when the key exists", () => {
+    const cfg = resolveSpecWith(
+      { provider: "openrouter", model: "OPENAI_GPT_5" },
+      (p) => (p === "openrouter" ? "sk-or" : undefined)
     );
     expect(cfg).toEqual({
-      provider: "openai",
-      model: "gpt-5",
-      apiKey: "sk-openai",
+      provider: "openrouter",
+      model: "OPENAI_GPT_5",
+      apiKey: "sk-or",
     });
-  });
-
-  it("falls back to the first provider with a key when requested key is missing", () => {
-    const cfg = resolveSpecWith(
-      { provider: "openai", model: "gpt-5" },
-      (p) => (p === "anthropic" ? "sk-anth" : undefined),
-      ["openai", "anthropic", "gemini"]
-    );
-    expect(cfg.provider).toBe("anthropic");
-    expect(cfg.apiKey).toBe("sk-anth");
-    // model name carries over from the original spec
-    expect(cfg.model).toBe("gpt-5");
   });
 
   it("throws when no provider has a key", () => {
     expect(() =>
-      resolveSpecWith({ provider: "openai", model: "gpt-5" }, () => undefined)
+      resolveSpecWith(
+        { provider: "openrouter", model: "OPENAI_GPT_5" },
+        () => undefined
+      )
     ).toThrow(/No API key/);
+  });
+});
+
+describe("toModelMessages", () => {
+  it("maps ASSISTANT → assistant and everything else → user, then reverses to chronological order", () => {
+    // input is desc-by-createdAt (newest first), as the prisma query returns
+    const rows = [
+      { role: MessageRole.ASSISTANT, content: "third" },
+      { role: MessageRole.USER, content: "second" },
+      { role: MessageRole.ASSISTANT, content: "first" },
+    ];
+
+    expect(toModelMessages(rows)).toEqual([
+      { role: "assistant", content: "first" },
+      { role: "user", content: "second" },
+      { role: "assistant", content: "third" },
+    ]);
+  });
+
+  it("returns an empty array for no rows", () => {
+    expect(toModelMessages([])).toEqual([]);
   });
 });
 
