@@ -51,9 +51,32 @@ show up as disabled entries in the model picker.
 - **Rate limiting.** Project and message creation is capped per IP (see
   `RATE_LIMIT_PER_HOUR`) to protect the shared provider budgets.
 
+## E2B sandbox template
+
+The app creates project sandboxes from the `imaginate-dev` E2B template defined
+in `sandbox-templates/nextjs/e2b.toml`. Rebuild this template whenever the
+template files change, or if E2B reports that the template envd is too old for
+snapshot support.
+
+- `make sandbox/build`
+  Builds and publishes the `sandbox-templates/nextjs` template to E2B using the
+  v2 `@e2b/cli` template create flow.
+
+After rebuilding the template, reset the app database if old project rows point
+at sandboxes created from the previous template.
+
+The E2B CLI may ask you to authenticate. For non-interactive auth, set
+`E2B_ACCESS_TOKEN` from the E2B dashboard; this is different from
+`E2B_API_KEY`.
+
+Note: do not use `e2b template build` for this template right now. Our
+`e2b.toml` is still in the v1 format, and `template build` routes v1 configs
+through the deprecated Docker registry flow. `make sandbox/build` uses the v2
+`template create` command, which works regardless of the toml format.
+
 ## Tech stack
 
-- Next.js 15 (App Router) + React 19
+- Next.js 16 (App Router) + React 19
 - tRPC + TanStack Query
 - Prisma + Postgres
 - Inngest + `@inngest/agent-kit` for async agent workflows
