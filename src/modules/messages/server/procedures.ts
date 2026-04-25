@@ -5,7 +5,7 @@ import { publicProcedure, createTRPCRouter } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 import z from "zod";
 import { MessageMode } from "@/generated/prisma";
-import { EVENT_NAMES } from "@/inngest/events";
+import { eventNameForMode } from "@/inngest/events";
 import type { Thought } from "@/lib/schemas/thought";
 
 export const messagesRouter = createTRPCRouter({
@@ -69,11 +69,8 @@ export const messagesRouter = createTRPCRouter({
         }),
       ]);
 
-      const eventName =
-        mode === "ask" ? EVENT_NAMES.askAgentRun : EVENT_NAMES.codeAgentRun;
-
       await inngest.send({
-        name: eventName,
+        name: eventNameForMode(mode),
         data: {
           userPrompt,
           projectId,
