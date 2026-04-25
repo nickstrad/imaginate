@@ -1,7 +1,12 @@
 import { generateText, tool, type ModelMessage } from "ai";
 import { Sandbox } from "@e2b/code-interpreter";
 import { inngest } from "./client";
-import { getSandbox, SANDBOX_TIMEOUT } from "./utils";
+import {
+  ensurePreviewReady,
+  getSandbox,
+  getSandboxUrl,
+  SANDBOX_TIMEOUT,
+} from "./utils";
 import { AGENT_CONFIG, createRunState, type RunState } from "./agent-config";
 import {
   createApplyPatchTool,
@@ -569,7 +574,8 @@ export const codeAgentFunction = inngest.createFunction(
       "get-sandbox-url",
       async () => {
         const sandbox = await getSandbox(sandboxId);
-        return `https://${sandbox.getHost(3000)}`;
+        await ensurePreviewReady(sandbox);
+        return getSandboxUrl(sandbox);
       }
     );
 
