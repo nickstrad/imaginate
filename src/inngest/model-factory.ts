@@ -44,19 +44,31 @@ export function createModelProvider(
   }
 }
 
-export function resolveSpec(spec: ModelSpec): ResolvedModelConfig {
-  const apiKey = getProviderKey(spec.provider);
+export type KeyResolver = (provider: Provider) => string | null | undefined;
+
+export function resolveSpecWith(
+  spec: ModelSpec,
+  resolver: KeyResolver,
+  providers: readonly Provider[] = PROVIDERS,
+): ResolvedModelConfig {
+  const apiKey = resolver(spec.provider);
   if (apiKey) {
     return { provider: spec.provider, model: spec.model, apiKey };
   }
-  for (const provider of PROVIDERS) {
-    const key = getProviderKey(provider);
-    if (!key) continue;
+  for (const provider of providers) {
+    const key = resolver(provider);
+    if (!key) {
+      continue;
+    }
     return { provider, model: spec.model, apiKey: key };
   }
   throw new Error(
-    `No API key available (wanted ${spec.provider}:${spec.model})`
+    `No API key available (wanted ${spec.provider}:${spec.model})`,
   );
+}
+
+export function resolveSpec(spec: ModelSpec): ResolvedModelConfig {
+  return resolveSpecWith(spec, getProviderKey);
 }
 
 export function resolvePlannerModel(): ResolvedModelConfig {
