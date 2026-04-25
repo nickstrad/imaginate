@@ -5,14 +5,14 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@/ui/components/ui/sheet";
+import { ScrollArea } from "@/ui/components/ui/scroll-area";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { Separator } from "@/components/ui/separator";
+} from "@/ui/components/ui/collapsible";
+import { Separator } from "@/ui/components/ui/separator";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import type { Thought } from "@/lib/schemas/thought";

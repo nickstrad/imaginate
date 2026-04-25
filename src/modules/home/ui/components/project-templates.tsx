@@ -49,7 +49,7 @@ export const PROJECT_TEMPLATES = [
   },
 ] as const;
 
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/ui/components/ui/card";
 
 interface ProjectTemplatesProps {
   onTemplateSelect: (prompt: string) => void;

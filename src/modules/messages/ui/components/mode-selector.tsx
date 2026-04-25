@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@/ui/components/ui/toggle-group";
 import {
   Code as CodeIcon,
   MessageCircleQuestion as MessageCircleQuestionIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 export type Mode = "code" | "ask";
 

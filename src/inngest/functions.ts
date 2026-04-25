@@ -50,7 +50,7 @@ import {
   CACHE_PROVIDER_OPTIONS,
 } from "@/lib/prompts";
 import { classifyProviderError } from "@/lib/errors";
-import { prisma } from "@/db";
+import { prisma } from "@/lib/db";
 import {
   MessageRole,
   MessageType,

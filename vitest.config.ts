@@ -4,8 +4,10 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
     alias: {
-      "server-only": new URL("./src/test/stubs/server-only.ts", import.meta.url)
-        .pathname,
+      "server-only": new URL(
+        "./src/lib/shared/test/stubs/server-only.ts",
+        import.meta.url
+      ).pathname,
     },
   },
   test: {
@@ -15,7 +17,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html"],
       include: ["src/**/*.ts"],
-      exclude: ["src/**/*.test.ts", "src/test/**"],
+      exclude: ["src/**/*.test.ts", "src/lib/shared/test/**"],
     },
   },
 });

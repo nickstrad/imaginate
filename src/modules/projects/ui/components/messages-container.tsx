@@ -4,14 +4,14 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/ui/components/ui/avatar";
+import { Card, CardContent } from "@/ui/components/ui/card";
 import { SendIcon, UserIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 import React from "react";
 import { toast } from "sonner";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
+import { Textarea } from "@/ui/components/ui/textarea";
+import { Button } from "@/ui/components/ui/button";
 import { Fragment, MessageRole } from "@/generated/prisma";
 import { AssistantMessage } from "./assistant-message";
 import { ProjectHeader } from "./project-header";

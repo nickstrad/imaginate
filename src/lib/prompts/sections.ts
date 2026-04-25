@@ -15,7 +15,7 @@ export const EXEC_FINALIZE_RULES = `Rules:
 export const EXEC_ENV_RULES = `Environment:
 - Writable FS via writeFiles. Command execution via terminal. Read via readFiles.
 - TypeScript and all Next.js deps already installed at /home/user/node_modules. To type-check: runBuild (or \`cd /home/user && npx tsc --noEmit\`).
-- Main file: app/page.tsx. Shadcn components at @/components/ui/*. Tailwind preconfigured.
+- Main file: app/page.tsx. Shadcn components at @/ui/components/ui/*. Tailwind preconfigured.
 - layout.tsx exists — do not emit <html>, <body>, or top-level layout.
 - Do not create .css/.scss/.sass files. Tailwind only.
 - Never run npm run dev / build / start — dev server is already running on port 3000.

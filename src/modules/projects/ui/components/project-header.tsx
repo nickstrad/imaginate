@@ -4,8 +4,8 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, ChevronsUpDown, SunMoonIcon } from "lucide-react";
 
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/shared/utils";
+import { Button } from "@/ui/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +18,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   DropdownMenuRadioItem,
-} from "@/components/ui/dropdown-menu";
+} from "@/ui/components/ui/dropdown-menu";
 import { Project } from "@/generated/prisma";
 import {
   DropdownMenuPortal,

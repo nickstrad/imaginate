@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
-import { Card, CardAction, CardContent } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardAction, CardContent } from "@/ui/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/ui/components/ui/alert";
 import {
   BotIcon,
   TerminalIcon,
@@ -11,7 +11,7 @@ import {
   CheckCircleIcon,
   MousePointerClickIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 import { Fragment, MessageStatus } from "@/generated/prisma";
 import type { Thought } from "@/lib/schemas/thought";
 import type { Message } from "./types";

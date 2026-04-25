@@ -4,10 +4,15 @@ import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
-} from "@/components/ui/resizable";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@/ui/components/ui/resizable";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/ui/components/ui/tabs";
+import { Card, CardContent } from "@/ui/components/ui/card";
+import { ScrollArea } from "@/ui/components/ui/scroll-area";
 import { MessagesContainer } from "../components/messages-container";
 import { Suspense } from "react";
 import React from "react";

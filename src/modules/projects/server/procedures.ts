@@ -1,4 +1,4 @@
-import { prisma } from "@/db";
+import { prisma } from "@/lib/db";
 import { publicProcedure, createTRPCRouter } from "@/trpc/init";
 import z from "zod";
 import { generateText } from "ai";

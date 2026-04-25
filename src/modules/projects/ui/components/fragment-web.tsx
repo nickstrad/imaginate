@@ -1,10 +1,10 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/ui/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/ui/components/ui/tooltip";
 import { Fragment } from "@/generated/prisma";
 import { ExternalLinkIcon, RefreshCcw } from "lucide-react";
 import React from "react";

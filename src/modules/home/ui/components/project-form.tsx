@@ -2,8 +2,8 @@
 
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
+import { Textarea } from "@/ui/components/ui/textarea";
+import { Button } from "@/ui/components/ui/button";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowUp } from "lucide-react";

@@ -2,9 +2,9 @@
 
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/ui/components/ui/card";
 import { useRouter } from "next/navigation";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/ui/components/ui/skeleton";
 import { BotIcon, AlertCircle } from "lucide-react";
 
 export const ProjectList = () => {

@@ -1,21 +1,21 @@
 "use client";
 
-import { CodeView } from "@/components/code-view";
+import { CodeView } from "@/ui/components/code-view";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
-} from "@/components/ui/resizable";
+} from "@/ui/components/ui/resizable";
 import { Fragment } from "@/generated/prisma";
 import React from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/ui/components/ui/scroll-area";
+import { Button } from "@/ui/components/ui/button";
+import { cn } from "@/lib/shared/utils";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@/ui/components/ui/collapsible";
 import { ChevronRightIcon, FileIcon, FolderIcon } from "lucide-react";
 
 type FileCollection = Record<string, string>;

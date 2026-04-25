@@ -1,4 +1,4 @@
-import { prisma } from "@/db";
+import { prisma } from "@/lib/db";
 import { inngest } from "@/inngest/client";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { publicProcedure, createTRPCRouter } from "@/trpc/init";
