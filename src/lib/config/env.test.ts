@@ -7,7 +7,9 @@ describe("EnvSchema model fields", () => {
     const parsed = EnvSchema.parse({});
     expect(parsed.MODEL_PLANNER).toBe(MODEL_KEYS.GEMINI_3_1_FLASH_LITE);
     expect(parsed.MODEL_EXECUTOR_DEFAULT).toBe(MODEL_KEYS.GEMINI_3_FLASH);
-    expect(parsed.MODEL_EXECUTOR_FALLBACK_1).toBe(MODEL_KEYS.OPENAI_GPT_5);
+    expect(parsed.MODEL_EXECUTOR_FALLBACK_1).toBe(
+      MODEL_KEYS.OPENAI_GPT_5_CODEX
+    );
     expect(parsed.MODEL_EXECUTOR_FALLBACK_2).toBe(MODEL_KEYS.CLAUDE_SONNET_4_6);
   });
 

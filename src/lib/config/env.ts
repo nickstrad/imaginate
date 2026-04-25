@@ -19,7 +19,9 @@ export const EnvSchema = z.object({
 
   MODEL_PLANNER: ModelIdSchema.default(MODEL_KEYS.GEMINI_3_1_FLASH_LITE),
   MODEL_EXECUTOR_DEFAULT: ModelIdSchema.default(MODEL_KEYS.GEMINI_3_FLASH),
-  MODEL_EXECUTOR_FALLBACK_1: ModelIdSchema.default(MODEL_KEYS.OPENAI_GPT_5),
+  MODEL_EXECUTOR_FALLBACK_1: ModelIdSchema.default(
+    MODEL_KEYS.OPENAI_GPT_5_CODEX
+  ),
   MODEL_EXECUTOR_FALLBACK_2: ModelIdSchema.default(
     MODEL_KEYS.CLAUDE_SONNET_4_6
   ),

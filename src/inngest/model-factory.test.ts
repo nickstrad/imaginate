@@ -10,12 +10,12 @@ import {
 describe("resolveSpecWith", () => {
   it("returns the resolved config when the key exists", () => {
     const cfg = resolveSpecWith(
-      { provider: "openrouter", model: "OPENAI_GPT_5" },
+      { provider: "openrouter", model: "OPENAI_GPT_5_CODEX" },
       (p) => (p === "openrouter" ? "sk-or" : undefined)
     );
     expect(cfg).toEqual({
       provider: "openrouter",
-      model: "OPENAI_GPT_5",
+      model: "OPENAI_GPT_5_CODEX",
       apiKey: "sk-or",
     });
   });
@@ -23,7 +23,7 @@ describe("resolveSpecWith", () => {
   it("throws when no provider has a key", () => {
     expect(() =>
       resolveSpecWith(
-        { provider: "openrouter", model: "OPENAI_GPT_5" },
+        { provider: "openrouter", model: "OPENAI_GPT_5_CODEX" },
         () => undefined
       )
     ).toThrow(/No API key/);
