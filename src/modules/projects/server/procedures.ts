@@ -1,8 +1,6 @@
 import { prisma } from "@/db";
 import { publicProcedure, createTRPCRouter } from "@/trpc/init";
 import z from "zod";
-import { randomUUID } from "crypto";
-import { generateSlug } from "random-word-slugs";
 import { generateText } from "ai";
 import { inngest } from "@/inngest/client";
 import { TRPCError } from "@trpc/server";
@@ -11,7 +9,8 @@ import { MessageMode } from "@/generated/prisma";
 import { type Provider } from "@/lib/providers";
 import { getProviderKey } from "@/lib/provider-config";
 import { createModelProvider } from "@/inngest/model-factory";
-import { EVENT_NAMES } from "@/inngest/events";
+import { eventNameForMode } from "@/inngest/events";
+import { buildProjectName, placeholderName } from "./naming";
 
 const PROJECT_LIMIT = 50;
 
@@ -22,29 +21,13 @@ const NAMER: { provider: Provider; model: string } = {
 
 const PROMPT_TRUNCATE_CHARS = 2000;
 
-function sanitizeName(raw: string): string {
-  return raw
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
-    .replace(/-+/g, "-")
-    .slice(0, 40)
-    .replace(/^-+|-+$/g, "");
-}
-
-function uuidSuffix(): string {
-  return randomUUID().slice(0, 5);
-}
-
-function placeholderName(): string {
-  return `${generateSlug(2, { format: "kebab" })}-${uuidSuffix()}`.slice(0, 40);
-}
-
 async function generateRawProjectName(
   userPrompt: string
 ): Promise<string | null> {
   const apiKey = getProviderKey(NAMER.provider);
-  if (!apiKey) return null;
+  if (!apiKey) {
+    return null;
+  }
   try {
     const model = createModelProvider({ ...NAMER, apiKey });
     const { text } = await generateText({
@@ -53,8 +36,7 @@ async function generateRawProjectName(
         "You name software projects. Return a 2-5 word kebab-case name summarizing the user's project idea. No punctuation, no quotes, no explanation. Just the name.",
       prompt: userPrompt.slice(0, PROMPT_TRUNCATE_CHARS),
     });
-    const name = sanitizeName(text);
-    return name.length >= 2 ? name : null;
+    return text;
   } catch {
     return null;
   }
@@ -65,9 +47,11 @@ async function renameProjectInBackground(
   userPrompt: string
 ) {
   try {
-    const base = await generateRawProjectName(userPrompt);
-    if (!base) return;
-    const name = `${base}-${uuidSuffix()}`.slice(0, 40);
+    const raw = await generateRawProjectName(userPrompt);
+    const name = buildProjectName(raw);
+    if (!name) {
+      return;
+    }
     await prisma.project.update({ where: { id: projectId }, data: { name } });
   } catch {
     // swallow — placeholder name is acceptable
@@ -141,13 +125,8 @@ export const projectsRouter = createTRPCRouter({
         )
       `;
 
-      const eventName =
-        input.mode === "ask"
-          ? EVENT_NAMES.askAgentRun
-          : EVENT_NAMES.codeAgentRun;
-
       await inngest.send({
-        name: eventName,
+        name: eventNameForMode(input.mode),
         data: {
           userPrompt: input.userPrompt,
           projectId: project.id,

@@ -37,7 +37,7 @@ export function readUsage(usage: unknown): UsageTotals {
   };
 }
 
-function summarizeVerification(runState: RunState) {
+export function summarizeVerification(runState: RunState) {
   let success = 0;
   let failure = 0;
   let buildSucceeded = false;
@@ -84,11 +84,10 @@ export function extractTelemetry(
   return buildTelemetry(runState, steps, readUsage(result?.usage));
 }
 
-export async function persistTelemetry(
-  messageId: string,
+export function toPersistedTelemetry(
   payload: TelemetryPayload
-) {
-  const db: PersistedTelemetry = {
+): PersistedTelemetry {
+  return {
     steps: payload.steps,
     filesRead: payload.filesRead,
     filesWritten: payload.filesWritten,
@@ -98,9 +97,32 @@ export async function persistTelemetry(
     completionTokens: payload.completionTokens,
     totalTokens: payload.totalTokens,
   };
-  return prisma.telemetry.upsert({
+}
+
+export interface TelemetryStore {
+  upsert(args: {
+    where: { messageId: string };
+    create: PersistedTelemetry & { messageId: string };
+    update: PersistedTelemetry;
+  }): Promise<unknown>;
+}
+
+export async function persistTelemetryWith(
+  store: TelemetryStore,
+  messageId: string,
+  payload: TelemetryPayload
+) {
+  const db = toPersistedTelemetry(payload);
+  return store.upsert({
     where: { messageId },
     create: { messageId, ...db },
     update: db,
   });
+}
+
+export async function persistTelemetry(
+  messageId: string,
+  payload: TelemetryPayload
+) {
+  return persistTelemetryWith(prisma.telemetry, messageId, payload);
 }

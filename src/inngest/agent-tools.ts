@@ -20,15 +20,23 @@ type Deps = {
   runState: RunState;
 };
 
-function truncate(s: string) {
-  const max = AGENT_CONFIG.maxStdoutChars;
-  if (max === undefined) return s;
+export function truncateTo(s: string, max: number | undefined): string {
+  if (max === undefined) {
+    return s;
+  }
   return s.length > max ? s.slice(0, max) : s;
 }
 
-function exceedsMax(len: number) {
-  const max = AGENT_CONFIG.maxStdoutChars;
+export function exceedsLimit(len: number, max: number | undefined): boolean {
   return max !== undefined && len > max;
+}
+
+function truncate(s: string) {
+  return truncateTo(s, AGENT_CONFIG.maxStdoutChars);
+}
+
+function exceedsMax(len: number) {
+  return exceedsLimit(len, AGENT_CONFIG.maxStdoutChars);
 }
 
 async function runCommand(
@@ -161,12 +169,16 @@ export function createWriteFilesTool({ getSandbox, runState }: Deps) {
   });
 }
 
-type Edit = { find: string; replace: string; expectedOccurrences: number };
-type EditResult =
+export type Edit = {
+  find: string;
+  replace: string;
+  expectedOccurrences: number;
+};
+export type EditResult =
   | { ok: true; content: string; count: number }
   | { ok: false; error: string };
 
-function applyEdit(content: string, edit: Edit): EditResult {
+export function applyEdit(content: string, edit: Edit): EditResult {
   if (edit.find.length === 0) {
     return { ok: false, error: "`find` must not be empty" };
   }
