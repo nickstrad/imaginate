@@ -48,7 +48,6 @@ function getDefaultLimiter(): RateLimiter {
   return defaultLimiter;
 }
 
-
 export async function consume(
   limiter: RateLimiter,
   rawKey: string,

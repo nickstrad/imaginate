@@ -81,17 +81,18 @@ function extractTaskSummaryFallback(
   result: any,
   thoughts: Thought[],
 ): string | null {
-  const candidates: string[] = [];
-  candidates.push(stepTextOf(result));
-  for (const s of result?.steps ?? []) {
-    candidates.push(stepTextOf(s));
-  }
-  for (const t of thoughts) {
-    if (t.text) {
-      candidates.push(t.text);
+  function* candidates(): Iterable<string> {
+    yield stepTextOf(result);
+    for (const s of result?.steps ?? []) {
+      yield stepTextOf(s);
+    }
+    for (const t of thoughts) {
+      if (t.text) {
+        yield t.text;
+      }
     }
   }
-  return extractTaskSummary(candidates);
+  return extractTaskSummary(candidates());
 }
 
 function planSnippet(plan: PlanOutput | undefined): string {

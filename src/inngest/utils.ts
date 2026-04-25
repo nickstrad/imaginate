@@ -13,11 +13,11 @@ export interface SandboxClient<T extends SandboxConnection = SandboxConnection> 
   connect(sandboxId: string): Promise<T>;
 }
 
-const defaultClient: SandboxClient = {
-  connect: (id) => Sandbox.connect(id) as Promise<SandboxConnection>,
+const defaultClient: SandboxClient<Sandbox> = {
+  connect: (id) => Sandbox.connect(id),
 };
 
-export async function connectSandbox<T extends SandboxConnection>(
+export async function connectSandbox<T extends SandboxConnection = Sandbox>(
   sandboxId: string,
   options: { client?: SandboxClient<T>; timeoutMs?: number } = {},
 ): Promise<T> {
@@ -28,5 +28,5 @@ export async function connectSandbox<T extends SandboxConnection>(
   return sandbox;
 }
 
-export const getSandbox = (sandboxId: string) =>
-  connectSandbox(sandboxId) as unknown as Promise<Sandbox>;
+export const getSandbox = (sandboxId: string): Promise<Sandbox> =>
+  connectSandbox(sandboxId);

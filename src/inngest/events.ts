@@ -11,10 +11,3 @@ export function eventNameForMode(mode: AgentMode): string {
   }
   return EVENT_NAMES.codeAgentRun;
 }
-
-export function messageModeForMode(mode: AgentMode): "ASK" | "CODE" {
-  if (mode === "ask") {
-    return "ASK";
-  }
-  return "CODE";
-}
