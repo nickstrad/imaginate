@@ -3,7 +3,7 @@
 
 # Python SDK
 # from e2b import Sandbox, AsyncSandbox
-# sandbox = Sandbox("imaginate-dev") # Sync sandbox
+# sandbox = Sandbox.create("imaginate-dev") # Sync sandbox
 # sandbox = await AsyncSandbox.create("imaginate-dev") # Async sandbox
 
 # JS SDK
