@@ -1,6 +1,6 @@
-import type { RunState } from "./agent-config";
+import { TASK_SUMMARY_RE } from "./constants";
+import type { EscalateDecision, RunState } from "./types";
 
-/** Extracts visible text from an AI SDK step/result object. */
 export function stepTextOf(src: unknown): string {
   if (!src || typeof src !== "object") {
     return "";
@@ -22,9 +22,6 @@ export function stepTextOf(src: unknown): string {
   return out;
 }
 
-export const TASK_SUMMARY_RE = /<task_summary>([\s\S]*?)<\/task_summary>/;
-
-/** Pure helper: pulls a `<task_summary>` block from any candidate text. */
 export function extractTaskSummary(texts: Iterable<string>): string | null {
   for (const text of texts) {
     if (!text) {
@@ -38,14 +35,6 @@ export function extractTaskSummary(texts: Iterable<string>): string | null {
   return null;
 }
 
-export type EscalateDecision = { escalate: boolean; reason?: string };
-
-/**
- * Decides whether the executor should escalate to the next ladder rung.
- *
- * Why: keep the heuristic in one pure place so each branch can be unit tested
- * and the executor loop in functions.ts stays declarative.
- */
 export function shouldEscalate(
   runState: RunState,
   result: unknown

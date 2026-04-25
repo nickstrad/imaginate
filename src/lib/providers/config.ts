@@ -1,6 +1,6 @@
 import "server-only";
-import { type Provider } from "./providers";
-import { env } from "./config/env";
+import { env } from "@/lib/config/env";
+import type { Provider } from "./types";
 
 const providerKeys: Record<Provider, string | null> = {
   openrouter: env.OPENROUTER_API_KEY ?? null,

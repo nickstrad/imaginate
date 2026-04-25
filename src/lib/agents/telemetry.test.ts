@@ -6,9 +6,9 @@ import {
   readUsage,
   summarizeVerification,
   toPersistedTelemetry,
-  type TelemetryStore,
-} from "./agent-telemetry";
-import { createRunState, markVerification } from "./agent-config";
+} from "./telemetry";
+import type { TelemetryStore } from "./types";
+import { createRunState, markVerification } from "./state";
 
 describe("readUsage", () => {
   it("normalizes promptTokens / inputTokens", () => {

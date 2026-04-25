@@ -1,57 +1,14 @@
-import { Sandbox } from "@e2b/code-interpreter";
 import { createLogger } from "@/lib/log";
-
-export const SANDBOX_DEFAULT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
-export const SANDBOX_PORT = 3000;
-
-/** Back-compat alias. */
-export const SANDBOX_TIMEOUT = SANDBOX_DEFAULT_TIMEOUT_MS;
-
-const PREVIEW_PROBE_ATTEMPTS = 240;
-const PREVIEW_PROBE_INTERVAL_MS = 250;
-const PREVIEW_SERVER_COMMAND =
-  "cd /home/user && npx next dev --turbopack -H 0.0.0.0";
+import {
+  PREVIEW_PROBE_ATTEMPTS,
+  PREVIEW_PROBE_INTERVAL_MS,
+  PREVIEW_PROCESS_CHECK_COMMAND,
+  PREVIEW_SERVER_COMMAND,
+  SANDBOX_PORT,
+} from "./constants";
+import type { PreviewSandboxConnection } from "./types";
 
 const previewLog = createLogger({ scope: "sandbox:preview" });
-
-export interface SandboxConnection {
-  setTimeout(ms: number): Promise<void> | void;
-}
-
-export interface PreviewSandboxConnection extends SandboxConnection {
-  sandboxId: string;
-  getHost(port: number): string;
-  commands: {
-    run(
-      command: string,
-      options?: { background?: boolean }
-    ): Promise<{ stdout: string }>;
-  };
-}
-
-export interface SandboxClient<
-  T extends SandboxConnection = SandboxConnection,
-> {
-  connect(sandboxId: string): Promise<T>;
-}
-
-const defaultClient: SandboxClient<Sandbox> = {
-  connect: (id) => Sandbox.connect(id),
-};
-
-export async function connectSandbox<T extends SandboxConnection = Sandbox>(
-  sandboxId: string,
-  options: { client?: SandboxClient<T>; timeoutMs?: number } = {}
-): Promise<T> {
-  const client = (options.client ?? defaultClient) as SandboxClient<T>;
-  const timeoutMs = options.timeoutMs ?? SANDBOX_DEFAULT_TIMEOUT_MS;
-  const sandbox = await client.connect(sandboxId);
-  await sandbox.setTimeout(timeoutMs);
-  return sandbox;
-}
-
-export const getSandbox = (sandboxId: string): Promise<Sandbox> =>
-  connectSandbox(sandboxId);
 
 export const getSandboxUrl = (
   sandbox: Pick<PreviewSandboxConnection, "getHost">
@@ -72,9 +29,7 @@ export const probePreviewOnce = async (url: string) => {
 export const isPreviewProcessRunning = async (
   sandbox: Pick<PreviewSandboxConnection, "commands">
 ) => {
-  const result = await sandbox.commands.run(
-    "pgrep -f '[n]ext dev' >/dev/null && echo running || echo missing"
-  );
+  const result = await sandbox.commands.run(PREVIEW_PROCESS_CHECK_COMMAND);
   return result.stdout.includes("running");
 };
 

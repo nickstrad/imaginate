@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { TRPCError } from "@trpc/server";
-import { consume, hashKey, type RateLimiter } from "./rate-limit";
+import { consume, hashKey } from "./consume";
+import type { RateLimiter } from "./types";
 
 describe("hashKey", () => {
   it("returns 32-char hex digest", () => {

@@ -1,17 +1,11 @@
 import { tool } from "ai";
 import { z } from "zod";
 import type { Sandbox } from "@e2b/code-interpreter";
-import {
-  AGENT_CONFIG,
-  inferVerificationKind,
-  markVerification,
-  type RunState,
-} from "./agent-config";
-import {
-  FinalOutputSchema,
-  type FinalOutput,
-  type VerificationKind,
-} from "./agent-schemas";
+import { AGENT_CONFIG, DEFAULT_VERIFICATION_COMMAND } from "./constants";
+import { applyEdit, EDIT_SCHEMA, exceedsLimit, truncateTo } from "./edits";
+import { FinalOutputSchema, type FinalOutput } from "./schemas";
+import { inferVerificationKind, markVerification } from "./state";
+import type { RunState, VerificationToolKind } from "./types";
 
 type SandboxLike = Awaited<ReturnType<typeof Sandbox.create>>;
 
@@ -19,17 +13,6 @@ type Deps = {
   getSandbox: () => Promise<SandboxLike>;
   runState: RunState;
 };
-
-export function truncateTo(s: string, max: number | undefined): string {
-  if (max === undefined) {
-    return s;
-  }
-  return s.length > max ? s.slice(0, max) : s;
-}
-
-export function exceedsLimit(len: number, max: number | undefined): boolean {
-  return max !== undefined && len > max;
-}
 
 function truncate(s: string) {
   return truncateTo(s, AGENT_CONFIG.maxStdoutChars);
@@ -81,7 +64,9 @@ export function createTerminalTool({ getSandbox, runState }: Deps) {
         const res = await runCommand(sandbox, command);
         runState.commandsRun.push({ command, success: res.success });
         const kind = inferVerificationKind(command);
-        if (kind) markVerification(runState, kind, command, res.success);
+        if (kind) {
+          markVerification(runState, kind, command, res.success);
+        }
         return res;
       } catch (error) {
         runState.commandsRun.push({ command, success: false });
@@ -169,46 +154,6 @@ export function createWriteFilesTool({ getSandbox, runState }: Deps) {
   });
 }
 
-export type Edit = {
-  find: string;
-  replace: string;
-  expectedOccurrences: number;
-};
-export type EditResult =
-  | { ok: true; content: string; count: number }
-  | { ok: false; error: string };
-
-export function applyEdit(content: string, edit: Edit): EditResult {
-  if (edit.find.length === 0) {
-    return { ok: false, error: "`find` must not be empty" };
-  }
-  const out: string[] = [];
-  let cursor = 0;
-  let count = 0;
-  while (true) {
-    const idx = content.indexOf(edit.find, cursor);
-    if (idx < 0) break;
-    out.push(content.slice(cursor, idx), edit.replace);
-    cursor = idx + edit.find.length;
-    count++;
-  }
-  if (count === 0) return { ok: false, error: "`find` string not found" };
-  if (count !== edit.expectedOccurrences) {
-    return {
-      ok: false,
-      error: `Found ${count} occurrences, expected ${edit.expectedOccurrences}. Refine \`find\` or pass expectedOccurrences=${count}.`,
-    };
-  }
-  out.push(content.slice(cursor));
-  return { ok: true, content: out.join(""), count };
-}
-
-const EDIT_SCHEMA = z.object({
-  find: z.string(),
-  replace: z.string(),
-  expectedOccurrences: z.number().int().min(1).default(1),
-});
-
 export function createReplaceInFileTool({ getSandbox, runState }: Deps) {
   return tool({
     description:
@@ -223,7 +168,9 @@ export function createReplaceInFileTool({ getSandbox, runState }: Deps) {
           replace,
           expectedOccurrences,
         });
-        if (!result.ok) return { success: false, error: result.error };
+        if (!result.ok) {
+          return { success: false, error: result.error };
+        }
         await sandbox.files.write(path, result.content);
         runState.filesWritten[path] = result.content;
         return { success: true, path, replacements: result.count };
@@ -282,18 +229,9 @@ export function createApplyPatchTool({ getSandbox, runState }: Deps) {
   });
 }
 
-const DEFAULT_VERIFICATION_COMMAND: Record<
-  Extract<VerificationKind, "build" | "test" | "lint">,
-  string
-> = {
-  build: "cd /home/user && npx tsc --noEmit",
-  test: "cd /home/user && npm test --silent",
-  lint: "cd /home/user && npm run lint --silent",
-};
-
 function verificationRunner(
   deps: Deps,
-  kind: "build" | "test" | "lint",
+  kind: VerificationToolKind,
   description: string
 ) {
   return tool({

@@ -1,11 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { MessageRole } from "@/generated/prisma";
-import {
-  resolveSpecWith,
-  MODEL_REGISTRY,
-  EXECUTOR_LADDER,
-  toModelMessages,
-} from "./model-factory";
+import { EXECUTOR_LADDER, MODEL_REGISTRY } from "./constants";
+import { resolveSpecWith } from "./factory";
+import { toModelMessages } from "./messages";
 
 describe("resolveSpecWith", () => {
   it("returns the resolved config when the key exists", () => {
@@ -32,7 +29,6 @@ describe("resolveSpecWith", () => {
 
 describe("toModelMessages", () => {
   it("maps ASSISTANT → assistant and everything else → user, then reverses to chronological order", () => {
-    // input is desc-by-createdAt (newest first), as the prisma query returns
     const rows = [
       { role: MessageRole.ASSISTANT, content: "third" },
       { role: MessageRole.USER, content: "second" },

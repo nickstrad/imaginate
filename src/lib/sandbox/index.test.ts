@@ -1,14 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  connectSandbox,
-  ensurePreviewReady,
-  getSandboxUrl,
-  SANDBOX_PORT,
-  SANDBOX_DEFAULT_TIMEOUT_MS,
-  type SandboxClient,
-  type SandboxConnection,
-  type PreviewSandboxConnection,
-} from "./utils";
+import { connectSandbox } from "./connect";
+import { ensurePreviewReady, getSandboxUrl } from "./preview";
+import { SANDBOX_DEFAULT_TIMEOUT_MS, SANDBOX_PORT } from "./constants";
+import type {
+  PreviewSandboxConnection,
+  SandboxClient,
+  SandboxConnection,
+} from "./types";
 
 function makeClient() {
   const setTimeoutFn = vi.fn().mockResolvedValue(undefined);

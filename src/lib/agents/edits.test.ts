@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyEdit, exceedsLimit, truncateTo } from "./agent-tools";
+import { applyEdit, exceedsLimit, truncateTo } from "./edits";
 
 describe("truncateTo / exceedsLimit", () => {
   it("returns input unchanged when max is undefined", () => {

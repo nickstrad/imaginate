@@ -1,10 +1,6 @@
 import { describe, it, expect } from "vitest";
-import {
-  extractTaskSummary,
-  shouldEscalate,
-  stepTextOf,
-} from "./agent-decisions";
-import { createRunState, markVerification } from "./agent-config";
+import { extractTaskSummary, shouldEscalate, stepTextOf } from "./decisions";
+import { createRunState, markVerification } from "./state";
 
 describe("stepTextOf", () => {
   it("returns top-level text", () => {

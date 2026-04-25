@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { classifyProviderError } from "./provider-errors";
+import { classifyProviderError } from "./provider";
 
 describe("classifyProviderError", () => {
   const cases = [

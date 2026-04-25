@@ -5,10 +5,11 @@ import {
   ensurePreviewReady,
   getSandbox,
   getSandboxUrl,
-  SANDBOX_TIMEOUT,
-} from "./utils";
-import { AGENT_CONFIG, createRunState, type RunState } from "./agent-config";
+  SANDBOX_DEFAULT_TIMEOUT_MS,
+} from "@/lib/sandbox";
 import {
+  AGENT_CONFIG,
+  buildTelemetry,
   createApplyPatchTool,
   createFinalizeTool,
   createListFilesTool,
@@ -17,39 +18,38 @@ import {
   createRunBuildTool,
   createRunLintTool,
   createRunTestsTool,
+  createRunState,
   createTerminalTool,
   createWriteFilesTool,
+  extractTaskSummary,
   isFinalOutputAcceptable,
-} from "./agent-tools";
-import { buildTelemetry, persistTelemetry, readUsage } from "./agent-telemetry";
+  persistTelemetry,
+  PlanOutputSchema,
+  readUsage,
+  shouldEscalate,
+  stepTextOf,
+  TASK_SUMMARY_RE,
+  type FinalOutput,
+  type PlanOutput,
+  type RunState,
+} from "@/lib/agents";
 import { createLogger, timed, type Logger } from "@/lib/log";
 import {
   createModelProvider,
   EXECUTOR_LADDER,
+  getPreviousMessages,
   resolvePlannerModel,
   resolveSpec,
-  getPreviousMessages,
   type ModelSpec,
   type ResolvedModelConfig,
-} from "./model-factory";
+} from "@/lib/models";
 import {
   PLANNER_PROMPT,
   buildExecutorSystemPrompt,
   ASK_AGENT_PROMPT,
   CACHE_PROVIDER_OPTIONS,
 } from "@/lib/prompts";
-import {
-  PlanOutputSchema,
-  type FinalOutput,
-  type PlanOutput,
-} from "./agent-schemas";
-import { classifyProviderError } from "./provider-errors";
-import {
-  extractTaskSummary,
-  shouldEscalate,
-  stepTextOf,
-  TASK_SUMMARY_RE,
-} from "./agent-decisions";
+import { classifyProviderError } from "@/lib/errors";
 import { prisma } from "@/db";
 import {
   MessageRole,
@@ -483,7 +483,7 @@ export const codeAgentFunction = inngest.createFunction(
       "get-sandbox-id",
       async () => {
         const sandbox = await Sandbox.create("imaginate-dev");
-        await sandbox.setTimeout(SANDBOX_TIMEOUT);
+        await sandbox.setTimeout(SANDBOX_DEFAULT_TIMEOUT_MS);
         return sandbox.sandboxId;
       }
     );

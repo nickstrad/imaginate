@@ -1,30 +1,11 @@
 import { prisma } from "@/db";
-import type { RunState } from "./agent-config";
-
-export type PersistedTelemetry = {
-  steps: number;
-  filesRead: number;
-  filesWritten: number;
-  commandsRun: number;
-  buildSucceeded: boolean;
-  promptTokens: number | null;
-  completionTokens: number | null;
-  totalTokens: number | null;
-};
-
-export type TelemetryPayload = PersistedTelemetry & {
-  plannerTaskType: string | null;
-  totalAttempts: number;
-  escalatedTo: string | null;
-  verificationSuccessCount: number;
-  verificationFailureCount: number;
-};
-
-export type UsageTotals = {
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-};
+import type {
+  PersistedTelemetry,
+  RunState,
+  TelemetryPayload,
+  TelemetryStore,
+  UsageTotals,
+} from "./types";
 
 const toNum = (v: unknown): number => (typeof v === "number" ? v : 0);
 
@@ -44,7 +25,9 @@ export function summarizeVerification(runState: RunState) {
   for (const v of runState.verification) {
     if (v.success) {
       success++;
-      if (v.kind === "build") buildSucceeded = true;
+      if (v.kind === "build") {
+        buildSucceeded = true;
+      }
     } else {
       failure++;
     }
@@ -97,14 +80,6 @@ export function toPersistedTelemetry(
     completionTokens: payload.completionTokens,
     totalTokens: payload.totalTokens,
   };
-}
-
-export interface TelemetryStore {
-  upsert(args: {
-    where: { messageId: string };
-    create: PersistedTelemetry & { messageId: string };
-    update: PersistedTelemetry;
-  }): Promise<unknown>;
 }
 
 export async function persistTelemetryWith(

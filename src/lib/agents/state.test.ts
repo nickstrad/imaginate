@@ -4,7 +4,7 @@ import {
   hasSuccessfulVerification,
   inferVerificationKind,
   markVerification,
-} from "./agent-config";
+} from "./state";
 
 describe("inferVerificationKind", () => {
   const cases: Array<[string, "build" | "test" | "lint" | null]> = [
