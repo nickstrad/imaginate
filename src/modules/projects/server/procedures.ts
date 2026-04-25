@@ -10,6 +10,7 @@ import { getProviderKey } from "@/lib/provider-config";
 import { createModelProvider, MODEL_REGISTRY } from "@/inngest/model-factory";
 import { eventNameForMode } from "@/inngest/events";
 import { buildProjectName, placeholderName } from "./naming";
+import { PROJECT_NAMING_PROMPT } from "@/lib/prompts";
 
 const PROJECT_LIMIT = 50;
 
@@ -26,8 +27,7 @@ async function generateRawProjectName(
     const model = createModelProvider({ ...MODEL_REGISTRY.planner, apiKey });
     const { text } = await generateText({
       model,
-      system:
-        "You name software projects. Return a 2-5 word kebab-case name summarizing the user's project idea. No punctuation, no quotes, no explanation. Just the name.",
+      system: PROJECT_NAMING_PROMPT,
       prompt: userPrompt.slice(0, PROMPT_TRUNCATE_CHARS),
     });
     return text;

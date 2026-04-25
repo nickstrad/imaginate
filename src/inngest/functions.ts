@@ -36,7 +36,8 @@ import {
   PLANNER_PROMPT,
   buildExecutorSystemPrompt,
   ASK_AGENT_PROMPT,
-} from "@/prompts/prompts";
+  CACHE_PROVIDER_OPTIONS,
+} from "@/lib/prompts";
 import {
   PlanOutputSchema,
   type FinalOutput,
@@ -137,6 +138,7 @@ async function runPlanner(
       tools: { submitPlan },
       maxOutputTokens: 1024,
       stopWhen: [() => captured !== null],
+      providerOptions: CACHE_PROVIDER_OPTIONS,
     });
   } catch (err) {
     log.warn({ event: "planner failed", metadata: { err: String(err) } });
@@ -222,6 +224,7 @@ async function runExecutorOnce(
         runLint: createRunLintTool(toolDeps),
         finalize: createFinalizeTool(toolDeps),
       },
+      providerOptions: CACHE_PROVIDER_OPTIONS,
       maxOutputTokens: AGENT_CONFIG.maxOutputTokens,
       stopWhen: [
         () => runState.finalOutput !== undefined,
@@ -641,6 +644,7 @@ export const askAgentFunction = inngest.createFunction(
           system: ASK_AGENT_PROMPT,
           messages,
           maxOutputTokens: 4096,
+          providerOptions: CACHE_PROVIDER_OPTIONS,
         });
         return {
           text,
