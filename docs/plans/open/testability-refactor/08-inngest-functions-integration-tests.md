@@ -3,7 +3,7 @@
 Deferred from the testability refactor (Phase 9 — `functions.ts` decomposition).
 
 Status: ⬜ not started.
-Depends on: [Prisma repository layer](./prisma-repository-layer.md), [`SandboxOps` interface](./sandbox-ops-interface.md), [`withSandbox` lifecycle](./with-sandbox-lifecycle.md), [`persistRun` helper](./persist-run-helper.md).
+Depends on: [Prisma repository layer](./01-prisma-repository-layer.md), [`SandboxOps` interface](./02-sandbox-ops-interface.md), [`withSandbox` lifecycle](./05-with-sandbox-lifecycle.md), [`persistRun` helper](./06-persist-run-helper.md).
 
 ## Goal
 

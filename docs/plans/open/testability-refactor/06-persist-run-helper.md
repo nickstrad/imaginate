@@ -3,7 +3,7 @@
 Deferred from the testability refactor (Phase 9 — `functions.ts` decomposition).
 
 Status: ⬜ not started.
-Depends on: [Prisma repository layer](./prisma-repository-layer.md).
+Depends on: [Prisma repository layer](./01-prisma-repository-layer.md).
 
 ## Goal
 

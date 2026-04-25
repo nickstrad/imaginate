@@ -3,7 +3,7 @@
 Deferred from the testability refactor (Phase 9 — `functions.ts` decomposition).
 
 Status: ⬜ not started.
-Depends on: [`SandboxOps` interface](./sandbox-ops-interface.md).
+Depends on: [`SandboxOps` interface](./02-sandbox-ops-interface.md).
 
 ## Goal
 

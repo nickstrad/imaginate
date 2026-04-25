@@ -2,7 +2,7 @@
 
 Deferred from the testability refactor (Phase 8 deeper split — agent-tools).
 
-Status: ⬜ not started. **Ship in the same PR as [`SandboxOps` interface](./sandbox-ops-interface.md)** — both refactor `src/lib/agents/tools.ts` end-to-end; doing them separately means rewriting tools.ts twice.
+Status: ⬜ not started. **Ship in the same PR as [`SandboxOps` interface](./02-sandbox-ops-interface.md)** — both refactor `src/lib/agents/tools.ts` end-to-end; doing them separately means rewriting tools.ts twice.
 
 ## Goal
 

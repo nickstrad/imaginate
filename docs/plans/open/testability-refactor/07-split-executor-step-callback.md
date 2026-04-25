@@ -3,7 +3,7 @@
 Deferred from the testability refactor (Phase 9 — `functions.ts` decomposition).
 
 Status: ⬜ not started.
-Depends on: [`RunState` reducers](./run-state-reducers.md), [Prisma repository layer](./prisma-repository-layer.md).
+Depends on: [`RunState` reducers](./04-run-state-reducers.md), [Prisma repository layer](./01-prisma-repository-layer.md).
 
 ## Goal
 
