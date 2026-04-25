@@ -59,16 +59,14 @@ Pure logic for the planner/executor agent loop. Has no awareness of inngest, HTT
 ### `src/lib/providers/` — LLM provider catalog
 
 - `types.ts` — `Provider` literal union.
-- `constants.ts` — `PROVIDERS` array.
 - `config.ts` (`server-only`) — Reads API keys from env. `getProviderKey`, `isProviderAvailable`, `getProviderAvailabilityMap`.
 
 ### `src/lib/rate-limit/` — TRPC rate limiting
 
 - `types.ts` — `RateLimiter`, `RateLimitConfig` (the limiter is structural; tests pass a fake).
 - `constants.ts` — Window/points defaults, `DEFAULT_RATE_LIMIT_CONFIG`, `GLOBAL_FALLBACK_KEY`.
-- `hash.ts` — `hashKey` (sha256 of caller key, truncated).
-- `factory.ts` — `createRateLimiter` (Prisma-backed) + a memoized `getDefaultLimiter`.
-- `consume.ts` — `consume(limiter, rawKey)` (throws `TRPCError TOO_MANY_REQUESTS`) and `consumeRateLimit(ip)` (no-op in dev).
+- `factory.ts` — `createRateLimiter` (Prisma-backed).
+- `consume.ts` — `hashKey`, `consume(limiter, rawKey)` (throws `TRPCError TOO_MANY_REQUESTS`), `consumeRateLimit(ip)` (no-op in dev). Holds the memoized default limiter as module-private state.
 
 ### `src/lib/utils/` — generic UI utilities
 
