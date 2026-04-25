@@ -223,7 +223,7 @@ These live outside `src/` but materially affect how code in `src/` is structured
 - **`next.config.ts`** — Next.js config.
 - **`prisma/`** — Prisma schema and migrations. Generated client lands in `src/generated/prisma` (imported by `src/lib/db`).
 - **`sandbox-templates/`** — E2B sandbox templates used by `src/lib/sandbox`.
-- **`docs/`** — `architecture/` (this file), `documentation/` (long-form references), `plans/{open,completed}` (planning docs; new plans go in `open/`, finished ones move to `completed/`).
+- **`docs/`** — `architecture/` (this file), `documentation/` (long-form references), `plans/` (planning docs). Plans live in `plans/open/` while active and move to `plans/completed/` when shipped; `plans/drift/` holds auto-generated realignment plans from the drift-detection skill. See `docs/plans/AGENTS.md` for plan structure (single-file vs ordered-chunk folders with `01-`, `02-`, … prefixes), required sections, and the conflict-check step against existing open/drift plans. Read it before creating or editing any plan.
 - **`Makefile`, `mprocs.yaml`, `.husky/`** — dev workflow (multi-process dev, git hooks). Touch only when changing local dev ergonomics.
 
 ## Recent moves to be aware of

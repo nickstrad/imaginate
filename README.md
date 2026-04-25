@@ -55,7 +55,7 @@ single key. Set `OPENROUTER_API_KEY` in `.env` — get one at
 ## Models
 
 All requests are routed through OpenRouter via `@openrouter/ai-sdk-provider`.
-Wiring lives in `src/inngest/model-factory.ts`.
+Wiring lives in `src/lib/models/factory.ts`.
 
 ### Available model keys
 
@@ -120,6 +120,17 @@ through the deprecated Docker registry flow. `make sandbox/build` uses the v2
 - E2B Code Interpreter sandboxes
 - shadcn/ui + Tailwind
 - `rate-limiter-flexible` for per-IP limits
+
+## Repository docs
+
+Project conventions live under `docs/` and are read by both humans and coding agents:
+
+- [`AGENTS.md`](./AGENTS.md) — entrypoint for any agent (Claude, Codex, etc.). Maps tasks and slash commands (`/plan`, `/simplify`, `/review`, …) to the docs that must be loaded before doing the work. `CLAUDE.md` is a thin wrapper pointing here.
+- [`docs/architecture/architecture.md`](./docs/architecture/architecture.md) — source of truth for how `src/` is organized (folder shape, dependency direction, where new code goes). Update in the same PR as any structural change.
+- [`docs/code-style/AGENTS.md`](./docs/code-style/AGENTS.md) — project-wide style rules a linter/formatter doesn't enforce.
+- [`docs/plans/AGENTS.md`](./docs/plans/AGENTS.md) — how to write plans for work spanning more than one PR. Plans live in `docs/plans/open/` while active, `docs/plans/drift/` for auto-generated architecture-realignment plans, and `docs/plans/completed/` once shipped.
+
+Read `AGENTS.md` before contributing — it tells you which doc to consult for the task at hand.
 
 ## Manual validation
 
