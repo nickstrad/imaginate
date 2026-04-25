@@ -42,4 +42,6 @@ next-env.d.ts
 
 /src/generated/prisma
 
-.claude
+.claude/*
+!.claude/skills/
+!.claude/skills/**
