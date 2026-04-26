@@ -2,13 +2,13 @@
 
 ## Goal
 
-Create the new `src/agent` structure with domain, application, ports, adapters, and testing folders so subsequent chunks can move behavior into a stable destination without inventing structure mid-refactor.
+Create the new `src/agent` structure with domain, application, ports, adapters, and testing folders so subsequent chunks can move the already-decoupled runtime into a stable destination.
 
 ## The problem
 
-Current reusable pieces live under `src/lib/agents`, but orchestration still lives in `src/inngest/functions.ts`. Several dependencies are implicit rather than modeled as ports: model calls, sandbox operations, message persistence, telemetry persistence, filesystem access, event emission, and logging.
+The current reusable runtime now lives under `src/lib/agents`, including planner, executor, runner, runtime events, state, decisions, edits, telemetry, and tools. That solved reuse, but the folder still says "generic library" instead of "agent core."
 
-AI agents need a concrete folder and interface vocabulary before they can reliably place new behavior.
+Several dependencies are still implicit rather than modeled as ports: model calls, sandbox operations, message persistence, telemetry persistence, filesystem access, event emission, and logging. AI agents need a concrete folder and interface vocabulary before they can reliably place new behavior.
 
 ## What "after" looks like
 
@@ -41,7 +41,7 @@ src/agent/
   index.ts
 ```
 
-The first port definitions should be narrow and shaped by current call sites, not speculative abstractions. For example:
+The first port definitions should be narrow and shaped by current call sites in `src/lib/agents/*`, `src/inngest/functions.ts`, `src/inngest/agent-adapter.ts`, and `scripts/agent-local.ts`:
 
 ```ts
 export type AgentRuntimeDeps = {
@@ -59,9 +59,9 @@ The app can keep using existing `src/lib/agents` exports during this chunk. The 
 ## Sequencing
 
 1. Add `src/agent` folders and barrels.
-2. Define minimal ports that mirror current dependencies in `src/inngest/functions.ts` and `src/lib/agents/tools.ts`.
+2. Define minimal ports that mirror current dependencies in `src/lib/agents`, `src/inngest/functions.ts`, and `scripts/agent-local.ts`.
 3. Add in-memory/testing implementations for ports that make early unit tests possible.
-4. Add placeholder `runAgent` application entrypoint that throws or delegates temporarily until chunk 3 extracts the real runtime.
+4. Add placeholder `runAgent` application entrypoint that delegates to the existing `src/lib/agents` runner only if that makes chunking safer; otherwise leave it as a typed stub until chunk 3.
 5. Add simple tests proving the skeleton imports follow the new boundary rules.
 
 ## Definition of done / Verification
@@ -69,14 +69,14 @@ The app can keep using existing `src/lib/agents` exports during this chunk. The 
 - `src/agent` exists with public barrels and no dependency on Next, React, tRPC, Inngest, Prisma, E2B, or the AI SDK from domain/application code.
 - Ports express the runtime's external needs without importing concrete SDK types.
 - `npm run lint` and `npm run test` pass.
-- The architecture doc's new folder map has real folders to point at.
+- The rebuilt architecture doc's folder map has real folders to point at.
 
 ## Out of scope
 
 - Moving the full planner/executor runtime.
 - Rewriting Inngest functions.
-- Adding local CLI behavior beyond test-only in-memory adapters.
+- Moving the local CLI from `scripts/` into `src/interfaces/cli`.
 
 ## Conflicts checked
 
-This overlaps with `agent-runtime-decoupling` and `testability-refactor`, which also introduce runtime seams. The new plan supersedes their destination: new runtime seams belong under `src/agent/ports` and `src/agent/application`, not under additional files in `src/lib/agents`.
+`agent-runtime-decoupling` already introduced runtime seams under `src/lib/agents`; this chunk creates the final destination for those seams. Any overlapping `testability-refactor` work should target `src/agent/ports` and `src/agent/application` once this skeleton exists.

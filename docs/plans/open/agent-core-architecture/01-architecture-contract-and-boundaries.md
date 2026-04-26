@@ -2,13 +2,13 @@
 
 ## Goal
 
-Replace the current documented `src/lib`-centered dependency model with the new agent-core architecture, then make the most important import direction rules executable through linting.
+Write the new `docs/architecture/architecture.md` from a blank slate, then make the most important import direction rules executable through linting.
 
 ## The problem
 
-The current `docs/architecture/architecture.md` "Direction of dependencies" section says `src/lib` is the leaf layer, and the "`src/lib/` - framework-agnostic building blocks" section directs reusable logic into `src/lib/<concern>`. The agent has outgrown that bucket. It needs pure rules, use cases, ports, adapters, local runtime support, and product integrations that should not all share the same architectural label.
+`docs/architecture/architecture.md` has been cleared because the old `src/lib`-centered architecture is no longer the direction for this migration. The repo now has a useful runtime-decoupled baseline under the old structure, but future agents need a current map before source files start moving.
 
-Without changing the architecture doc first, later source moves will look like drift from the current documented rules.
+Without a rebuilt architecture contract, the next chunks would create new folders and import rules without a source of truth.
 
 ## What "after" looks like
 
@@ -40,6 +40,23 @@ ui           -> shared only
 shared       -> shared only
 ```
 
+The document should explicitly name the completed runtime-decoupling baseline so readers understand the migration path:
+
+```txt
+current baseline:
+  src/lib/agents/{planner,executor,runner,runtime}.ts
+  src/inngest/agent-adapter.ts
+  scripts/agent-local.ts
+
+target destination:
+  src/agent/application/
+  src/agent/domain/
+  src/agent/ports/
+  src/agent/adapters/
+  src/interfaces/inngest/
+  src/interfaces/cli/
+```
+
 The repo also gains lint rules that express the same boundary. Start with the highest-value checks:
 
 - `agent/domain/**` cannot import from `app`, `interfaces`, `features`, `platform`, `ui`, `generated`, or concrete SDK packages.
@@ -50,16 +67,18 @@ The repo also gains lint rules that express the same boundary. Start with the hi
 
 ## Sequencing
 
-1. Update `docs/architecture/architecture.md` with the new top-level layout, dependency direction, and "Where to put new code" table.
-2. Add or choose ESLint boundary tooling.
-3. Configure rules in warning mode only if needed during the first migration PR; otherwise use errors from the start.
-4. Add temporary exceptions for legacy paths that are removed by later chunks, with comments that name the chunk that removes each exception.
-5. Update `docs/code-style/AGENTS.md` only if a human convention remains that lint cannot enforce.
+1. Rebuild `docs/architecture/architecture.md` with the new top-level layout, dependency direction, folder conventions, and "Where to put new code" table.
+2. Include a migration note that the old architecture was intentionally retired and that `src/lib/agents` is a temporary baseline, not the final destination.
+3. Add or choose ESLint boundary tooling.
+4. Configure rules in warning mode only if needed during the first migration PR; otherwise use errors from the start.
+5. Add temporary exceptions for legacy paths that are removed by later chunks, with comments that name the chunk that removes each exception.
+6. Update `docs/code-style/AGENTS.md` only if a human convention remains that lint cannot enforce.
 
 ## Definition of done / Verification
 
-- `docs/architecture/architecture.md` reflects the new design before source files are reorganized around it.
-- `npm run lint` runs with the new boundary configuration.
+- `docs/architecture/architecture.md` exists again and describes the new design before source files are reorganized around it.
+- The architecture doc no longer points contributors to `src/lib` as the central reusable leaf layer.
+- `npm run lint` runs with the new boundary configuration or documented temporary warning-mode rules.
 - Boundary failures produce messages that tell contributors which layer they crossed and where the code should move.
 - Any temporary lint exceptions are named and tied to this plan's later chunks.
 
@@ -67,8 +86,8 @@ The repo also gains lint rules that express the same boundary. Start with the hi
 
 - Moving all source files in this chunk.
 - Deciding final telemetry or eval schema.
-- Replacing the current app behavior.
+- Replacing current app or local-agent behavior.
 
 ## Conflicts checked
 
-This chunk intentionally conflicts with the current architecture document and with open plans that assume `src/lib/agents` remains the final runtime location. The conflict is expected because this plan changes the architecture contract before implementing the breaking migration.
+This chunk intentionally replaces the blanked architecture document. `agent-runtime-decoupling` is baseline work that already landed under the old layout; this chunk documents where that runtime moves next.
