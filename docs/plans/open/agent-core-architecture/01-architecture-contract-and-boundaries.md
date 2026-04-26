@@ -57,6 +57,8 @@ target destination:
   src/interfaces/cli/
 ```
 
+The architecture document should call out the CLI as a supported interface, not as an incidental script. The CLI exists so agent changes can be developed, debugged, and iterated without starting the web app, tRPC route, or Inngest dev server.
+
 The repo also gains lint rules that express the same boundary. Start with the highest-value checks:
 
 - `agent/domain/**` cannot import from `app`, `interfaces`, `features`, `platform`, `ui`, `generated`, or concrete SDK packages.
@@ -68,16 +70,18 @@ The repo also gains lint rules that express the same boundary. Start with the hi
 ## Sequencing
 
 1. Rebuild `docs/architecture/architecture.md` with the new top-level layout, dependency direction, folder conventions, and "Where to put new code" table.
-2. Include a migration note that the old architecture was intentionally retired and that `src/lib/agents` is a temporary baseline, not the final destination.
-3. Add or choose ESLint boundary tooling.
-4. Configure rules in warning mode only if needed during the first migration PR; otherwise use errors from the start.
-5. Add temporary exceptions for legacy paths that are removed by later chunks, with comments that name the chunk that removes each exception.
-6. Update `docs/code-style/AGENTS.md` only if a human convention remains that lint cannot enforce.
+2. Document `src/interfaces/cli` as the home for `agent:local`, including the expectation that it can run the agent without the web app or Inngest.
+3. Include a migration note that the old architecture was intentionally retired and that `src/lib/agents` is a temporary baseline, not the final destination.
+4. Add or choose ESLint boundary tooling.
+5. Configure rules in warning mode only if needed during the first migration PR; otherwise use errors from the start.
+6. Add temporary exceptions for legacy paths that are removed by later chunks, with comments that name the chunk that removes each exception.
+7. Update `docs/code-style/AGENTS.md` only if a human convention remains that lint cannot enforce.
 
 ## Definition of done / Verification
 
 - `docs/architecture/architecture.md` exists again and describes the new design before source files are reorganized around it.
 - The architecture doc no longer points contributors to `src/lib` as the central reusable leaf layer.
+- The architecture doc names the CLI as a first-class agent interface and points CLI code to `src/interfaces/cli`.
 - `npm run lint` runs with the new boundary configuration or documented temporary warning-mode rules.
 - Boundary failures produce messages that tell contributors which layer they crossed and where the code should move.
 - Any temporary lint exceptions are named and tied to this plan's later chunks.

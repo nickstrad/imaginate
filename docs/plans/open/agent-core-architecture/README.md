@@ -2,7 +2,7 @@
 
 ## Goal
 
-Move from the current incremental `src/lib/agents` runtime shape to a first-class agent architecture with explicit core, interface, feature, platform, UI, and shared layers. The immediate runtime decoupling work is complete: planner/executor orchestration, runtime events, the Inngest adapter, and `npm run agent:local` now exist under the old architecture. This plan starts from that baseline and defines the next breaking migration.
+Move from the current incremental `src/lib/agents` runtime shape to a first-class agent architecture with explicit core, interface, feature, platform, UI, and shared layers. The immediate runtime decoupling work is complete: planner/executor orchestration, runtime events, the Inngest adapter, and `npm run agent:local` now exist under the old architecture. This plan starts from that baseline and defines the next breaking migration, including a first-class CLI path for improving the agent without always going through the web app.
 
 The plan also owns rebuilding `docs/architecture/architecture.md`. That file is intentionally blank while this architecture is being redesigned; the first chunk writes the new source of truth before source moves begin.
 
@@ -12,10 +12,10 @@ The completed runtime-decoupling work made the agent callable outside Inngest, b
 
 - Reusable runtime code lives in `src/lib/agents/{planner,executor,runner,runtime}.ts`.
 - Inngest composition lives in `src/inngest/functions.ts` and `src/inngest/agent-adapter.ts`.
-- The local script lives in `scripts/agent-local.ts`.
+- The local CLI lives in `scripts/agent-local.ts` and already supports prompt input, create/connect sandbox modes, JSONL output, runtime event streaming, preview readiness, final verification/file/usage output, and follow-up commands with `--sandbox-id`.
 - Product entrypoints still use `src/app`, `src/modules`, `src/trpc`, and `src/inngest`.
 
-That is a good working baseline, but not the final architecture. The next migration should give the agent an explicit home and make delivery mechanisms, product features, concrete infrastructure, and pure shared code separable by folder and import rules.
+That is a good working baseline, but not the final architecture. The next migration should give the agent an explicit home and make delivery mechanisms, product features, concrete infrastructure, and pure shared code separable by folder and import rules. The CLI should remain a productively maintained interface, not just a dev-only script that trails the web app.
 
 ## What "after" looks like
 
@@ -77,6 +77,16 @@ await runAgent({
 });
 ```
 
+The CLI becomes a supported development surface:
+
+```bash
+npm run agent:local -- "add a settings panel"
+npm run agent:local -- --sandbox-id sbx_existing "now add tests"
+npm run agent:local -- --json --prompt "summarize the agent runtime"
+```
+
+It should expose the same runtime events, final output, verification records, files written, token usage, sandbox URL, and follow-up command that `scripts/agent-local.ts` exposes today.
+
 ## Architecture doc deliverable
 
 `docs/architecture/architecture.md` is part of this plan, not an input constraint. Chunk 1 must write the new architecture document from the target design, including:
@@ -85,6 +95,7 @@ await runAgent({
 - Dependency direction between `app`, `interfaces`, `agent`, `features`, `platform`, `ui`, `shared`, and `generated`.
 - Folder conventions for `src/agent`, `src/interfaces`, `src/features`, `src/platform`, and `src/shared`.
 - A "Where to put new code" table for future agents.
+- A CLI section that names `agent:local` as the supported non-web agent interface and explains where CLI-specific code belongs.
 - A short migration note explaining that the old `src/lib`-centered architecture has been retired.
 - Import-boundary lint expectations that can be tightened as migration chunks land.
 
@@ -105,6 +116,7 @@ Chunks 1 and 2 can ship together if the team wants the new doc, boundary tooling
 - Agent domain and application code import no Next, React, tRPC, Inngest, Prisma, E2B, or AI SDK concrete modules.
 - Concrete integrations live behind ports in `src/agent/adapters` or shared infrastructure in `src/platform`.
 - Product-specific workflows live in `src/features`; delivery mechanisms live in `src/interfaces`.
+- The CLI is a first-class interface for developing and debugging the agent without running the web app.
 - Import-boundary lint rules fail CI for reverse imports and deep imports that bypass public package surfaces.
 - Existing user-facing web behavior and `npm run agent:local` behavior are preserved after the migration.
 
