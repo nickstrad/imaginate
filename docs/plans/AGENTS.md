@@ -55,7 +55,7 @@ Whether a plan is one file or a chunk inside a folder, it should cover the follo
 2. **The problem** — the concrete pain. Cite offending paths (`file:line`) where useful. Reference the architecture doc rule by section name when the plan is correcting an architecture violation.
 3. **What "after" looks like** — a sketch of the end state. Prefer before/after snippets, target folder layout, or a small code example over prose. The reader should be able to picture the diff.
 4. **Sequencing** — for folder plans, the chunk order with dependency notes. For single-file plans, the order of PRs or sub-steps. Mark anything that can ship in parallel.
-5. **Definition of done / Verification** — how we know it landed. Tests added, behavior preserved, telemetry visible, etc.
+5. **Definition of done / Verification** — how we know it landed. Tests added, behavior preserved, telemetry visible, etc. Use `docs/testing/AGENTS.md` for testing criteria and verification expectations.
 6. **Out of scope** — what this plan deliberately does not address. Prevents scope creep and forwards the deferred work to a separate plan.
 7. **Conflicts checked** — a one-line note that you read the rest of `open/` and `drift/` and confirmed no other plan touches the same files/concepts, or names the plan it overlaps with and how the overlap is resolved.
 
@@ -64,7 +64,7 @@ Whether a plan is one file or a chunk inside a folder, it should cover the follo
 Every time you create or substantially edit a plan:
 
 1. **Survey existing plans first.** List `docs/plans/open/` and `docs/plans/drift/` and skim anything that touches the same area. If there is overlap, either fold the new work into the existing plan or call out the boundary in the new plan's "Conflicts checked" section. Drift plans are auto-generated; if a drift plan covers part of your work, link it and let it stay as-is — do not delete it.
-2. **Read `docs/architecture/architecture.md`.** Plans must respect the documented import rules, folder shapes, and "Where to put new code" table. If the plan needs to break a rule, it must update the architecture doc in the same PR and say so explicitly.
+2. **Read `docs/architecture/architecture.md` and `docs/testing/AGENTS.md`.** Plans must respect the documented import rules, folder shapes, "Where to put new code" table, testing criteria, and verification expectations. If the plan needs to break a rule, it must update the relevant source-of-truth doc in the same PR and say so explicitly.
 3. **Pick single-file vs folder shape** per the rules above.
 4. **Write the plan.** Use concrete examples. Reference real paths. Keep it tight — a long plan that no one reads is worse than a short one that gets executed.
 5. **Link from the index where applicable.** Folder plans get a `README.md` that lists chunks. Single-file plans do not need a separate index.
@@ -121,7 +121,7 @@ Completed plans with lasting value as decision history. Read-only by convention.
 
 - **Why we keep them.** Keep a shipped plan only when it explains durable context future agents need: why a non-obvious architecture choice exists, migration rationale not captured cleanly in `architecture.md`, or a tradeoff that prevents re-litigating the same path.
 - **Archive protocol.** When every chunk's PR is merged and the "definition of done" holds in `main`, first fold durable facts into source-of-truth docs. Then `git mv` the file or folder into `archive/` only if the plan still has lasting value. Preserve its name and internal structure (folder plans keep their `README.md` and numbered chunks). Do not rewrite to past tense — leave it as the design artifact it was; git history records when it shipped.
-- **Delete protocol.** Delete completed plans that were only execution sequencing once durable facts live in `architecture.md`, `code-style/AGENTS.md`, `plans/AGENTS.md`, `documentation/`, or code. Delete abandoned plans with an explanatory commit.
+- **Delete protocol.** Delete completed plans that were only execution sequencing once durable facts live in `architecture.md`, `code-style/AGENTS.md`, `testing/AGENTS.md`, `plans/AGENTS.md`, `documentation/`, or code. Delete abandoned plans with an explanatory commit.
 - **What does NOT go here.** Abandoned plans. Completed plans whose only value is task-tracker history. Drift plans that simply realigned code to the existing contract.
 - **When to read.** Before authoring a new plan in a related area, to avoid re-litigating decisions already made.
 

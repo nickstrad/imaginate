@@ -8,6 +8,7 @@ It is not a wiki, changelog, or graveyard for every completed task. If a doc doe
 
 - `docs/architecture/architecture.md` is the contract for how `src/` is organized. It should be explicit and deliberate, especially when lint rules enforce architectural invariants.
 - `docs/code-style/AGENTS.md` holds human style rules that tooling does not enforce.
+- `docs/testing/AGENTS.md` holds testing criteria, test-shape guidance, and verification expectations for code changes.
 - `docs/plans/open/` holds active multi-PR work the team intends to execute.
 - `docs/plans/drift/` holds narrow realignment plans when code and `architecture.md` disagree.
 - `docs/plans/archive/` holds only completed plans with lasting value as decision history.
@@ -46,6 +47,7 @@ Fold content into the right source of truth before retiring a plan:
 
 - Structural facts about `src/` go to `docs/architecture/architecture.md`.
 - Style conventions go to `docs/code-style/AGENTS.md`.
+- Testing criteria and verification expectations go to `docs/testing/AGENTS.md`.
 - Procedural plan rules go to `docs/plans/AGENTS.md`.
 - Long-lived reference material goes to `docs/documentation/`.
 

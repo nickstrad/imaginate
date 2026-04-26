@@ -35,5 +35,6 @@ if (!user) return null;
 ## Out of scope
 
 - Architecture and folder structure → `docs/architecture/architecture.md`.
+- Testing criteria and verification expectations → `docs/testing/AGENTS.md`.
 - Plan authoring conventions → `docs/plans/AGENTS.md`.
 - Tooling-enforced formatting (Prettier, ESLint) → respective config files.
