@@ -6,3 +6,5 @@ export * from "./decisions";
 export * from "./edits";
 export * from "./telemetry";
 export * from "./tools";
+export * from "./runtime";
+export * from "./planner";

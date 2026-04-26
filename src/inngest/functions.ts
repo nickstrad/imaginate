@@ -1,4 +1,4 @@
-import { generateText, tool, type ModelMessage } from "ai";
+import { generateText, type ModelMessage } from "ai";
 import { Sandbox } from "@e2b/code-interpreter";
 import { inngest } from "./client";
 import {
@@ -24,8 +24,9 @@ import {
   extractTaskSummary,
   isFinalOutputAcceptable,
   persistTelemetry,
-  PlanOutputSchema,
+  planSnippet,
   readUsage,
+  runPlanner,
   shouldEscalate,
   stepTextOf,
   TASK_SUMMARY_RE,
@@ -44,7 +45,6 @@ import {
   type ResolvedModelConfig,
 } from "@/lib/models";
 import {
-  PLANNER_PROMPT,
   buildExecutorSystemPrompt,
   ASK_AGENT_PROMPT,
   CACHE_PROVIDER_OPTIONS,
@@ -99,61 +99,6 @@ function extractTaskSummaryFallback(
     }
   }
   return extractTaskSummary(candidates());
-}
-
-function planSnippet(plan: PlanOutput | undefined): string {
-  if (!plan) return "(no plan available)";
-  const files = plan.targetFiles.length
-    ? plan.targetFiles.join(", ")
-    : "(none inferred)";
-  return [
-    `taskType: ${plan.taskType}`,
-    `targetFiles: ${files}`,
-    `verification: ${plan.verification}`,
-    `notes: ${plan.notes || "(none)"}`,
-  ].join("\n");
-}
-
-async function runPlanner(
-  userPrompt: string,
-  previousMessages: ModelMessage[],
-  log: Logger
-): Promise<PlanOutput> {
-  const spec = resolvePlannerModel();
-  let captured: PlanOutput | null = null;
-  const submitPlan = tool({
-    description: "Submit the structured plan for this run.",
-    inputSchema: PlanOutputSchema,
-    execute: async (input: PlanOutput) => {
-      captured = input;
-      return { received: true };
-    },
-  });
-
-  try {
-    await generateText({
-      model: createModelProvider(spec),
-      system: PLANNER_PROMPT,
-      messages: [...previousMessages, { role: "user", content: userPrompt }],
-      tools: { submitPlan },
-      maxOutputTokens: 1024,
-      stopWhen: [() => captured !== null],
-      providerOptions: CACHE_PROVIDER_OPTIONS,
-    });
-  } catch (err) {
-    log.warn({ event: "planner failed", metadata: { err: String(err) } });
-  }
-
-  if (captured) return captured;
-  // Fallback: assume coding is required, no plan details.
-  log.warn({ event: "planner no output, using fallback" });
-  return {
-    requiresCoding: true,
-    taskType: "other",
-    targetFiles: [],
-    verification: "tsc",
-    notes: "Planner produced no structured output; proceeding with defaults.",
-  };
 }
 
 type ExecutorAttemptResult = {
@@ -444,7 +389,11 @@ export const codeAgentFunction = inngest.createFunction(
     };
 
     const plan = await loggedStep(log, step, "plan", () =>
-      runPlanner(userPrompt, previousMessages as ModelMessage[], log)
+      runPlanner({
+        userPrompt,
+        previousMessages: previousMessages as ModelMessage[],
+        log,
+      })
     );
     runState.plan = plan;
 

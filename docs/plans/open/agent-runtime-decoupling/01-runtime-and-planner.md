@@ -10,9 +10,11 @@ This chunk should be safe to land alone: Inngest still calls the same planner be
 
 - Add `src/lib/agents/runtime.ts`
 - Add `src/lib/agents/planner.ts`
-- Update `src/lib/agents/index.ts`
-- Update `src/inngest/functions.ts`
-- Add or update planner tests under `src/lib/agents`
+- Add `src/lib/agents/planner.test.ts`
+- Update `src/lib/agents/index.ts` (barrel re-exports `runtime` + `planner`)
+- Update `src/inngest/functions.ts` (import `runPlanner`, `planSnippet` from `@/lib/agents`)
+
+`planSnippet` moves into `planner.ts` rather than `decisions.ts`. It is planner-output formatting, used today only to build the executor's system prompt; chunk 02 will import it from `@/lib/agents` along with `runPlanner`. Keeping both in `planner.ts` keeps the planner-shaped surface area in one place.
 
 ## Implementation
 
@@ -45,6 +47,8 @@ export async function runPlanner(input: {
   hooks?: AgentRuntimeHooks;
 }): Promise<PlanOutput>;
 ```
+
+This is a deliberate breaking change to the current `runPlanner(userPrompt, previousMessages, log)` signature. The only caller is `src/inngest/functions.ts` in this repo; update it in the same PR. The options-object form matches the runner/executor APIs that chunks 02–03 will introduce.
 
 Keep existing behavior:
 
@@ -137,9 +141,20 @@ const plan = await runPlanner({
 console.log(planSnippet(plan));
 ```
 
+## Out Of Scope
+
+- Wiring `hooks.emit` to persist thoughts or telemetry in the Inngest adapter. Chunk 01 only defines the event types and emits them from the planner; the Inngest call site may pass `hooks` with a no-op or log-only `emit`. Mapping events → Prisma writes is chunk 03.
+- Extracting the executor or runner. Chunk 02.
+- Adding non-planner events (`executor.*`, `agent.finished`) to `AgentRuntimeEvent`. Those land with the code that emits them in chunk 02.
+
+## Conflicts Checked
+
+Reviewed `docs/plans/open/` and `docs/plans/drift/` (drift folder absent). No overlap with `agent-telemetry-refactor/` (changes telemetry schema/queries, not orchestration). `testability-refactor/07-split-executor-step-callback.md` touches the executor step callback only — chunk 02 territory, no conflict with the planner extraction here.
+
 ## Acceptance
 
-- `src/inngest/functions.ts` imports `runPlanner` from `@/lib/agents`.
-- No `runPlanner` implementation remains in `src/inngest/functions.ts`.
-- Existing Inngest behavior is unchanged.
+- `src/lib/agents/runtime.ts` exports `AgentRuntimeEvent` and `AgentRuntimeHooks`.
+- `src/lib/agents/planner.ts` exports `runPlanner` (options-object signature) and `planSnippet`; both are re-exported from `@/lib/agents`.
+- `src/inngest/functions.ts` imports `runPlanner` and `planSnippet` from `@/lib/agents`; no `runPlanner` or `planSnippet` implementation remains there.
+- Existing Inngest behavior is unchanged (planner fallback path still produces the same default `PlanOutput`; `CACHE_PROVIDER_OPTIONS` still applied).
 - `npm test -- src/lib/agents` passes.
