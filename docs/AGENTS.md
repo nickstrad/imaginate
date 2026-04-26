@@ -34,6 +34,8 @@ Do not update `architecture.md` just to make an unplanned code change look valid
 
 When a plan finishes, do not automatically keep it.
 
+Use `.claude/skills/plans-audit/SKILL.md` for open-plan maintenance, including stale-plan refreshes and completed-plan retirement. `/plan-archive` and `/plans-refresh` are aliases for that merged audit workflow, not separate lifecycle policies.
+
 Archive a completed plan only when it preserves lasting context that future agents need, such as:
 
 - Why a non-obvious architecture choice exists.

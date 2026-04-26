@@ -125,10 +125,10 @@ through the deprecated Docker registry flow. `make sandbox/build` uses the v2
 
 Project conventions live under `docs/` and are read by both humans and coding agents:
 
-- [`AGENTS.md`](./AGENTS.md) — entrypoint for any agent (Claude, Codex, etc.). Maps tasks and slash commands (`/plan`, `/simplify`, `/review`, …) to the docs that must be loaded before doing the work. `CLAUDE.md` is a thin wrapper pointing here.
+- [`AGENTS.md`](./AGENTS.md) — entrypoint for any agent (Claude, Codex, etc.). Maps tasks and slash commands (`/plan`, `/simplify`, `/review`, `/plans-audit`, …) to the docs that must be loaded before doing the work. `CLAUDE.md` is a thin wrapper pointing here.
 - [`docs/architecture/architecture.md`](./docs/architecture/architecture.md) — source of truth for how `src/` is organized (folder shape, dependency direction, where new code goes). Update in the same PR as any structural change.
 - [`docs/code-style/AGENTS.md`](./docs/code-style/AGENTS.md) — project-wide style rules a linter/formatter doesn't enforce.
-- [`docs/plans/AGENTS.md`](./docs/plans/AGENTS.md) — how to write plans for work spanning more than one PR. Plans live in `docs/plans/open/` while active, `docs/plans/drift/` for auto-generated architecture-realignment plans, and `docs/plans/completed/` once shipped.
+- [`docs/plans/AGENTS.md`](./docs/plans/AGENTS.md) — how to write, audit, and retire plans for work spanning more than one PR. Plans live in `docs/plans/open/` while active, `docs/plans/drift/` for auto-generated architecture-realignment plans, and `docs/plans/archive/` once shipped when they have lasting decision value.
 
 Read `AGENTS.md` before contributing — it tells you which doc to consult for the task at hand.
 

@@ -77,6 +77,7 @@ draft → open/ → (work happens, PRs land) → archive/ or delete
 ```
 
 - Drafts can live in a feature branch until the plan is ready for review; merge to main only when the plan is the file you actually intend to execute against.
+- Use `.claude/skills/plans-audit/SKILL.md` to audit `open/` plans for both stale in-flight work and completed-plan retirement. The old `/plan-archive` and `/plans-refresh` commands are compatibility aliases for the same audit.
 - When all work for a plan has shipped, retire it per the archive-or-delete policy below.
 - The drift folder has its own lifecycle — see the `drift/` subsection below.
 
