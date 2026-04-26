@@ -23,6 +23,16 @@ docs/
 - `docs/plans/AGENTS.md` — plan structure (single-file vs ordered folders), required sections, conflict-check, subfolder lifecycle.
 - `docs/research/AGENTS.md` — when to capture exploratory findings that may inform future work but are not source-of-truth contracts or execution plans.
 
+## Local worktrees
+
+When creating git worktrees for this repo, place them under the root-level ignored folder:
+
+```txt
+/Users/nick/Software/imaginate/worktrees/<work-name>
+```
+
+Use a short, descriptive `<work-name>` based on the plan or task, and use the matching `codex/<work-name>` branch name unless the user asks for something else. Keep `worktrees/` ignored; it is a local workspace organization folder, not project content.
+
 ## Always-load context
 
 Before doing **any** of the following, load the docs listed:
