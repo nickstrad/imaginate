@@ -1,6 +1,8 @@
 import { Sandbox } from "@e2b/code-interpreter";
 import type { ModelMessage } from "ai";
 import { cac } from "cac";
+import chalk from "chalk";
+import pino from "pino";
 import {
   AgentRuntimeEventType,
   createRunState,
@@ -19,10 +21,23 @@ import {
   type LogInput,
   type LogMetadata,
 } from "@/lib/log";
-import { getSandboxUrl, SANDBOX_DEFAULT_TIMEOUT_MS } from "@/lib/sandbox";
+import {
+  ensurePreviewReady,
+  getSandboxUrl,
+  SANDBOX_DEFAULT_TIMEOUT_MS,
+} from "@/lib/sandbox";
 import type { Thought } from "@/lib/schemas/thought";
 
 const DEFAULT_SANDBOX_TEMPLATE = "imaginate-dev";
+const localJsonLogger = pino({
+  base: null,
+  timestamp: false,
+  messageKey: "event",
+  formatters: {
+    level: (label) => ({ level: label }),
+  },
+  mixin: () => ({ type: "log" }),
+});
 
 type CliArgs = {
   prompt: string;
@@ -199,12 +214,16 @@ function printLocalLog(
   metadata: LocalLogMetadata = {}
 ): void {
   if (json) {
-    printJson({ type: "log", event, metadata: compactMetadata(metadata) });
+    localJsonLogger.info({ metadata: compactMetadata(metadata) }, event);
     return;
   }
 
   const fields = formatMetadata(metadata);
-  console.log(`[agent:local] ${event}${fields ? ` ${fields}` : ""}`);
+  console.log(
+    `${chalk.gray("[agent:local]")} ${chalk.cyan(event)}${
+      fields ? ` ${fields}` : ""
+    }`
+  );
 }
 
 function compactMetadata(metadata: LocalLogMetadata): LocalLogMetadata {
@@ -215,8 +234,21 @@ function compactMetadata(metadata: LocalLogMetadata): LocalLogMetadata {
 
 function formatMetadata(metadata: LocalLogMetadata): string {
   return Object.entries(compactMetadata(metadata))
-    .map(([key, value]) => `${key}=${value ?? "-"}`)
+    .map(([key, value]) => `${chalk.gray(`${key}=`)}${formatLogValue(value)}`)
     .join(" ");
+}
+
+function formatLogValue(value: LocalLogMetadata[string]): string {
+  if (value === true) {
+    return chalk.green("true");
+  }
+  if (value === false) {
+    return chalk.red("false");
+  }
+  if (typeof value === "number") {
+    return chalk.yellow(String(value));
+  }
+  return chalk.white(String(value ?? "-"));
 }
 
 function printUsage(error?: string): void {
@@ -291,7 +323,7 @@ function printEvent(event: AgentRuntimeEvent, json: boolean): void {
     printJson({ type: "event", event });
     return;
   }
-  console.log(formatEvent(event));
+  printLocalLog("runtime.event", json, { event: formatEvent(event) });
 }
 
 function printPlan(plan: PlanOutput, json: boolean): void {
@@ -306,8 +338,7 @@ function printNoCodeAnswer(answer: string | undefined, json: boolean): void {
     printJson({ type: "outcome", status: "success", answer: output });
     return;
   }
-  console.log("");
-  console.log(output);
+  printLocalLog("run.answer", json, { answer: output });
 }
 
 function outcomeStatus(outcome: ExecuteOutcome): string {
@@ -350,64 +381,65 @@ function printOutcome(
     return;
   }
 
-  console.log("");
-  console.log("Final output");
   if (finalOutput) {
-    console.log(`status: ${finalOutput.status}`);
-    console.log(`title: ${finalOutput.title}`);
-    console.log(`summary: ${finalOutput.summary}`);
+    printLocalLog("outcome.final_output", json, {
+      status: finalOutput.status,
+      title: finalOutput.title,
+    });
+    printLocalLog("outcome.summary", json, { summary: finalOutput.summary });
   } else {
-    console.log("status: missing");
+    printLocalLog("outcome.final_output", json, { status: "missing" });
   }
 
-  console.log("");
-  console.log("Verification");
   if (verification.length) {
     for (const row of verification) {
-      console.log(
-        `- ${row.kind}: ${row.success ? "success" : "failed"} ${row.command}`
-      );
+      printLocalLog("outcome.verification", json, {
+        kind: row.kind,
+        success: row.success,
+        command: row.command,
+      });
     }
   } else {
-    console.log("- none");
+    printLocalLog("outcome.verification", json, { count: 0 });
   }
 
-  console.log("");
-  console.log("Files written");
   if (filesWritten.length) {
     for (const path of filesWritten) {
-      console.log(`- ${path}`);
+      printLocalLog("outcome.file_written", json, { path });
     }
   } else {
-    console.log("- none");
+    printLocalLog("outcome.files_written", json, { count: 0 });
   }
 
-  console.log("");
-  console.log("Usage");
-  console.log(formatUsage(outcome.usage));
-  console.log(`lastError=${outcome.lastErrorMessage ?? "-"}`);
+  printLocalLog("outcome.usage", json, {
+    promptTokens: outcome.usage.promptTokens,
+    completionTokens: outcome.usage.completionTokens,
+    totalTokens: outcome.usage.totalTokens,
+    lastError: outcome.lastErrorMessage,
+  });
 
   if (sandboxSummary.sandboxUrl) {
-    console.log("");
-    console.log("Sandbox URL");
-    console.log(sandboxSummary.sandboxUrl);
-
-    console.log("");
-    console.log("Follow-up command");
-    console.log(sandboxSummary.followUpCommand);
+    printSandboxAccess(sandboxSummary, json);
   } else if (sandboxSummary.sandboxUrlError) {
-    console.log("");
-    console.log("Sandbox URL");
-    console.log(`unavailable: ${sandboxSummary.sandboxUrlError}`);
+    printLocalLog("sandbox.url_unavailable", json, {
+      error: sandboxSummary.sandboxUrlError,
+    });
   }
 }
 
-function formatUsage(usage: UsageTotals): string {
-  return [
-    `promptTokens=${usage.promptTokens}`,
-    `completionTokens=${usage.completionTokens}`,
-    `totalTokens=${usage.totalTokens}`,
-  ].join(" ");
+function printSandboxAccess(
+  sandboxSummary: Extract<SandboxSummary, { sandboxId: string }>,
+  json: boolean
+): void {
+  if (json) {
+    printJson({ type: "sandbox", ...sandboxSummary });
+    return;
+  }
+
+  printLocalLog("sandbox.url", json, { url: sandboxSummary.sandboxUrl });
+  printLocalLog("sandbox.follow_up", json, {
+    command: sandboxSummary.followUpCommand,
+  });
 }
 
 async function runAgent(args: CliArgs): Promise<number> {
@@ -430,6 +462,8 @@ async function runAgent(args: CliArgs): Promise<number> {
 
   let sandboxPromise: Promise<SandboxLike> | undefined;
   let sandboxReadyLogged = false;
+  let initialPreviewReadyPromise: Promise<boolean> | undefined;
+  let sandboxSummary: SandboxSummary = {};
   const getSandbox = async () => {
     if (!sandboxPromise) {
       printLocalLog(
@@ -449,10 +483,14 @@ async function runAgent(args: CliArgs): Promise<number> {
     await sandbox.setTimeout(SANDBOX_DEFAULT_TIMEOUT_MS);
     if (!sandboxReadyLogged) {
       sandboxReadyLogged = true;
+      sandboxSummary = summarizeSandbox(sandbox);
       printLocalLog("sandbox.ready", args.json, {
         sandboxId: sandbox.sandboxId,
       });
+      printSandboxAccess(sandboxSummary, args.json);
     }
+    initialPreviewReadyPromise ??= ensureSandboxPreview(sandbox, args.json);
+    await initialPreviewReadyPromise;
     return sandbox;
   };
 
@@ -502,29 +540,54 @@ async function runAgent(args: CliArgs): Promise<number> {
     totalTokens: outcome.usage.totalTokens,
     exitCode,
   });
-  const sandboxSummary =
-    exitCode === 0 ? await resolveSandboxSummary(getSandbox) : {};
+  if (exitCode === 0) {
+    sandboxSummary = await resolveSandboxSummary(getSandbox, args.json);
+  }
   printOutcome(outcome, args.json, sandboxSummary);
   printLocalLog("run.finished", args.json, { exitCode });
   return exitCode;
 }
 
+function summarizeSandbox(
+  sandbox: Pick<SandboxLike, "sandboxId" | "getHost">
+): Extract<SandboxSummary, { sandboxId: string }> {
+  const sandboxId = sandbox.sandboxId;
+  return {
+    sandboxId,
+    sandboxUrl: getSandboxUrl(sandbox),
+    followUpCommand: formatFollowUpCommand(sandboxId),
+  };
+}
+
 async function resolveSandboxSummary(
-  getSandbox: () => Promise<SandboxLike>
+  getSandbox: () => Promise<SandboxLike>,
+  json: boolean
 ): Promise<SandboxSummary> {
   try {
     const sandbox = await getSandbox();
-    const sandboxId = sandbox.sandboxId;
-    return {
-      sandboxId,
-      sandboxUrl: getSandboxUrl(sandbox),
-      followUpCommand: formatFollowUpCommand(sandboxId),
-    };
+    if (!(await ensureSandboxPreview(sandbox, json))) {
+      return {
+        sandboxUrlError: `preview server is not ready for sandbox ${sandbox.sandboxId}`,
+      };
+    }
+    return summarizeSandbox(sandbox);
   } catch (err) {
     return {
       sandboxUrlError: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+async function ensureSandboxPreview(
+  sandbox: SandboxLike,
+  json: boolean
+): Promise<boolean> {
+  printLocalLog("preview.ensuring", json, { sandboxId: sandbox.sandboxId });
+  const ready = await ensurePreviewReady(sandbox);
+  printLocalLog(ready ? "preview.ready" : "preview.unavailable", json, {
+    sandboxId: sandbox.sandboxId,
+  });
+  return ready;
 }
 
 function formatFollowUpCommand(sandboxId: string): string {

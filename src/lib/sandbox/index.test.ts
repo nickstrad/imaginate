@@ -93,21 +93,47 @@ describe("ensurePreviewReady", () => {
       "pgrep -f '[n]ext dev' >/dev/null && echo running || echo missing"
     );
     expect(sandbox.run).toHaveBeenCalledWith(
-      "cd /home/user && npx next dev --turbopack -H 0.0.0.0",
+      "cd /home/user && npx next dev --turbopack -H 0.0.0.0 -p 3000",
       { background: true }
     );
     expect(sleep).toHaveBeenCalledOnce();
   });
 
-  it("does not start another preview server when one is already running", async () => {
+  it("uses an already-running preview server once it responds", async () => {
     const sandbox = makePreviewSandbox("running");
-    const probe = vi.fn().mockResolvedValue(false);
+    const probe = vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true);
+    const sleep = vi.fn().mockResolvedValue(undefined);
+
+    await expect(ensurePreviewReady(sandbox, { probe, sleep })).resolves.toBe(
+      true
+    );
+
+    expect(sandbox.run).toHaveBeenCalledTimes(1);
+    expect(sleep).toHaveBeenCalledOnce();
+  });
+
+  it("restarts an unhealthy preview process when the port stays closed", async () => {
+    const sandbox = makePreviewSandbox("running");
+    const probe = vi
+      .fn()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
     const sleep = vi.fn().mockResolvedValue(undefined);
 
     await expect(
-      ensurePreviewReady(sandbox, { attempts: 1, probe, sleep })
-    ).resolves.toBe(false);
+      ensurePreviewReady(sandbox, {
+        attempts: 1,
+        unhealthyRestartAttempts: 1,
+        probe,
+        sleep,
+      })
+    ).resolves.toBe(true);
 
-    expect(sandbox.run).toHaveBeenCalledTimes(1);
+    expect(sandbox.run).toHaveBeenCalledWith("pkill -f '[n]ext dev' || true");
+    expect(sandbox.run).toHaveBeenCalledWith(
+      "cd /home/user && npx next dev --turbopack -H 0.0.0.0 -p 3000",
+      { background: true }
+    );
   });
 });
