@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { extractTaskSummary, shouldEscalate, stepTextOf } from "./decisions";
+import {
+  EscalateReason,
+  extractTaskSummary,
+  shouldEscalate,
+  stepTextOf,
+} from "./decisions";
 import { createRunState, markVerification } from "./state";
 
 describe("stepTextOf", () => {
@@ -49,7 +54,7 @@ describe("shouldEscalate", () => {
     };
     expect(shouldEscalate(s, {})).toEqual({
       escalate: true,
-      reason: "finalize:failed",
+      reason: EscalateReason.FinalizeFailed,
     });
   });
   it("finalOutput partial → escalate", () => {
@@ -61,7 +66,7 @@ describe("shouldEscalate", () => {
       verification: [],
       nextSteps: [],
     };
-    expect(shouldEscalate(s, {}).reason).toBe("finalize:partial");
+    expect(shouldEscalate(s, {}).reason).toBe(EscalateReason.FinalizePartial);
   });
   it("finalOutput complete → no escalate", () => {
     const s = createRunState();
@@ -75,23 +80,25 @@ describe("shouldEscalate", () => {
     expect(shouldEscalate(s, {})).toEqual({ escalate: false });
   });
   it("empty result text → escalate empty_output", () => {
-    expect(shouldEscalate(createRunState(), {}).reason).toBe("empty_output");
+    expect(shouldEscalate(createRunState(), {}).reason).toBe(
+      EscalateReason.EmptyOutput
+    );
   });
   it("stub language → escalate", () => {
     expect(
       shouldEscalate(createRunState(), { text: "I'll add a TODO here" }).reason
-    ).toBe("stub_language");
+    ).toBe(EscalateReason.StubLanguage);
   });
   it("wrote files but no verification → escalate", () => {
     const s = createRunState();
     s.filesWritten = { "a.ts": "..." };
     expect(shouldEscalate(s, { text: "done" }).reason).toBe(
-      "wrote_without_verify"
+      EscalateReason.WroteWithoutVerify
     );
   });
   it("no writes at all → escalate no_writes", () => {
     expect(shouldEscalate(createRunState(), { text: "done" }).reason).toBe(
-      "no_writes"
+      EscalateReason.NoWrites
     );
   });
   it("wrote and verified → no escalate", () => {

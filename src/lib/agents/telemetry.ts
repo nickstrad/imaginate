@@ -9,6 +9,12 @@ import type {
 
 const toNum = (v: unknown): number => (typeof v === "number" ? v : 0);
 
+export function addUsage(target: UsageTotals, source: UsageTotals): void {
+  target.promptTokens += source.promptTokens;
+  target.completionTokens += source.completionTokens;
+  target.totalTokens += source.totalTokens;
+}
+
 export function readUsage(usage: unknown): UsageTotals {
   const u = (usage ?? {}) as Record<string, unknown>;
   return {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { PlanOutput } from "./schemas";
-import type { AgentRuntimeEvent } from "./runtime";
+import { AgentRuntimeEventType, type AgentRuntimeEvent } from "./runtime";
 
 const generateTextMock = vi.fn();
 
@@ -84,10 +84,13 @@ describe("runPlanner", () => {
     });
     expect(plan).toEqual(samplePlan);
     expect(events.map((e) => e.type)).toEqual([
-      "planner.started",
-      "planner.finished",
+      AgentRuntimeEventType.PlannerStarted,
+      AgentRuntimeEventType.PlannerFinished,
     ]);
-    expect(events[1]).toMatchObject({ type: "planner.finished", plan });
+    expect(events[1]).toMatchObject({
+      type: AgentRuntimeEventType.PlannerFinished,
+      plan,
+    });
   });
 
   it("emits planner.failed and returns fallback plan when generateText throws", async () => {
@@ -105,12 +108,12 @@ describe("runPlanner", () => {
     expect(plan.verification).toBe("tsc");
     const types = events.map((e) => e.type);
     expect(types).toEqual([
-      "planner.started",
-      "planner.failed",
-      "planner.finished",
+      AgentRuntimeEventType.PlannerStarted,
+      AgentRuntimeEventType.PlannerFailed,
+      AgentRuntimeEventType.PlannerFinished,
     ]);
     expect(events[1]).toMatchObject({
-      type: "planner.failed",
+      type: AgentRuntimeEventType.PlannerFailed,
       error: expect.stringContaining("provider down"),
     });
   });
@@ -128,8 +131,8 @@ describe("runPlanner", () => {
     expect(plan.requiresCoding).toBe(true);
     expect(plan.taskType).toBe("other");
     expect(events.map((e) => e.type)).toEqual([
-      "planner.started",
-      "planner.finished",
+      AgentRuntimeEventType.PlannerStarted,
+      AgentRuntimeEventType.PlannerFinished,
     ]);
   });
 

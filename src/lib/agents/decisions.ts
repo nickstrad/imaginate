@@ -1,6 +1,19 @@
 import { TASK_SUMMARY_RE } from "./constants";
 import type { EscalateDecision, RunState } from "./types";
 
+export const EscalateReason = {
+  FinalizeFailed: "finalize:failed",
+  FinalizePartial: "finalize:partial",
+  EmptyOutput: "empty_output",
+  StubLanguage: "stub_language",
+  WroteWithoutVerify: "wrote_without_verify",
+  NoWrites: "no_writes",
+  Exception: "exception",
+} as const;
+
+export type EscalateReason =
+  (typeof EscalateReason)[keyof typeof EscalateReason];
+
 export function stepTextOf(src: unknown): string {
   if (!src || typeof src !== "object") {
     return "";
@@ -41,10 +54,10 @@ export function shouldEscalate(
 ): EscalateDecision {
   if (runState.finalOutput) {
     if (runState.finalOutput.status === "failed") {
-      return { escalate: true, reason: "finalize:failed" };
+      return { escalate: true, reason: EscalateReason.FinalizeFailed };
     }
     if (runState.finalOutput.status === "partial") {
-      return { escalate: true, reason: "finalize:partial" };
+      return { escalate: true, reason: EscalateReason.FinalizePartial };
     }
     return { escalate: false };
   }
@@ -52,23 +65,23 @@ export function shouldEscalate(
   const text = stepTextOf(result) || "";
   const lower = text.toLowerCase();
   if (!text.trim()) {
-    return { escalate: true, reason: "empty_output" };
+    return { escalate: true, reason: EscalateReason.EmptyOutput };
   }
   if (
     lower.includes("todo") ||
     lower.includes("placeholder") ||
     lower.includes("not implemented")
   ) {
-    return { escalate: true, reason: "stub_language" };
+    return { escalate: true, reason: EscalateReason.StubLanguage };
   }
 
   const wrote = Object.keys(runState.filesWritten).length > 0;
   const verified = runState.verification.some((v) => v.success);
   if (wrote && !verified) {
-    return { escalate: true, reason: "wrote_without_verify" };
+    return { escalate: true, reason: EscalateReason.WroteWithoutVerify };
   }
   if (!wrote) {
-    return { escalate: true, reason: "no_writes" };
+    return { escalate: true, reason: EscalateReason.NoWrites };
   }
 
   return { escalate: false };

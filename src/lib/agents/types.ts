@@ -21,7 +21,10 @@ export type RunState = {
   escalatedTo: string | null;
 };
 
-export type EscalateDecision = { escalate: boolean; reason?: string };
+export type EscalateDecision = {
+  escalate: boolean;
+  reason?: import("./decisions").EscalateReason;
+};
 
 export type Edit = {
   find: string;

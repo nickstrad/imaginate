@@ -1,6 +1,6 @@
 import { generateText, tool, type ModelMessage } from "ai";
 import { PlanOutputSchema, type PlanOutput } from "./schemas";
-import type { AgentRuntimeHooks } from "./runtime";
+import { AgentRuntimeEventType, type AgentRuntimeBaseHooks } from "./runtime";
 import type { Logger } from "@/lib/log";
 import { createModelProvider, resolvePlannerModel } from "@/lib/models";
 import { PLANNER_PROMPT, CACHE_PROVIDER_OPTIONS } from "@/lib/prompts";
@@ -32,10 +32,10 @@ export async function runPlanner(input: {
   userPrompt: string;
   previousMessages: ModelMessage[];
   log: Logger;
-  hooks?: AgentRuntimeHooks;
+  hooks?: AgentRuntimeBaseHooks;
 }): Promise<PlanOutput> {
   const { userPrompt, previousMessages, log, hooks } = input;
-  await hooks?.emit?.({ type: "planner.started" });
+  await hooks?.emit?.({ type: AgentRuntimeEventType.PlannerStarted });
 
   const spec = resolvePlannerModel();
   let captured: PlanOutput | null = null;
@@ -62,13 +62,16 @@ export async function runPlanner(input: {
   } catch (err) {
     threw = true;
     log.warn({ event: "planner failed", metadata: { err: String(err) } });
-    await hooks?.emit?.({ type: "planner.failed", error: String(err) });
+    await hooks?.emit?.({
+      type: AgentRuntimeEventType.PlannerFailed,
+      error: String(err),
+    });
   }
 
   if (!captured && !threw) {
     log.warn({ event: "planner no output, using fallback" });
   }
   const plan = captured ?? DEFAULT_PLAN;
-  await hooks?.emit?.({ type: "planner.finished", plan });
+  await hooks?.emit?.({ type: AgentRuntimeEventType.PlannerFinished, plan });
   return plan;
 }
