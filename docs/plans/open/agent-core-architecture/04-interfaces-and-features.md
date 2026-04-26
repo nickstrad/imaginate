@@ -86,6 +86,14 @@ export async function startProjectAgentRun(input: StartProjectAgentRunInput) {
 - Existing routes, tRPC calls, Inngest handlers, and the local command preserve user-facing behavior.
 - `npm run lint`, `npm run test`, and the relevant build/check command pass.
 
+## Inngest interface follow-ups
+
+Carried over from the retired `inngest-reliability-refactor.md`. Land alongside the Inngest move:
+
+- **Typed event client.** Replace per-function `parseAgentRunEvent(event.data)` with `new EventSchemas().fromZod({ "codeAgent/run": AgentRunEventSchema, "askAgent/run": AgentRunEventSchema })` on the Inngest client. Delete `parseAgentRunEvent` once handlers read typed `event.data` directly; `inngest.send` then gets compile-time validation.
+- **`NonRetriableError` classification at the boundary.** Wire `formatProviderError` / `classifyProviderError` so auth failure, model-not-found, and quota-exhausted cases throw `NonRetriableError` instead of bubbling as generic errors. Prevents Inngest from burning retries on permanent failures.
+- **Re-enable retries.** `codeAgentFunction` and `askAgentFunction` currently set `retries: 0` to stop a quota-burn loop from re-running `generateText` on retry. The outer `step.run("execute", …)` already memoizes the LLM call, so once `NonRetriableError` classification is in, raise these to `retries: 2` (function-level) and rely on step memoization for safety.
+
 ## Out of scope
 
 - Redesigning UI components.
