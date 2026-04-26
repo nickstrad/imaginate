@@ -24,8 +24,8 @@ src/
 
 ```txt
 src/agent/
-  domain/        Pure state, decisions, verification, edits, schemas, types
-  application/   Planner/executor use cases and runtime event contract
+  domain/        Pure state, decisions, verification, edits, schemas, types, runtime event contract
+  application/   Planner/executor use cases and runtime event production
   ports/         Model, sandbox, message, telemetry, filesystem, logging boundaries
   adapters/      AI SDK, E2B, Prisma, local workspace, memory, terminal bindings
   testing/       Fakes and in-memory implementations for tests
@@ -62,12 +62,12 @@ Key invariants:
 
 ### `src/agent`
 
-- `domain/` — pure functions, types, schemas. No I/O. Tests run with no mocks.
-- `application/` — use cases (`runAgent`, `planRun`, `executeRun`) that take a `deps` object of ports. Emit events through the event sink port; do not write to Prisma or the network directly.
+- `domain/` — pure functions, types, schemas, and the runtime event type contract (`events.ts`). No I/O. Tests run with no mocks. Event types live here (not in `application/`) so `ports/event-sink.ts` can reference them without crossing the `ports → application` boundary.
+- `application/` — use cases (`runAgent`, `planRun`, `executeRun`) that take a `deps` object of ports. They produce events of the types declared in `domain/events.ts` and emit them through the event sink port; they do not write to Prisma or the network directly.
 - `ports/` — interface declarations. One file per port (`model-gateway.ts`, `sandbox-gateway.ts`, `message-store.ts`, `telemetry-store.ts`, `event-sink.ts`, `logger.ts`, …). Ports import only from `agent/domain` and `shared`.
 - `adapters/` — concrete bindings, one folder per integration (`ai-sdk/`, `e2b/`, `prisma/`, `local-workspace/`, `memory/`, `terminal/`). Each folder exports a factory.
 - `testing/` — fakes and in-memory implementations used by tests. Not imported from production paths.
-- Public surface: `src/agent/index.ts` re-exports application use cases, port types, and named adapter factories. Consumers import from `@/agent`, not from deep paths.
+- Public surface: `src/agent/index.ts` re-exports application use cases, port types, the runtime event types from `domain/events.ts`, and named adapter factories. Consumers import from `@/agent`, not from deep paths — the internal layering (`domain` / `application` / `ports` / `adapters`) is an implementation detail.
 
 ### `src/interfaces`
 
@@ -96,7 +96,8 @@ Key invariants:
 | New code is …                                              | Lives in                                       |
 | ---------------------------------------------------------- | ---------------------------------------------- |
 | A pure rule, schema, or state transition for the agent     | `src/agent/domain/`                            |
-| A planner/executor use case or new runtime event           | `src/agent/application/`                       |
+| A new runtime event type or payload field                  | `src/agent/domain/events.ts`                   |
+| A planner/executor use case (emitting existing events)     | `src/agent/application/`                       |
 | A new external dependency the agent needs (SDK, store, …)  | New port in `src/agent/ports/` + adapter under |
 |                                                            | `src/agent/adapters/<integration>/`            |
 | A fake/in-memory implementation for tests                  | `src/agent/testing/`                           |
