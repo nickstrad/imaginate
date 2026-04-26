@@ -10,6 +10,7 @@ docs/
   code-style/     Project-wide style rules a linter/formatter doesn't enforce.
   testing/        Opinionated testing criteria, test shape, and verification expectations.
   plans/          Planning docs (open/, drift/, archive/) for work spanning >1 PR.
+  research/       Agent-oriented research notes from discussions that may matter later but are not plans.
   documentation/  Long-form references (e.g. harness-engineering notes).
 ```
 
@@ -20,6 +21,7 @@ docs/
 - `docs/code-style/AGENTS.md` — current style rules + how to add a new one.
 - `docs/testing/AGENTS.md` — when to add tests, what kind to write, and how to verify changes.
 - `docs/plans/AGENTS.md` — plan structure (single-file vs ordered folders), required sections, conflict-check, subfolder lifecycle.
+- `docs/research/AGENTS.md` — when to capture exploratory findings that may inform future work but are not source-of-truth contracts or execution plans.
 
 ## Always-load context
 
@@ -59,5 +61,6 @@ If a command doesn't appear here, fall back to the table.
   - Structural rule about `src/` → `docs/architecture/architecture.md`.
   - Style rule a linter can't enforce → `docs/code-style/AGENTS.md`.
   - Testing criteria or verification expectations → `docs/testing/AGENTS.md`.
+  - Exploratory discussion or vendor/product research → `docs/research/`.
   - Procedural rule about plans → `docs/plans/AGENTS.md`.
   - Cross-cutting agent behavior → this file.
