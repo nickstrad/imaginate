@@ -28,7 +28,7 @@ Before doing **any** of the following, load the docs listed:
 | Writing or editing code in `src/`            | `docs/architecture/architecture.md` + `docs/code-style/AGENTS.md`                       |
 | Creating or editing a plan                   | `docs/plans/AGENTS.md` + `docs/architecture/architecture.md` (plans must respect rules) |
 | Moving / renaming folders or files in `src/` | `docs/architecture/architecture.md` (and update it in the same PR if structure shifts)  |
-| Running drift detection                      | `docs/architecture/architecture.md` + `.claude/skills/drift-detection/SKILL.md`         |
+| Running drift detection                      | `docs/architecture/architecture.md` + `.claude/skills/plan-drift-detection/SKILL.md`    |
 | Reviewing a PR or simplifying code           | `docs/architecture/architecture.md` + `docs/code-style/AGENTS.md`                       |
 | Writing tests                                | `docs/architecture/architecture.md` (folder shape includes test colocation rules)       |
 
@@ -38,7 +38,8 @@ When invoked via a slash command, load the docs listed under that command **befo
 
 - **`/plan`** — read `docs/plans/AGENTS.md`, then `docs/architecture/architecture.md`, then list `docs/plans/open/` and `docs/plans/drift/` for the conflict check. Plans must respect documented architecture and code-style rules; if they need to break a rule, update the corresponding doc in the same PR.
 - **`/simplify`** — read `docs/code-style/AGENTS.md` and `docs/architecture/architecture.md`. Simplifications must not violate dependency direction or folder shape; reuse existing concerns under `src/lib/` rather than introducing new abstractions.
-- **`/drift-detection`** — the skill at `.claude/skills/drift-detection/SKILL.md` already loads `architecture.md`. Output goes to `docs/plans/drift/` per `docs/plans/AGENTS.md`.
+- **`/plan-drift-detection`** — the skill at `.claude/skills/plan-drift-detection/SKILL.md` already loads `architecture.md`. Output goes to `docs/plans/drift/` per `docs/plans/AGENTS.md`.
+- **`/plan-archive`** — the skill at `.claude/skills/plan-archive/SKILL.md` loads `docs/AGENTS.md`, `docs/plans/AGENTS.md`, `architecture.md`, and `code-style/AGENTS.md`, then audits `docs/plans/open/` against the retirement policy and proposes archive/delete/keep decisions.
 - **`/review`** and **`/security-review`** — read `docs/architecture/architecture.md` and `docs/code-style/AGENTS.md` so review comments cite documented rules instead of taste.
 - **`/commit-changes`** — no extra docs required, but if the change touches `src/` structure, confirm `architecture.md` was updated in the same change set before committing.
 - **Any other skill that writes code or plans** — default to the "Always-load context" table above.

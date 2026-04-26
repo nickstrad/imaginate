@@ -6,7 +6,7 @@
 
 - Before adding, moving, or renaming anything under `src/`.
 - Before writing or editing a plan in `docs/plans/` (plans must respect the documented rules).
-- Before running the `drift-detection` skill — it treats this doc as the contract.
+- Before running the `plan-drift-detection` skill — it treats this doc as the contract.
 
 ## When to update it
 

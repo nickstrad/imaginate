@@ -1,6 +1,6 @@
 ---
-name: drift-detection
-description: This skill should be used when the user types "/drift-detection", asks to "detect drift", "check architecture drift", "find drift from architecture", "audit src against architecture.md", or asks to update plans/drift with refactors needed to realign the repo with docs/architecture/architecture.md. Scans the current state of `src/` against the documented architecture and writes one plan file per detected drift into `docs/plans/drift/`.
+name: plan-drift-detection
+description: This skill should be used when the user types "/plan-drift-detection", asks to "detect drift", "check architecture drift", "find drift from architecture", "audit src against architecture.md", or asks to update plans/drift with refactors needed to realign the repo with docs/architecture/architecture.md. Scans the current state of `src/` against the documented architecture and writes one plan file per detected drift into `docs/plans/drift/`.
 ---
 
 # Drift Detection
