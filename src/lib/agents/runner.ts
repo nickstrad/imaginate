@@ -43,14 +43,6 @@ export async function runCodingAgentWithEscalation(
     if (outcome.error) {
       const classified = classifyProviderError(outcome.error);
       lastError = outcome.error;
-      opts.log.warn({
-        event: "executor threw",
-        metadata: {
-          attempt: i + 1,
-          category: classified.category,
-          retryable: classified.retryable,
-        },
-      });
       await opts.hooks.emit?.({
         type: AgentRuntimeEventType.ExecutorAttemptFailed,
         attempt: i + 1,
@@ -64,10 +56,6 @@ export async function runCodingAgentWithEscalation(
     }
 
     if (!outcome.escalated) {
-      opts.log.info({
-        event: "executor accepted",
-        metadata: { attempt: i + 1 },
-      });
       await opts.hooks.emit?.({
         type: AgentRuntimeEventType.ExecutorAccepted,
         attempt: i + 1,
@@ -75,10 +63,6 @@ export async function runCodingAgentWithEscalation(
       break;
     }
 
-    opts.log.info({
-      event: "escalating",
-      metadata: { attempt: i + 1, reason: outcome.reason },
-    });
     await opts.hooks.emit?.({
       type: AgentRuntimeEventType.ExecutorEscalated,
       attempt: i + 1,

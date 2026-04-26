@@ -1,5 +1,6 @@
 import { generateText, type ModelMessage } from "ai";
 import { Sandbox } from "@e2b/code-interpreter";
+import { buildAgentHooks, logAgentRuntimeEvent } from "./agent-adapter";
 import { inngest } from "./client";
 import {
   ensurePreviewReady,
@@ -14,8 +15,6 @@ import {
   persistTelemetry,
   runCodingAgentWithEscalation,
   runPlanner,
-  AgentRuntimeEventType,
-  type AgentRuntimeHooks,
   type FinalOutput,
 } from "@/lib/agents";
 import { createLogger, timed, type Logger } from "@/lib/log";
@@ -33,7 +32,7 @@ import {
   MessageStatus,
   MessageMode,
 } from "@/generated/prisma";
-import { thoughtsToPrismaJson, type Thought } from "@/lib/schemas/thought";
+import type { Thought } from "@/lib/schemas/thought";
 
 type StepCtx = {
   run: (id: string, fn: () => Promise<unknown>) => Promise<unknown>;
@@ -52,36 +51,6 @@ function loggedStep<T>(
     metadata,
     fn: () => step.run(id, fn) as Promise<T>,
   });
-}
-
-function buildAgentHooks(args: {
-  sandboxId: string;
-  persistedMessageId: string;
-  thoughts: Thought[];
-  log: Logger;
-}): AgentRuntimeHooks {
-  const { sandboxId, persistedMessageId, thoughts, log } = args;
-  return {
-    getSandbox: () => getSandbox(sandboxId),
-    persistTelemetry: async (payload) => {
-      await persistTelemetry(persistedMessageId, payload);
-    },
-    emit: async (event) => {
-      if (event.type === AgentRuntimeEventType.ExecutorStepFinished) {
-        await prisma.message.update({
-          where: { id: persistedMessageId },
-          data: { thoughts: thoughtsToPrismaJson(thoughts) },
-        });
-        return;
-      }
-      if (event.type === AgentRuntimeEventType.ExecutorAttemptStarted) {
-        log.info({
-          event: "executor attempt",
-          metadata: { attempt: event.attempt, model: event.model },
-        });
-      }
-    },
-  };
 }
 
 export const codeAgentFunction = inngest.createFunction(
@@ -134,6 +103,9 @@ export const codeAgentFunction = inngest.createFunction(
         userPrompt,
         previousMessages: previousMessages as ModelMessage[],
         log,
+        hooks: {
+          emit: (event) => logAgentRuntimeEvent(log, event),
+        },
       })
     );
     runState.plan = plan;
