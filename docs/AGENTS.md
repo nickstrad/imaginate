@@ -12,6 +12,7 @@ It is not a wiki, changelog, or graveyard for every completed task. If a doc doe
 - `docs/plans/open/` holds active multi-PR work the team intends to execute.
 - `docs/plans/drift/` holds narrow realignment plans when code and `architecture.md` disagree.
 - `docs/plans/archive/` holds only completed plans with lasting value as decision history.
+- `docs/research/` holds agent-oriented research notes from discussions that may be useful later but are not plans, contracts, or requirements.
 - `docs/documentation/` holds longer-lived references that are useful while coding.
 
 ## Architecture changes
@@ -51,6 +52,7 @@ Fold content into the right source of truth before retiring a plan:
 - Style conventions go to `docs/code-style/AGENTS.md`.
 - Testing criteria and verification expectations go to `docs/testing/AGENTS.md`.
 - Procedural plan rules go to `docs/plans/AGENTS.md`.
+- Exploratory context that may inform future decisions, but has no committed work, goes to `docs/research/`.
 - Long-lived reference material goes to `docs/documentation/`.
 
 If a small piece remains unfinished, carve it into a new `docs/plans/open/` plan before deleting or archiving the completed plan.
