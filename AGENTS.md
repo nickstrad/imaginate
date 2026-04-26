@@ -8,12 +8,13 @@ This file is the entrypoint for any agent (Claude, Codex, etc.) working in this 
 docs/
   architecture/   How src/ is organized. Folder shape, dependency direction, where new code goes.
   code-style/     Project-wide style rules a linter/formatter doesn't enforce.
-  plans/          Planning docs (open/, drift/, completed/) for work spanning >1 PR.
+  plans/          Planning docs (open/, drift/, archive/) for work spanning >1 PR.
   documentation/  Long-form references (e.g. harness-engineering notes).
 ```
 
-Each subfolder has its own `AGENTS.md` with the rules that apply when you touch files in it. Read that file before editing inside the folder.
+`docs/` is operational context for agents coding this repo, not a wiki and not a permanent task-history dump. Prefer current source-of-truth docs over stale plan history. Each subfolder has its own `AGENTS.md` with the rules that apply when you touch files in it. Read `docs/AGENTS.md` and the relevant subfolder guide before editing inside `docs/`.
 
+- `docs/AGENTS.md` — docs philosophy, source-of-truth rules, and plan retirement policy.
 - `docs/architecture/AGENTS.md` — when to read `architecture.md`, when to update it.
 - `docs/code-style/AGENTS.md` — current style rules + how to add a new one.
 - `docs/plans/AGENTS.md` — plan structure (single-file vs ordered folders), required sections, conflict-check, subfolder lifecycle.
@@ -46,7 +47,8 @@ If a command doesn't appear here, fall back to the table.
 
 ## Doc maintenance rules
 
-- `architecture.md` and the code in `src/` must agree. If your change makes one stale, update it in the same PR.
+- `architecture.md` is an explicit contract for `src/`, not a changelog. Normal feature PRs conform to it. Architecture-changing PRs must be planned first, then update `architecture.md` and any lint enforcement deliberately in the same change set.
+- Do not update `architecture.md` merely to bless an arbitrary code change after the fact. If code needs to violate or change the documented architecture, create or update a plan first.
 - Plans cite architecture rules by section name. If the rule moves or renames, update the plans that reference it.
 - Don't duplicate content across docs. Cross-link instead.
 - New project-wide rules go in the right doc:

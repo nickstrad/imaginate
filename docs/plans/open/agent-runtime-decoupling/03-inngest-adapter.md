@@ -192,7 +192,7 @@ state from the returned outcome after the `execute` step.
 
 ## Conflicts Checked
 
-Reviewed `docs/plans/open/`; `docs/plans/drift/` is absent in `wt-agent-03`.
+Reviewed `docs/plans/open/` and `docs/plans/drift/` in `wt-agent-03`.
 Overlap with `testability-refactor/06-persist-run-helper.md` and
 `testability-refactor/07-split-executor-step-callback.md` is limited to future
 persistence/testability cleanup. Overlap with

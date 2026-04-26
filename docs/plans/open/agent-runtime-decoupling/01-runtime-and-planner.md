@@ -149,7 +149,7 @@ console.log(planSnippet(plan));
 
 ## Conflicts Checked
 
-Reviewed `docs/plans/open/` and `docs/plans/drift/` (drift folder absent). No overlap with `agent-telemetry-refactor/` (changes telemetry schema/queries, not orchestration). `testability-refactor/07-split-executor-step-callback.md` touches the executor step callback only — chunk 02 territory, no conflict with the planner extraction here.
+Reviewed `docs/plans/open/` and `docs/plans/drift/`. No overlap with `agent-telemetry-refactor/` (changes telemetry schema/queries, not orchestration). `testability-refactor/07-split-executor-step-callback.md` touches the executor step callback only — chunk 02 territory, no conflict with the planner extraction here.
 
 ## Acceptance
 

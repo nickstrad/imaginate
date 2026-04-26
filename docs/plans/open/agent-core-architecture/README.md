@@ -119,6 +119,7 @@ Chunks 1 and 2 can ship together if the team wants the new doc, boundary tooling
 - The CLI is a first-class interface for developing and debugging the agent without running the web app.
 - Import-boundary lint rules fail CI for reverse imports and deep imports that bypass public package surfaces.
 - Existing user-facing web behavior and `npm run agent:local` behavior are preserved after the migration.
+- Superseded plans are retired under the archive-or-delete policy in `docs/plans/AGENTS.md`, with durable facts folded into source-of-truth docs first.
 
 ## Out of scope
 
@@ -129,4 +130,4 @@ Chunks 1 and 2 can ship together if the team wants the new doc, boundary tooling
 
 ## Conflicts checked
 
-Checked `docs/plans/open/`; `docs/plans/drift/` does not exist in this worktree. `agent-runtime-decoupling` is treated as completed baseline work, not a competing destination. This plan intentionally overlaps with `testability-refactor` and `agent-telemetry-refactor`; overlapping pieces should either be absorbed into this migration or kept narrowly scoped to behavior/schema changes that survive the new architecture.
+Checked `docs/plans/open/` and `docs/plans/drift/`. `agent-runtime-decoupling` is treated as completed baseline work, not a competing destination. This plan intentionally overlaps with `testability-refactor` and `agent-telemetry-refactor`; overlapping pieces should either be absorbed into this migration or kept narrowly scoped to behavior/schema changes that survive the new architecture.

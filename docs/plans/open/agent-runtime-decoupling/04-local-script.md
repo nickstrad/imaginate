@@ -264,7 +264,7 @@ Do not print pretty logs or extra prose in JSON mode beyond these JSONL records.
 
 ## Conflicts Checked
 
-Reviewed `docs/plans/open/`; `docs/plans/drift/` is absent in
+Reviewed `docs/plans/open/` and `docs/plans/drift/` in
 `mwt-agent-04`. This chunk overlaps with
 `agent-core-architecture/05-local-runtime-and-cleanup.md`, which describes the
 future destination after a broader architecture migration. This chunk remains

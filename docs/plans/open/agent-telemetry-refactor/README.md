@@ -83,4 +83,4 @@ Chunks 1 and 2 are the practical first slice. Chunk 3 should wait until the summ
 
 ## Conflicts checked
 
-Checked `docs/plans/open/` and attempted `docs/plans/drift/` (the folder does not exist in this worktree). This plan overlaps with `agent-runtime-decoupling`, `testability-refactor`, and `inngest-reliability-refactor`; the boundary is that those plans own runtime extraction/retry/testability, while this plan owns telemetry data shape, persistence semantics, privacy boundaries, and analysis targets.
+Checked `docs/plans/open/` and `docs/plans/drift/`. This plan overlaps with `agent-runtime-decoupling`, `testability-refactor`, and `inngest-reliability-refactor`; the boundary is that those plans own runtime extraction/retry/testability, while this plan owns telemetry data shape, persistence semantics, privacy boundaries, and analysis targets.

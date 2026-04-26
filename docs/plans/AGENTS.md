@@ -8,7 +8,7 @@ This folder is the source of truth for proposed and in-flight work that does not
 docs/plans/
   open/        Active plans the team intends to execute. New plans go here.
   drift/       Auto-generated realignment plans from the drift-detection skill.
-  completed/   Plans whose work has shipped. Moved here from open/ at the end.
+  archive/     Completed plans kept only when they have lasting decision value.
 ```
 
 Subfolder rules are folded into this file (see "Subfolder rules" below) — there is no per-subfolder AGENTS.md.
@@ -72,12 +72,12 @@ Every time you create or substantially edit a plan:
 ## Lifecycle
 
 ```
-draft → open/ → (work happens, PRs land) → completed/
-                  ↘ if abandoned, delete the file with a commit message that explains why
+draft → open/ → (work happens, PRs land) → archive/ or delete
+                  ↘ if abandoned or no longer useful, delete the file with a commit message that explains why
 ```
 
 - Drafts can live in a feature branch until the plan is ready for review; merge to main only when the plan is the file you actually intend to execute against.
-- When all work for a plan has shipped, move the file (or folder) to `completed/` per the move protocol below.
+- When all work for a plan has shipped, retire it per the archive-or-delete policy below.
 - The drift folder has its own lifecycle — see the `drift/` subsection below.
 
 ## Subfolder rules
@@ -87,7 +87,7 @@ draft → open/ → (work happens, PRs land) → completed/
 Active plans the team intends to execute.
 
 - Add to `open/` when the work spans more than a single PR, or when a PR description alone won't carry the context.
-- Leave `open/` when all chunks ship (move to `completed/`), when the work is abandoned (delete with a commit message explaining why — don't leave dead plans rotting), or when the plan turns out to be drift realignment (move to `drift/`).
+- Leave `open/` when all chunks ship (archive or delete per the retirement policy), when the work is abandoned (delete with a commit message explaining why — don't leave dead plans rotting), or when the plan turns out to be drift realignment (move to `drift/`).
 - Speculative ideas don't belong here. Use an issue or a comment until the work is intended to happen.
 
 ### `drift/`
@@ -112,17 +112,29 @@ Realignment plans that bring `src/` back into agreement with `docs/architecture/
 
   Filename: kebab-case naming the **refactor**, not the symptom.
 
-- **Doc-update plans.** If the architecture doc itself is what's wrong (real intentional structure the doc doesn't describe), the drift plan proposes updating `architecture.md` and lives here until that doc update lands.
-- **Lifecycle.** Drift plans move to `completed/` like any other plan once the realignment ships. Re-running the skill updates an existing file rather than creating duplicates.
+- **Doc-update plans.** If the architecture doc itself is wrong, use caution: `architecture.md` is a contract, not a mirror of arbitrary code. A drift plan may propose updating `architecture.md` only when the code represents an intentional architecture decision that should become the new contract. Otherwise, fix the code to match the doc.
+- **Lifecycle.** Drift plans are deleted after the realignment ships unless they preserve lasting decision context worth archiving. Re-running the skill updates an existing file rather than creating duplicates.
 
-### `completed/`
+### `archive/`
 
-Archive of plans whose work has fully shipped. Read-only by convention.
+Completed plans with lasting value as decision history. Read-only by convention.
 
-- **Why we keep them.** Context for future plans, and a reviewable record of why current code looks the way it does.
-- **Move protocol.** When every chunk's PR is merged and the "definition of done" holds in `main`: `git mv` the file or folder into `completed/`, preserving its name and internal structure (folder plans keep their `README.md` and numbered chunks). Do not rewrite to past tense — leave it as the design artifact it was; git history records when it shipped. If a small piece was deferred, carve it into a new `open/` plan before moving the rest.
-- **What does NOT go here.** Abandoned plans (delete with an explanatory commit). Drift plans whose underlying rule was changed instead of the code (those should have been rewritten or deleted as part of the doc update).
+- **Why we keep them.** Keep a shipped plan only when it explains durable context future agents need: why a non-obvious architecture choice exists, migration rationale not captured cleanly in `architecture.md`, or a tradeoff that prevents re-litigating the same path.
+- **Archive protocol.** When every chunk's PR is merged and the "definition of done" holds in `main`, first fold durable facts into source-of-truth docs. Then `git mv` the file or folder into `archive/` only if the plan still has lasting value. Preserve its name and internal structure (folder plans keep their `README.md` and numbered chunks). Do not rewrite to past tense — leave it as the design artifact it was; git history records when it shipped.
+- **Delete protocol.** Delete completed plans that were only execution sequencing once durable facts live in `architecture.md`, `code-style/AGENTS.md`, `plans/AGENTS.md`, `documentation/`, or code. Delete abandoned plans with an explanatory commit.
+- **What does NOT go here.** Abandoned plans. Completed plans whose only value is task-tracker history. Drift plans that simply realigned code to the existing contract.
 - **When to read.** Before authoring a new plan in a related area, to avoid re-litigating decisions already made.
+
+## Architecture contract rule
+
+Plans may propose changing `docs/architecture/architecture.md`, but normal implementation PRs should conform to it. Do not update `architecture.md` merely to bless an arbitrary code change after the fact.
+
+If a plan changes an architecture invariant:
+
+1. Say which rule changes and why.
+2. Update `architecture.md` in the chunk that changes the invariant.
+3. Add or update lint rules when the invariant can be enforced mechanically.
+4. Keep plan text and architecture text in sync.
 
 ## Style rules
 

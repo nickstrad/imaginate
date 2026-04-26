@@ -95,7 +95,7 @@ scripts/agent-local.ts removed after src/interfaces/cli owns it
 6. Add focused tests for CLI argument parsing, output formatting, and sandbox follow-up command generation without requiring a real E2B sandbox.
 7. Delete temporary compatibility shims and update imports to public surfaces.
 8. Tighten lint rules from warning or exception-heavy mode to strict error mode.
-9. Move superseded plans or update them to point at this architecture once the migration lands.
+9. Retire superseded plans under `docs/plans/` once the migration lands: fold durable facts into source-of-truth docs, archive only plans with lasting decision value, and delete plans that were only execution sequencing.
 
 ## Definition of done / Verification
 
@@ -108,6 +108,7 @@ scripts/agent-local.ts removed after src/interfaces/cli owns it
 - Temporary re-export shims for old `src/lib/agents`, `src/modules`, `src/trpc`, `src/inngest`, and `scripts/agent-local.ts` paths are gone.
 - Boundary lint rules run in strict mode with no architecture exceptions for migrated code.
 - Documentation points future agents to `src/agent`, `src/interfaces`, `src/features`, `src/platform`, `src/ui`, and `src/shared`.
+- Superseded plans have been archived or deleted according to `docs/plans/AGENTS.md`.
 
 ## Out of scope
 
