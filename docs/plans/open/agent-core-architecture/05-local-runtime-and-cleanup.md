@@ -94,7 +94,7 @@ scripts/agent-local.ts removed after src/interfaces/cli owns it
 5. Add local workspace, in-memory store, file telemetry, and terminal event sink adapters as needed under `src/agent/adapters`.
 6. Add focused tests for CLI argument parsing, output formatting, and sandbox follow-up command generation without requiring a real E2B sandbox.
 7. Delete temporary compatibility shims and update imports to public surfaces.
-8. Tighten lint rules from warning or exception-heavy mode to strict error mode.
+8. Tighten the `eslint-plugin-boundaries` config in `eslint.config.mjs`: remove every `legacy-*` element introduced in chunk 1 (`legacy-lib-agents`, `legacy-modules`, `legacy-inngest`, `legacy-trpc`, `legacy-app-routes`, `legacy-ui`) along with their `// removed by chunk NN` exception entries, and confirm any rule still in warning mode is flipped to error. After this chunk, the only element types in the config are the target elements (`app`, `interfaces`, `agent-domain`, `agent-application`, `agent-ports`, `agent-adapters`, `features`, `platform`, `ui`, `shared`, `generated`).
 9. Retire superseded plans under `docs/plans/` once the migration lands: fold durable facts into source-of-truth docs, archive only plans with lasting decision value, and delete plans that were only execution sequencing.
 
 ## Definition of done / Verification
@@ -106,7 +106,8 @@ scripts/agent-local.ts removed after src/interfaces/cli owns it
 - CLI output preserves runtime events, final output, verification rows, files written, token usage, sandbox URL, and follow-up command.
 - CLI-specific parsing/formatting has focused tests that do not require a real sandbox.
 - Temporary re-export shims for old `src/lib/agents`, `src/modules`, `src/trpc`, `src/inngest`, and `scripts/agent-local.ts` paths are gone.
-- Boundary lint rules run in strict mode with no architecture exceptions for migrated code.
+- `eslint.config.mjs` contains zero `legacy-*` boundary elements and zero `// removed by chunk NN` comments; all remaining rules are at error severity.
+- A repeat of chunk 1's smoke check passes: a temporarily introduced forbidden import (e.g. `src/agent/domain` importing from `src/app`) still fails lint with a message that names the crossed boundary, and is reverted before merging.
 - Documentation points future agents to `src/agent`, `src/interfaces`, `src/features`, `src/platform`, `src/ui`, and `src/shared`.
 - Superseded plans have been archived or deleted according to `docs/plans/AGENTS.md`.
 
