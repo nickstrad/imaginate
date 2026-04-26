@@ -7,16 +7,25 @@ import type {
   GenerateTextResult,
   MessageRole,
   MessageStore,
+  ModelDescriptor,
   ModelGateway,
+  ProviderErrorClassification,
   SandboxCommandOptions,
   SandboxCommandResult,
   SandboxGateway,
   SandboxHandle,
   TelemetryStore,
   TelemetryUpsertArgs,
+  ToolFactory,
+  ToolFactoryContext,
+  ToolSet,
 } from "../ports";
 import type { AgentRuntimeEvent } from "../domain/events";
-import type { PersistedTelemetry } from "../domain/types";
+import type {
+  FinalOutput,
+  PersistedTelemetry,
+  PlanOutput,
+} from "../domain/types";
 
 interface StoredMessage {
   messageId: string;
@@ -99,12 +108,28 @@ export function createNoopAgentLogger(): AgentLogger {
   return logger;
 }
 
+export type FakeGenerateTextHandler = (
+  req: GenerateTextRequest
+) => Promise<GenerateTextResult> | GenerateTextResult;
+
 export interface FakeModelGatewayOptions {
-  responses?: GenerateTextResult[];
+  responses?: Array<GenerateTextResult | FakeGenerateTextHandler | Error>;
+  plannerModelId?: string;
+  executorModelIds?: string[];
+  describeModel?: (modelId: string) => ModelDescriptor;
+  errorClassifier?: (err: unknown) => ProviderErrorClassification;
 }
 
 export interface FakeModelGateway extends ModelGateway {
   readonly calls: ReadonlyArray<GenerateTextRequest>;
+}
+
+function defaultDescribeModel(modelId: string): ModelDescriptor {
+  const idx = modelId.indexOf(":");
+  if (idx < 0) {
+    return { provider: "fake", model: modelId };
+  }
+  return { provider: modelId.slice(0, idx), model: modelId.slice(idx + 1) };
 }
 
 export function createFakeModelGateway(
@@ -112,13 +137,40 @@ export function createFakeModelGateway(
 ): FakeModelGateway {
   const queue = [...(options.responses ?? [])];
   const calls: GenerateTextRequest[] = [];
+  const plannerModelId = options.plannerModelId ?? "fake:planner";
+  const executorModelIds = options.executorModelIds ?? [
+    "fake:exec-a",
+    "fake:exec-b",
+    "fake:exec-c",
+  ];
+  const describeModel = options.describeModel ?? defaultDescribeModel;
+  const errorClassifier =
+    options.errorClassifier ??
+    ((_err: unknown) => ({ category: "unknown", retryable: false }));
   return {
     get calls() {
       return calls;
     },
     async generateText(req) {
       calls.push(req);
-      return queue.shift() ?? { steps: [] };
+      const next = queue.shift();
+      if (next instanceof Error) {
+        throw next;
+      }
+      if (typeof next === "function") {
+        return await next(req);
+      }
+      return next ?? { steps: [] };
+    },
+    resolvePlannerModelId() {
+      return plannerModelId;
+    },
+    listExecutorModelIds() {
+      return [...executorModelIds];
+    },
+    describeModel,
+    classifyError(err) {
+      return errorClassifier(err);
     },
   };
 }
@@ -186,6 +238,58 @@ export function createFakeSandboxGateway(
     },
     async acquire() {
       return handle;
+    },
+  };
+}
+
+export interface FakeToolFactoryOptions {
+  onFinalize?: (ctx: ToolFactoryContext, output: FinalOutput) => void;
+  onWrite?: (ctx: ToolFactoryContext, path: string, content: string) => void;
+}
+
+export function createFakeToolFactory(
+  options: FakeToolFactoryOptions = {}
+): ToolFactory {
+  return {
+    createExecutorTools(ctx: ToolFactoryContext): ToolSet {
+      return {
+        finalize: {
+          description: "fake finalize",
+          inputSchema: {},
+          execute: async (input: unknown) => {
+            const output = input as FinalOutput;
+            ctx.runState.finalOutput = output;
+            options.onFinalize?.(ctx, output);
+            return { success: true, status: output.status };
+          },
+        },
+        writeFiles: {
+          description: "fake writeFiles",
+          inputSchema: {},
+          execute: async (input: unknown) => {
+            const { files = [] } =
+              (input as { files?: Array<{ path: string; content: string }> }) ??
+              {};
+            for (const f of files) {
+              ctx.runState.filesWritten[f.path] = f.content;
+              options.onWrite?.(ctx, f.path, f.content);
+            }
+            return { success: true };
+          },
+        },
+      };
+    },
+    createPlannerSubmitTool({ onSubmit }) {
+      return {
+        submitPlan: {
+          description: "fake submitPlan",
+          inputSchema: {},
+          execute: async (input: unknown) => {
+            onSubmit(input as PlanOutput);
+            return { received: true };
+          },
+        },
+      };
     },
   };
 }

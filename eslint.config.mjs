@@ -23,9 +23,7 @@ const boundaryElements = [
   // Legacy elements — temporary escape hatches during the
   // agent-core-architecture migration. Each entry names the chunk that
   // removes it. Chunk 5 deletes this whole block.
-  // removed by chunk 03
-  { type: "legacy-lib-agents", pattern: "src/lib/agents/**" },
-  // removed by chunk 03
+  // removed by chunk 05
   { type: "legacy-lib", pattern: "src/lib/**" },
   // removed by chunk 04
   { type: "legacy-modules", pattern: "src/modules/**" },
@@ -51,7 +49,6 @@ const targetTypes = [
 ];
 
 const legacyTypes = [
-  "legacy-lib-agents",
   "legacy-lib",
   "legacy-modules",
   "legacy-inngest",
@@ -101,7 +98,15 @@ const elementRules = [
   },
   {
     from: ["agent-adapters"],
-    allow: ["agent-ports", "agent-domain", "platform", "shared", "generated"],
+    allow: [
+      "agent-ports",
+      "agent-domain",
+      "platform",
+      "shared",
+      "generated",
+      // removed by chunk 05 (when src/lib/* moves into src/platform)
+      "legacy-lib",
+    ],
   },
   {
     from: ["agent-application"],

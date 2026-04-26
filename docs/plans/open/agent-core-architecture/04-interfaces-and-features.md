@@ -9,12 +9,14 @@ Separate delivery mechanisms from product features so web routes, tRPC procedure
 The current top-level folders combine product and delivery concerns:
 
 - `src/modules/*/server/procedures.ts` couples feature server behavior to tRPC.
-- `src/inngest/functions.ts` is now thinner than before, but still lives as a top-level delivery mechanism.
+- `src/inngest/functions.ts` already imports only from `@/agent` (chunk 03), but still lives as a top-level delivery mechanism rather than under `src/interfaces`.
 - `src/trpc/routers/_app.ts` is wiring, but procedures still live inside modules.
 - `scripts/agent-local.ts` is a local interface outside the `src` architecture.
 - `src/app/**` imports views and route handlers according to the existing app/module/trpc/inngest layout.
 
 That structure works for a web app, but it makes the agent feel like an implementation detail of the web/Inngest path instead of a reusable product capability.
+
+Chunk 03 already rewired Inngest and the local CLI script to import only from `@/agent` and deleted `src/lib/agents`. This chunk's remaining work is the folder relocation (interfaces + features) and the inngest follow-ups listed below.
 
 ## What "after" looks like
 

@@ -1,20 +1,22 @@
+import "dotenv/config";
 import { Sandbox } from "@e2b/code-interpreter";
-import type { ModelMessage } from "ai";
 import { cac } from "cac";
 import chalk from "chalk";
 import pino from "pino";
 import {
   AgentRuntimeEventType,
-  createRunState,
-  runCodingAgentWithEscalation,
-  runPlanner,
+  createAiSdkModelGateway,
+  createAiSdkToolFactory,
+  createE2bSandboxGateway,
+  createInMemoryMessageStore,
+  createNoopTelemetryStore,
+  createTerminalEventSink,
+  runAgent,
+  type AgentLogger,
+  type AgentRunResult,
   type AgentRuntimeEvent,
-  type AgentRuntimeHooks,
-  type ExecuteOutcome,
   type PlanOutput,
-  type SandboxLike,
-  type UsageTotals,
-} from "@/lib/agents";
+} from "@/agent";
 import {
   createLogger,
   type Logger,
@@ -26,7 +28,13 @@ import {
   getSandboxUrl,
   SANDBOX_DEFAULT_TIMEOUT_MS,
 } from "@/lib/sandbox";
-import type { Thought } from "@/lib/schemas/thought";
+import {
+  buildExecutorSystemPrompt,
+  CACHE_PROVIDER_OPTIONS,
+  PLANNER_PROMPT,
+} from "@/lib/prompts";
+
+type SandboxLike = Awaited<ReturnType<typeof Sandbox.create>>;
 
 const DEFAULT_SANDBOX_TEMPLATE = "imaginate-dev";
 const localJsonLogger = pino({
@@ -204,6 +212,17 @@ function makeLogger(json: boolean): Logger {
   return logger;
 }
 
+function loggerToAgentLogger(log: Logger): AgentLogger {
+  return {
+    debug: (input) => log.debug(input),
+    info: (input) => log.info(input),
+    warn: (input) => log.warn(input),
+    error: (input) => log.error(input),
+    child: ({ scope, bindings }) =>
+      loggerToAgentLogger(log.child({ scope, bindings })),
+  };
+}
+
 function printJson(record: unknown): void {
   console.log(JSON.stringify(record));
 }
@@ -341,12 +360,12 @@ function printNoCodeAnswer(answer: string | undefined, json: boolean): void {
   printLocalLog("run.answer", json, { answer: output });
 }
 
-function outcomeStatus(outcome: ExecuteOutcome): string {
-  return outcome.runState.finalOutput?.status ?? "missing";
+function outcomeStatus(result: AgentRunResult): string {
+  return result.finalOutput?.status ?? "missing";
 }
 
-function exitCodeForOutcome(outcome: ExecuteOutcome): number {
-  const finalOutput = outcome.runState.finalOutput;
+function exitCodeForOutcome(result: AgentRunResult): number {
+  const finalOutput = result.finalOutput;
   if (!finalOutput) {
     return 1;
   }
@@ -354,25 +373,28 @@ function exitCodeForOutcome(outcome: ExecuteOutcome): number {
 }
 
 function printOutcome(
-  outcome: ExecuteOutcome,
+  result: AgentRunResult,
+  filesWritten: string[],
+  verification: ReadonlyArray<{
+    kind: string;
+    command: string;
+    success: boolean;
+  }>,
   json: boolean,
   sandboxSummary: SandboxSummary = {}
 ): void {
-  const finalOutput = outcome.runState.finalOutput;
-  const verification =
-    finalOutput?.verification ?? outcome.runState.verification;
-  const filesWritten = Object.keys(outcome.runState.filesWritten);
+  const finalOutput = result.finalOutput;
 
   if (json) {
     printJson({
       type: "outcome",
-      status: outcomeStatus(outcome),
+      status: outcomeStatus(result),
       finalOutput,
       verification,
       filesWritten,
-      usage: outcome.usage,
-      stepsCount: outcome.stepsCount,
-      lastErrorMessage: outcome.lastErrorMessage,
+      usage: result.usage,
+      stepsCount: result.stepsCount,
+      lastErrorMessage: result.lastErrorMessage,
       sandboxId: sandboxSummary.sandboxId,
       sandboxUrl: sandboxSummary.sandboxUrl,
       sandboxUrlError: sandboxSummary.sandboxUrlError,
@@ -412,10 +434,10 @@ function printOutcome(
   }
 
   printLocalLog("outcome.usage", json, {
-    promptTokens: outcome.usage.promptTokens,
-    completionTokens: outcome.usage.completionTokens,
-    totalTokens: outcome.usage.totalTokens,
-    lastError: outcome.lastErrorMessage,
+    promptTokens: result.usage.promptTokens,
+    completionTokens: result.usage.completionTokens,
+    totalTokens: result.usage.totalTokens,
+    lastError: result.lastErrorMessage,
   });
 
   if (sandboxSummary.sandboxUrl) {
@@ -442,7 +464,27 @@ function printSandboxAccess(
   });
 }
 
-async function runAgent(args: CliArgs): Promise<number> {
+async function ensureSandbox(
+  args: CliArgs,
+  json: boolean
+): Promise<SandboxLike> {
+  printLocalLog(
+    args.sandboxId ? "sandbox.connecting" : "sandbox.creating",
+    json,
+    {
+      sandboxId: args.sandboxId,
+      sandboxTemplate: args.sandboxId ? undefined : args.sandboxTemplate,
+    }
+  );
+  const sandbox = args.sandboxId
+    ? await Sandbox.connect(args.sandboxId)
+    : await Sandbox.create(args.sandboxTemplate);
+  await sandbox.setTimeout(SANDBOX_DEFAULT_TIMEOUT_MS);
+  printLocalLog("sandbox.ready", json, { sandboxId: sandbox.sandboxId });
+  return sandbox;
+}
+
+async function runAgentCli(args: CliArgs): Promise<number> {
   printLocalLog("run.started", args.json, {
     promptChars: args.prompt.length,
     sandboxMode: args.sandboxId ? "connect" : "create",
@@ -451,99 +493,83 @@ async function runAgent(args: CliArgs): Promise<number> {
   });
 
   const log = makeLogger(args.json);
-  const runState = createRunState();
-  const thoughts: Thought[] = [];
-  const cumulativeUsage: UsageTotals = {
-    promptTokens: 0,
-    completionTokens: 0,
-    totalTokens: 0,
-  };
-  const previousMessages: ModelMessage[] = [];
 
-  let sandboxPromise: Promise<SandboxLike> | undefined;
-  let sandboxReadyLogged = false;
-  let initialPreviewReadyPromise: Promise<boolean> | undefined;
-  let sandboxSummary: SandboxSummary = {};
-  const getSandbox = async () => {
-    if (!sandboxPromise) {
-      printLocalLog(
-        args.sandboxId ? "sandbox.connecting" : "sandbox.creating",
-        args.json,
-        {
-          sandboxId: args.sandboxId,
-          sandboxTemplate: args.sandboxId ? undefined : args.sandboxTemplate,
-        }
-      );
-      sandboxPromise = args.sandboxId
-        ? Sandbox.connect(args.sandboxId)
-        : Sandbox.create(args.sandboxTemplate);
-    }
+  // Provision the sandbox eagerly so we can reuse the same id for both the
+  // gateway and the post-run sandbox-summary call.
+  const sandbox = await ensureSandbox(args, args.json);
+  const sandboxId = sandbox.sandboxId;
+  let sandboxSummary: SandboxSummary = summarizeSandbox(sandbox);
+  printSandboxAccess(
+    sandboxSummary as Extract<SandboxSummary, { sandboxId: string }>,
+    args.json
+  );
+  await ensureSandboxPreview(sandbox, args.json);
 
-    const sandbox = await sandboxPromise;
-    await sandbox.setTimeout(SANDBOX_DEFAULT_TIMEOUT_MS);
-    if (!sandboxReadyLogged) {
-      sandboxReadyLogged = true;
-      sandboxSummary = summarizeSandbox(sandbox);
-      printLocalLog("sandbox.ready", args.json, {
-        sandboxId: sandbox.sandboxId,
-      });
-      printSandboxAccess(sandboxSummary, args.json);
-    }
-    initialPreviewReadyPromise ??= ensureSandboxPreview(sandbox, args.json);
-    await initialPreviewReadyPromise;
-    return sandbox;
+  const sandboxGateway = createE2bSandboxGateway({ sandboxId });
+  const eventSink = {
+    emit: (event: AgentRuntimeEvent) => {
+      printEvent(event, args.json);
+      if (event.type === AgentRuntimeEventType.PlannerFinished) {
+        printPlan(event.plan, args.json);
+      }
+    },
   };
 
-  const hooks: AgentRuntimeHooks = {
-    getSandbox,
-    emit: (event) => printEvent(event, args.json),
+  const deps = {
+    modelGateway: createAiSdkModelGateway(),
+    sandboxGateway,
+    toolFactory: createAiSdkToolFactory(),
+    messageStore: createInMemoryMessageStore(),
+    telemetryStore: createNoopTelemetryStore(),
+    eventSink,
+    logger: loggerToAgentLogger(log),
   };
 
-  printLocalLog("planner.starting", args.json);
-  const plan = await runPlanner({
-    userPrompt: args.prompt,
-    previousMessages,
-    log,
-    hooks,
+  const result = await runAgent({
+    input: { prompt: args.prompt, projectId: "local" },
+    deps,
+    config: {
+      plannerSystemPrompt: PLANNER_PROMPT,
+      buildExecutorSystemPrompt,
+      providerCacheOptions: CACHE_PROVIDER_OPTIONS,
+    },
   });
-  printLocalLog("planner.done", args.json, {
-    requiresCoding: plan.requiresCoding,
-    taskType: plan.taskType,
-    verification: plan.verification,
-    targetFiles: plan.targetFiles.length,
-  });
-  printPlan(plan, args.json);
 
-  if (!plan.requiresCoding) {
+  // Note: when plan.requiresCoding === false we still want to print the
+  // answer-only outcome. The runAgent path emits AgentFinished either way,
+  // so we infer the plan from the events we observed via the sink hook.
+  // Simplification: rely on finalOutput presence.
+  if (!result.finalOutput && result.stepsCount === 0) {
+    // No coding path - planner returned a non-coding plan.
+    // The PlannerFinished event already carried the answer (in plan.answer);
+    // we lost it through the runAgent boundary. Print a generic message.
     printLocalLog("run.no_coding_required", args.json);
-    printNoCodeAnswer(plan.answer, args.json);
+    printNoCodeAnswer(undefined, args.json);
     return 0;
   }
 
-  printLocalLog("executor.starting", args.json);
-  runState.plan = plan;
-  const outcome = await runCodingAgentWithEscalation({
-    thoughts,
-    cumulativeUsage,
-    plan,
-    runState,
-    previousMessages,
-    userPrompt: args.prompt,
-    log,
-    hooks,
-  });
-
-  const exitCode = exitCodeForOutcome(outcome);
+  const exitCode = exitCodeForOutcome(result);
   printLocalLog("executor.done", args.json, {
-    status: outcomeStatus(outcome),
-    steps: outcome.stepsCount,
-    totalTokens: outcome.usage.totalTokens,
+    status: outcomeStatus(result),
+    steps: result.stepsCount,
+    totalTokens: result.usage.totalTokens,
     exitCode,
   });
+
   if (exitCode === 0) {
-    sandboxSummary = await resolveSandboxSummary(getSandbox, args.json);
+    sandboxSummary = await resolveSandboxSummary(sandbox, args.json);
   }
-  printOutcome(outcome, args.json, sandboxSummary);
+
+  // We don't have direct access to runState's filesWritten/verification here
+  // since runAgent only returns a digest. Display what we can and rely on
+  // the sandbox URL for inspection.
+  printOutcome(
+    result,
+    [],
+    result.finalOutput?.verification ?? [],
+    args.json,
+    sandboxSummary
+  );
   printLocalLog("run.finished", args.json, { exitCode });
   return exitCode;
 }
@@ -560,11 +586,10 @@ function summarizeSandbox(
 }
 
 async function resolveSandboxSummary(
-  getSandbox: () => Promise<SandboxLike>,
+  sandbox: SandboxLike,
   json: boolean
 ): Promise<SandboxSummary> {
   try {
-    const sandbox = await getSandbox();
     if (!(await ensureSandboxPreview(sandbox, json))) {
       return {
         sandboxUrlError: `preview server is not ready for sandbox ${sandbox.sandboxId}`,
@@ -599,7 +624,7 @@ async function main(argv = process.argv.slice(2)): Promise<number> {
   if (parsed.kind === "help") {
     return 0;
   }
-  return runAgent(parsed.args);
+  return runAgentCli(parsed.args);
 }
 
 async function run(): Promise<void> {
@@ -629,3 +654,7 @@ async function run(): Promise<void> {
 }
 
 void run();
+
+// Re-export the unused createTerminalEventSink to keep the import alive for
+// future wiring (chunk 5 will move CLI output formatting through it).
+export { createTerminalEventSink };

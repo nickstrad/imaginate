@@ -7,7 +7,6 @@ import {
   summarizeVerification,
   toPersistedTelemetry,
 } from "./telemetry";
-import type { TelemetryStore } from "./types";
 import { createRunState, markVerification } from "./state";
 
 describe("readUsage", () => {
@@ -103,7 +102,7 @@ describe("extractTelemetry", () => {
 describe("persistTelemetryWith", () => {
   it("upserts using messageId and persisted shape", async () => {
     const upsert = vi.fn().mockResolvedValue({});
-    const store: TelemetryStore = { upsert };
+    const store = { upsert };
     const payload = buildTelemetry(createRunState(), 1, {
       promptTokens: 1,
       completionTokens: 2,

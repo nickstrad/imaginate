@@ -1,12 +1,16 @@
 import {
   AgentRuntimeEventType,
-  persistTelemetry,
+  createAiSdkModelGateway,
+  createAiSdkToolFactory,
+  createE2bSandboxGateway,
+  createPrismaMessageStore,
+  createPrismaTelemetryStore,
+  type AgentLogger,
+  type AgentRuntimeDeps,
   type AgentRuntimeEvent,
-  type AgentRuntimeHooks,
-} from "@/lib/agents";
+} from "@/agent";
 import { prisma } from "@/lib/db";
 import type { Logger } from "@/lib/log";
-import { getSandbox } from "@/lib/sandbox";
 import { thoughtsToPrismaJson, type Thought } from "@/lib/schemas/thought";
 
 type RuntimeLogEntry = {
@@ -95,31 +99,51 @@ export function logAgentRuntimeEvent(
   if (!entry) {
     return;
   }
-
   log[entry.level]({ event: entry.event, metadata: entry.metadata });
 }
 
-export function buildAgentHooks(args: {
+export function createAgentLoggerFromLogger(log: Logger): AgentLogger {
+  return {
+    debug: (input) => log.debug(input),
+    info: (input) => log.info(input),
+    warn: (input) => log.warn(input),
+    error: (input) => log.error(input),
+    child: ({ scope, bindings }) =>
+      createAgentLoggerFromLogger(log.child({ scope, bindings })),
+  };
+}
+
+export function buildAgentDeps(input: {
   sandboxId: string;
+  log: Logger;
+  emit: (event: AgentRuntimeEvent) => void | Promise<void>;
+}): AgentRuntimeDeps {
+  return {
+    modelGateway: createAiSdkModelGateway(),
+    sandboxGateway: createE2bSandboxGateway({ sandboxId: input.sandboxId }),
+    toolFactory: createAiSdkToolFactory(),
+    messageStore: createPrismaMessageStore(),
+    telemetryStore: createPrismaTelemetryStore(),
+    eventSink: { emit: input.emit },
+    logger: createAgentLoggerFromLogger(input.log),
+  };
+}
+
+export function makePersistedThoughtSink(args: {
+  log: Logger;
   persistedMessageId: string;
   thoughts: Thought[];
-  log: Logger;
-}): AgentRuntimeHooks {
-  const { sandboxId, persistedMessageId, thoughts, log } = args;
-  return {
-    getSandbox: () => getSandbox(sandboxId),
-    persistTelemetry: async (payload) => {
-      await persistTelemetry(persistedMessageId, payload);
-    },
-    emit: async (event) => {
-      logAgentRuntimeEvent(log, event);
-
-      if (event.type === AgentRuntimeEventType.ExecutorStepFinished) {
-        await prisma.message.update({
-          where: { id: persistedMessageId },
-          data: { thoughts: thoughtsToPrismaJson(thoughts) },
-        });
-      }
-    },
+}): (event: AgentRuntimeEvent) => Promise<void> {
+  const { log, persistedMessageId, thoughts } = args;
+  return async (event) => {
+    logAgentRuntimeEvent(log, event);
+    if (event.type === AgentRuntimeEventType.ExecutorStepFinished) {
+      // Mirror the AI-SDK Thought shape into the Inngest persistence schema.
+      thoughts.push(event.step.thought as Thought);
+      await prisma.message.update({
+        where: { id: persistedMessageId },
+        data: { thoughts: thoughtsToPrismaJson(thoughts) },
+      });
+    }
   };
 }

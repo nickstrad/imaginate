@@ -1,6 +1,10 @@
 import { generateText, type ModelMessage } from "ai";
 import { Sandbox } from "@e2b/code-interpreter";
-import { buildAgentHooks, logAgentRuntimeEvent } from "./agent-adapter";
+import {
+  buildAgentDeps,
+  logAgentRuntimeEvent,
+  makePersistedThoughtSink,
+} from "./agent-adapter";
 import { inngest } from "./client";
 import {
   ensurePreviewReady,
@@ -11,19 +15,25 @@ import {
 import {
   buildTelemetry,
   createRunState,
-  isFinalOutputAcceptable,
-  persistTelemetry,
-  runCodingAgentWithEscalation,
-  runPlanner,
+  executeRun,
+  persistTelemetryWith,
+  planRun,
   type FinalOutput,
-} from "@/lib/agents";
+  type Thought,
+  type UsageTotals,
+} from "@/agent";
 import { createLogger, timed, type Logger } from "@/lib/log";
 import {
   createModelProvider,
   getPreviousMessages,
   resolvePlannerModel,
 } from "@/lib/models";
-import { ASK_AGENT_PROMPT, CACHE_PROVIDER_OPTIONS } from "@/lib/prompts";
+import {
+  ASK_AGENT_PROMPT,
+  buildExecutorSystemPrompt,
+  CACHE_PROVIDER_OPTIONS,
+  PLANNER_PROMPT,
+} from "@/lib/prompts";
 import { classifyProviderError } from "@/lib/errors";
 import { prisma } from "@/lib/db";
 import {
@@ -32,7 +42,6 @@ import {
   MessageStatus,
   MessageMode,
 } from "@/generated/prisma";
-import type { Thought } from "@/lib/schemas/thought";
 
 type StepCtx = {
   run: (id: string, fn: () => Promise<unknown>) => Promise<unknown>;
@@ -92,20 +101,37 @@ export const codeAgentFunction = inngest.createFunction(
     const userPrompt = event.data.userPrompt as string;
     const runState = createRunState();
     const thoughts: Thought[] = [];
-    const cumulativeUsage = {
+    const cumulativeUsage: UsageTotals = {
       promptTokens: 0,
       completionTokens: 0,
       totalTokens: 0,
     };
 
+    // Build deps without a sandbox first; the sandbox is created lazily when
+    // the executor needs it, but we know the sandbox id ahead of executor.
+    const plannerDeps = buildAgentDeps({
+      sandboxId: "unused-during-planning",
+      log,
+      emit: async (e) => {
+        logAgentRuntimeEvent(log, e);
+      },
+    });
+
+    const portMessages = (previousMessages as ModelMessage[]).map((m) => ({
+      role: m.role as "system" | "user" | "assistant" | "tool",
+      content:
+        typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+    }));
+
     const plan = await loggedStep(log, step, "plan", () =>
-      runPlanner({
-        userPrompt,
-        previousMessages: previousMessages as ModelMessage[],
-        log,
-        hooks: {
-          emit: (event) => logAgentRuntimeEvent(log, event),
+      planRun({
+        input: {
+          userPrompt,
+          previousMessages: portMessages,
+          plannerSystemPrompt: PLANNER_PROMPT,
+          providerCacheOptions: CACHE_PROVIDER_OPTIONS,
         },
+        deps: plannerDeps,
       })
     );
     runState.plan = plan;
@@ -133,8 +159,13 @@ export const codeAgentFunction = inngest.createFunction(
         log,
         step,
         "save-telemetry",
-        () => persistTelemetry(persistedMessage.id, telemetry),
-        telemetry
+        () =>
+          persistTelemetryWith(
+            plannerDeps.telemetryStore,
+            persistedMessage.id,
+            telemetry
+          ),
+        { ...telemetry } as Record<string, unknown>
       );
       return { answer, plan };
     }
@@ -150,26 +181,126 @@ export const codeAgentFunction = inngest.createFunction(
       }
     );
 
-    const executeOutcome = await loggedStep(log, step, "execute", () =>
-      runCodingAgentWithEscalation({
-        thoughts,
-        cumulativeUsage,
-        plan,
-        runState,
-        previousMessages: previousMessages as ModelMessage[],
-        userPrompt,
-        log,
-        hooks: buildAgentHooks({
-          sandboxId,
-          persistedMessageId: persistedMessage.id,
-          thoughts,
-          log,
-        }),
-      })
-    );
+    const persistedEmit = makePersistedThoughtSink({
+      log,
+      persistedMessageId: persistedMessage.id,
+      thoughts,
+    });
 
-    // Restore post-step state from the cached step return (Inngest replays don't
-    // re-run step.run callbacks, so in-closure runState mutations are lost).
+    const execDeps = buildAgentDeps({
+      sandboxId,
+      log,
+      emit: persistedEmit,
+    });
+
+    let stepsCount = 0;
+    let lastError: unknown;
+    const ladder = execDeps.modelGateway.listExecutorModelIds();
+
+    const executeOutcome = await loggedStep(log, step, "execute", async () => {
+      for (let i = 0; i < ladder.length; i++) {
+        const modelId = ladder[i];
+        let descriptorString: string;
+        try {
+          const desc = execDeps.modelGateway.describeModel(modelId);
+          descriptorString = `${desc.provider}:${desc.model}`;
+        } catch (err) {
+          log.warn({
+            event: "ladder slot unavailable",
+            metadata: { modelId, err: String(err) },
+          });
+          lastError = err;
+          continue;
+        }
+
+        await execDeps.eventSink.emit({
+          type: "executor.attempt.started" as const,
+          attempt: i + 1,
+          model: descriptorString,
+        });
+
+        const outcome = await executeRun({
+          input: {
+            userPrompt,
+            previousMessages: portMessages,
+            plan,
+            runState,
+            thoughts,
+            cumulativeUsage,
+            buildExecutorSystemPrompt,
+            providerCacheOptions: CACHE_PROVIDER_OPTIONS,
+            modelId,
+          },
+          deps: {
+            modelGateway: execDeps.modelGateway,
+            sandboxGateway: execDeps.sandboxGateway,
+            toolFactory: execDeps.toolFactory,
+            eventSink: execDeps.eventSink,
+            logger: execDeps.logger,
+            persistTelemetrySnapshot: async (payload) => {
+              await persistTelemetryWith(
+                execDeps.telemetryStore,
+                persistedMessage.id,
+                payload
+              );
+            },
+          },
+        });
+        stepsCount = outcome.stepsCount;
+
+        if (outcome.error) {
+          const classified = execDeps.modelGateway.classifyError(outcome.error);
+          lastError = outcome.error;
+          await execDeps.eventSink.emit({
+            type: "executor.attempt.failed" as const,
+            attempt: i + 1,
+            category: classified.category,
+            retryable: classified.retryable,
+          });
+          if (!classified.retryable) {
+            break;
+          }
+          continue;
+        }
+
+        if (!outcome.escalated) {
+          await execDeps.eventSink.emit({
+            type: "executor.accepted" as const,
+            attempt: i + 1,
+          });
+          break;
+        }
+
+        await execDeps.eventSink.emit({
+          type: "executor.escalated" as const,
+          attempt: i + 1,
+          reason: outcome.reason,
+        });
+      }
+
+      const lastErrorMessage =
+        lastError === undefined
+          ? null
+          : lastError instanceof Error
+            ? lastError.message
+            : String(lastError);
+
+      await execDeps.eventSink.emit({
+        type: "agent.finished" as const,
+        stepsCount,
+        usage: cumulativeUsage,
+        finalOutput: runState.finalOutput,
+        lastErrorMessage,
+      });
+
+      return {
+        runState,
+        stepsCount,
+        usage: cumulativeUsage,
+        lastErrorMessage,
+      };
+    });
+
     const finalRunState = executeOutcome.runState;
     const finalOutput: FinalOutput | undefined = finalRunState.finalOutput;
 
@@ -244,8 +375,13 @@ export const codeAgentFunction = inngest.createFunction(
       log,
       step,
       "save-telemetry",
-      () => persistTelemetry(persistedMessage.id, telemetry),
-      telemetry
+      () =>
+        persistTelemetryWith(
+          execDeps.telemetryStore,
+          persistedMessage.id,
+          telemetry
+        ),
+      { ...telemetry } as Record<string, unknown>
     );
 
     log.info({
@@ -253,7 +389,8 @@ export const codeAgentFunction = inngest.createFunction(
       metadata: {
         isError,
         title: finalOutput?.title,
-        acceptable: isFinalOutputAcceptable(finalRunState),
+        acceptable:
+          finalOutput !== undefined && finalOutput.status !== "failed",
         ...telemetry,
       },
     });

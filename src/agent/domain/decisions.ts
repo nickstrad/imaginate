@@ -1,18 +1,8 @@
 import { TASK_SUMMARY_RE } from "./constants";
+import { EscalateReason } from "./types";
 import type { EscalateDecision, RunState } from "./types";
 
-export const EscalateReason = {
-  FinalizeFailed: "finalize:failed",
-  FinalizePartial: "finalize:partial",
-  EmptyOutput: "empty_output",
-  StubLanguage: "stub_language",
-  WroteWithoutVerify: "wrote_without_verify",
-  NoWrites: "no_writes",
-  Exception: "exception",
-} as const;
-
-export type EscalateReason =
-  (typeof EscalateReason)[keyof typeof EscalateReason];
+export { EscalateReason };
 
 export function stepTextOf(src: unknown): string {
   if (!src || typeof src !== "object") {

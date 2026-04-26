@@ -1,6 +1,5 @@
 import { BUILD_RE, LINT_RE, TEST_RE } from "./constants";
-import type { VerificationKind } from "./schemas";
-import type { RunState } from "./types";
+import type { RunState, VerificationKind } from "./types";
 
 export function createRunState(): RunState {
   return {

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { runAgent } from "../application/run-agent";
 import { AgentRuntimeEventType } from "../domain/events";
 import {
   createFakeModelGateway,
@@ -8,24 +7,9 @@ import {
   createInMemoryEventSink,
   createInMemoryMessageStore,
   createInMemoryTelemetryStore,
-  createNoopAgentLogger,
 } from "./in-memory-stores";
 
 describe("agent skeleton fakes", () => {
-  it("runAgent throws not-implemented (chunk 03 will wire it)", async () => {
-    const deps = {
-      modelGateway: createFakeModelGateway(),
-      sandboxGateway: createFakeSandboxGateway(),
-      messageStore: createInMemoryMessageStore(),
-      telemetryStore: createInMemoryTelemetryStore(),
-      eventSink: createInMemoryEventSink(),
-      logger: createNoopAgentLogger(),
-    };
-    await expect(
-      runAgent({ input: { prompt: "hi", projectId: "p1" }, deps })
-    ).rejects.toThrow(/not implemented/);
-  });
-
   it("in-memory message store round-trips appends and assigns unique ids", async () => {
     const store = createInMemoryMessageStore();
     const a = await store.appendUserMessage({

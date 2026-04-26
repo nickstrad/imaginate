@@ -1,6 +1,6 @@
-// Telemetry persistence port. Mirrors the existing TelemetryStore in
-// src/lib/agents/types.ts so chunk 03 can re-point imports without touching
-// call sites in planner/executor/telemetry.ts.
+// Telemetry persistence port. Implementations live in
+// `agent/adapters/prisma/telemetry-store.ts` (production) and
+// `agent/adapters/memory/stores.ts` (in-memory).
 
 import type { PersistedTelemetry, TelemetryPayload } from "../domain/types";
 

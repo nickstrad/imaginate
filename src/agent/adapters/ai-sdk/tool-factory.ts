@@ -1,18 +1,29 @@
-import { tool } from "ai";
 import { z } from "zod";
-import type { Sandbox } from "@e2b/code-interpreter";
-import { AGENT_CONFIG, DEFAULT_VERIFICATION_COMMAND } from "./constants";
-import { applyEdit, EDIT_SCHEMA, exceedsLimit, truncateTo } from "./edits";
-import { FinalOutputSchema, type FinalOutput } from "./schemas";
-import { inferVerificationKind, markVerification } from "./state";
-import type { RunState, VerificationToolKind } from "./types";
-
-type SandboxLike = Awaited<ReturnType<typeof Sandbox.create>>;
-
-type Deps = {
-  getSandbox: () => Promise<SandboxLike>;
-  runState: RunState;
-};
+import {
+  AGENT_CONFIG,
+  DEFAULT_VERIFICATION_COMMAND,
+  EDIT_SCHEMA,
+  FinalOutputSchema,
+  PlanOutputSchema,
+  applyEdit,
+  exceedsLimit,
+  inferVerificationKind,
+  markVerification,
+  truncateTo,
+} from "../../domain";
+import type {
+  FinalOutput,
+  PlanOutput,
+  RunState,
+  VerificationToolKind,
+} from "../../domain/types";
+import type {
+  SandboxHandle,
+  ToolDefinition,
+  ToolFactory,
+  ToolFactoryContext,
+  ToolSet,
+} from "../../ports";
 
 function truncate(s: string) {
   return truncateTo(s, AGENT_CONFIG.maxStdoutChars);
@@ -23,7 +34,7 @@ function exceedsMax(len: number) {
 }
 
 async function runCommand(
-  sandbox: SandboxLike,
+  sandbox: SandboxHandle,
   command: string
 ): Promise<{
   success: boolean;
@@ -53,14 +64,17 @@ async function runCommand(
   };
 }
 
-export function createTerminalTool({ getSandbox, runState }: Deps) {
-  return tool({
+function makeTerminalTool(
+  sandbox: SandboxHandle,
+  runState: RunState
+): ToolDefinition {
+  return {
     description:
       "Run a shell command in the sandbox. Returns { success, exitCode, stdout, stderr, stdoutTruncated, stderrTruncated }.",
     inputSchema: z.object({ command: z.string() }),
-    execute: async ({ command }) => {
+    execute: async (input) => {
+      const { command } = input as { command: string };
       try {
-        const sandbox = await getSandbox();
         const res = await runCommand(sandbox, command);
         runState.commandsRun.push({ command, success: res.success });
         const kind = inferVerificationKind(command);
@@ -81,16 +95,19 @@ export function createTerminalTool({ getSandbox, runState }: Deps) {
         };
       }
     },
-  });
+  };
 }
 
-export function createReadFilesTool({ getSandbox, runState }: Deps) {
-  return tool({
+function makeReadFilesTool(
+  sandbox: SandboxHandle,
+  runState: RunState
+): ToolDefinition {
+  return {
     description: "Read one or more files from the sandbox.",
     inputSchema: z.object({ files: z.array(z.string()) }),
-    execute: async ({ files }) => {
+    execute: async (input) => {
+      const { files } = input as { files: string[] };
       try {
-        const sandbox = await getSandbox();
         const results = await Promise.all(
           files.map(async (path) => {
             const content = await sandbox.files.read(path);
@@ -107,16 +124,16 @@ export function createReadFilesTool({ getSandbox, runState }: Deps) {
         return { success: false, error: String(error) };
       }
     },
-  });
+  };
 }
 
-export function createListFilesTool({ getSandbox }: Deps) {
-  return tool({
+function makeListFilesTool(sandbox: SandboxHandle): ToolDefinition {
+  return {
     description: "List files under a path (`ls -R`). Free — no budget cost.",
     inputSchema: z.object({ path: z.string().default(".") }),
-    execute: async ({ path }) => {
+    execute: async (input) => {
+      const { path } = input as { path: string };
       try {
-        const sandbox = await getSandbox();
         const result = await sandbox.commands.run(`ls -R ${path}`);
         return {
           success: result.exitCode === 0,
@@ -126,19 +143,24 @@ export function createListFilesTool({ getSandbox }: Deps) {
         return { success: false, error: String(error) };
       }
     },
-  });
+  };
 }
 
-export function createWriteFilesTool({ getSandbox, runState }: Deps) {
-  return tool({
+function makeWriteFilesTool(
+  sandbox: SandboxHandle,
+  runState: RunState
+): ToolDefinition {
+  return {
     description:
       "Create NEW files or fully rewrite files in the sandbox. Prefer replaceInFile / applyPatch for edits to existing files. Batch writes into one call.",
     inputSchema: z.object({
       files: z.array(z.object({ path: z.string(), content: z.string() })),
     }),
-    execute: async ({ files }) => {
+    execute: async (input) => {
+      const { files } = input as {
+        files: Array<{ path: string; content: string }>;
+      };
       try {
-        const sandbox = await getSandbox();
         for (const f of files) {
           await sandbox.files.write(f.path, f.content);
           runState.filesWritten[f.path] = f.content;
@@ -151,17 +173,25 @@ export function createWriteFilesTool({ getSandbox, runState }: Deps) {
         return { success: false, error: String(error) };
       }
     },
-  });
+  };
 }
 
-export function createReplaceInFileTool({ getSandbox, runState }: Deps) {
-  return tool({
+function makeReplaceInFileTool(
+  sandbox: SandboxHandle,
+  runState: RunState
+): ToolDefinition {
+  return {
     description:
       "Replace occurrences of `find` with `replace` in the given file. Set `expectedOccurrences` when >1 match expected; default 1. Preferred for small edits.",
     inputSchema: z.object({ path: z.string() }).merge(EDIT_SCHEMA),
-    execute: async ({ path, find, replace, expectedOccurrences }) => {
+    execute: async (input) => {
+      const { path, find, replace, expectedOccurrences } = input as {
+        path: string;
+        find: string;
+        replace: string;
+        expectedOccurrences: number;
+      };
       try {
-        const sandbox = await getSandbox();
         const original = await sandbox.files.read(path);
         const result = applyEdit(original, {
           find,
@@ -178,18 +208,29 @@ export function createReplaceInFileTool({ getSandbox, runState }: Deps) {
         return { success: false, error: String(error) };
       }
     },
-  });
+  };
 }
 
-export function createApplyPatchTool({ getSandbox, runState }: Deps) {
-  return tool({
+function makeApplyPatchTool(
+  sandbox: SandboxHandle,
+  runState: RunState
+): ToolDefinition {
+  return {
     description:
       "Apply multiple search/replace edits to a file in one call. Each edit is applied in order to the file's current content. Use for larger refactors.",
     inputSchema: z.object({
       path: z.string(),
       edits: z.array(EDIT_SCHEMA).min(1),
     }),
-    execute: async ({ path, edits }) => {
+    execute: async (input) => {
+      const { path, edits } = input as {
+        path: string;
+        edits: Array<{
+          find: string;
+          replace: string;
+          expectedOccurrences: number;
+        }>;
+      };
       const cap = AGENT_CONFIG.patchBytesCap;
       if (cap !== undefined) {
         const total = edits.reduce(
@@ -204,7 +245,6 @@ export function createApplyPatchTool({ getSandbox, runState }: Deps) {
         }
       }
       try {
-        const sandbox = await getSandbox();
         let content = await sandbox.files.read(path);
         const applied: Array<{ count: number }> = [];
         for (const [i, edit] of edits.entries()) {
@@ -226,70 +266,46 @@ export function createApplyPatchTool({ getSandbox, runState }: Deps) {
         return { success: false, error: String(error) };
       }
     },
-  });
+  };
 }
 
-function verificationRunner(
-  deps: Deps,
+function makeVerificationTool(
+  sandbox: SandboxHandle,
+  runState: RunState,
   kind: VerificationToolKind,
   description: string
-) {
-  return tool({
+): ToolDefinition {
+  return {
     description,
-    inputSchema: z.object({
-      command: z.string().optional(),
-    }),
-    execute: async ({ command }) => {
+    inputSchema: z.object({ command: z.string().optional() }),
+    execute: async (input) => {
+      const { command } = (input as { command?: string }) ?? {};
       const cmd = command ?? DEFAULT_VERIFICATION_COMMAND[kind];
       try {
-        const sandbox = await deps.getSandbox();
         const res = await runCommand(sandbox, cmd);
-        deps.runState.commandsRun.push({ command: cmd, success: res.success });
-        markVerification(deps.runState, kind, cmd, res.success);
+        runState.commandsRun.push({ command: cmd, success: res.success });
+        markVerification(runState, kind, cmd, res.success);
         return { ...res, kind, command: cmd };
       } catch (error) {
-        deps.runState.commandsRun.push({ command: cmd, success: false });
-        markVerification(deps.runState, kind, cmd, false);
+        runState.commandsRun.push({ command: cmd, success: false });
+        markVerification(runState, kind, cmd, false);
         return { success: false, kind, command: cmd, error: String(error) };
       }
     },
-  });
+  };
 }
 
-export function createRunBuildTool(deps: Deps) {
-  return verificationRunner(
-    deps,
-    "build",
-    "Run the TypeScript type check (tsc --noEmit). Records a verification row."
-  );
-}
-
-export function createRunTestsTool(deps: Deps) {
-  return verificationRunner(
-    deps,
-    "test",
-    "Run the project's test suite. Records a verification row."
-  );
-}
-
-export function createRunLintTool(deps: Deps) {
-  return verificationRunner(
-    deps,
-    "lint",
-    "Run the project's linter. Records a verification row."
-  );
-}
-
-export function createFinalizeTool({ runState }: Deps) {
-  return tool({
+function makeFinalizeTool(runState: RunState): ToolDefinition {
+  return {
     description:
       "Call this EXACTLY ONCE when the task is complete. Pass a structured summary. This terminates the run.",
     inputSchema: FinalOutputSchema,
-    execute: async (input: FinalOutput) => {
-      runState.finalOutput = input;
-      return { success: true, status: input.status };
+    execute: async (input) => {
+      const output = input as FinalOutput;
+      runState.finalOutput = output;
+      return { success: true, status: output.status };
     },
-  });
+  };
 }
 
 export function isFinalOutputAcceptable(runState: RunState): boolean {
@@ -297,4 +313,51 @@ export function isFinalOutputAcceptable(runState: RunState): boolean {
     runState.finalOutput !== undefined &&
     runState.finalOutput.status !== "failed"
   );
+}
+
+export function createAiSdkToolFactory(): ToolFactory {
+  return {
+    createExecutorTools(ctx: ToolFactoryContext): ToolSet {
+      const { sandbox, runState } = ctx;
+      return {
+        terminal: makeTerminalTool(sandbox, runState),
+        listFiles: makeListFilesTool(sandbox),
+        readFiles: makeReadFilesTool(sandbox, runState),
+        writeFiles: makeWriteFilesTool(sandbox, runState),
+        replaceInFile: makeReplaceInFileTool(sandbox, runState),
+        applyPatch: makeApplyPatchTool(sandbox, runState),
+        runBuild: makeVerificationTool(
+          sandbox,
+          runState,
+          "build",
+          "Run the TypeScript type check (tsc --noEmit). Records a verification row."
+        ),
+        runTests: makeVerificationTool(
+          sandbox,
+          runState,
+          "test",
+          "Run the project's test suite. Records a verification row."
+        ),
+        runLint: makeVerificationTool(
+          sandbox,
+          runState,
+          "lint",
+          "Run the project's linter. Records a verification row."
+        ),
+        finalize: makeFinalizeTool(runState),
+      };
+    },
+    createPlannerSubmitTool({ onSubmit }) {
+      return {
+        submitPlan: {
+          description: "Submit the structured plan for this run.",
+          inputSchema: PlanOutputSchema,
+          execute: async (input) => {
+            onSubmit(input as PlanOutput);
+            return { received: true };
+          },
+        },
+      };
+    },
+  };
 }

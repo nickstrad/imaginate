@@ -1,49 +1,31 @@
-// Structural types for the agent runtime. Chunk 03 replaces these with the
-// canonical Zod-derived schemas; until then they mirror existing shapes so
-// ports and application code can be authored without crossing layers.
+// Canonical domain types for the agent runtime. The Zod-derived types come
+// from `./schemas`; this module re-exports them and adds the structural
+// types used by application code and ports.
 
-export type PlanTaskType =
-  | "code_change"
-  | "new_feature"
-  | "refactor"
-  | "bug_fix"
-  | "question"
-  | "explain"
-  | "other";
+import type {
+  FinalOutput,
+  FinalStatus,
+  PlanOutput,
+  PlanTaskType,
+  VerificationKind,
+  VerificationRecord,
+} from "./schemas";
 
-export type PlanVerificationMode =
-  | "tsc"
-  | "tsc+tests"
-  | "tsc+lint"
-  | "manual"
-  | "none";
+export type {
+  FinalOutput,
+  FinalStatus,
+  PlanOutput,
+  PlanTaskType,
+  VerificationKind,
+  VerificationRecord,
+};
 
-export interface PlanOutput {
-  requiresCoding: boolean;
-  taskType: PlanTaskType;
-  targetFiles: string[];
-  verification: PlanVerificationMode;
-  notes: string;
-  answer?: string;
-}
+export type PlanVerificationMode = PlanOutput["verification"];
 
-export type VerificationKind = "build" | "test" | "lint" | "dev" | "command";
-
-export interface VerificationRecord {
-  kind: VerificationKind;
-  command: string;
-  success: boolean;
-}
-
-export type FinalStatus = "success" | "partial" | "failed";
-
-export interface FinalOutput {
-  status: FinalStatus;
-  title: string;
-  summary: string;
-  verification: VerificationRecord[];
-  nextSteps: string[];
-}
+export type VerificationToolKind = Extract<
+  VerificationKind,
+  "build" | "test" | "lint"
+>;
 
 export interface ThoughtToolCall {
   toolName: string;
@@ -90,15 +72,15 @@ export interface TelemetryPayload extends PersistedTelemetry {
   verificationFailureCount: number;
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+
 export interface AgentRunInput {
   prompt: string;
   projectId: string;
   previousMessages?: ChatMessage[];
-}
-
-export interface ChatMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
 }
 
 export interface AgentRunResult {
@@ -107,3 +89,42 @@ export interface AgentRunResult {
   usage: UsageTotals;
   lastErrorMessage: string | null;
 }
+
+export interface RunState {
+  filesWritten: Record<string, string>;
+  filesRead: string[];
+  commandsRun: Array<{ command: string; success: boolean }>;
+  verification: VerificationRecord[];
+  plan?: PlanOutput;
+  finalOutput?: FinalOutput;
+  totalAttempts: number;
+  escalatedTo: string | null;
+}
+
+export const EscalateReason = {
+  FinalizeFailed: "finalize:failed",
+  FinalizePartial: "finalize:partial",
+  EmptyOutput: "empty_output",
+  StubLanguage: "stub_language",
+  WroteWithoutVerify: "wrote_without_verify",
+  NoWrites: "no_writes",
+  Exception: "exception",
+} as const;
+
+export type EscalateReason =
+  (typeof EscalateReason)[keyof typeof EscalateReason];
+
+export interface EscalateDecision {
+  escalate: boolean;
+  reason?: EscalateReason;
+}
+
+export interface Edit {
+  find: string;
+  replace: string;
+  expectedOccurrences: number;
+}
+
+export type EditResult =
+  | { ok: true; content: string; count: number }
+  | { ok: false; error: string };

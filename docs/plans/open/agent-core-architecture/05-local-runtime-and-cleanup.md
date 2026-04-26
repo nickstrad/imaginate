@@ -14,9 +14,12 @@ Today the CLI already supports:
 - Creating a new E2B sandbox with `--sandbox-template`.
 - Continuing in an existing sandbox with `--sandbox-id`.
 - JSONL output with `--json` for scripts and future harnesses.
-- Runtime event streaming, preview readiness checks, final output, verification rows, files written, token usage, sandbox URL, and a follow-up command.
+- Runtime event streaming, preview readiness checks, final output, sandbox URL, and a follow-up command.
+- `dotenv/config` auto-loading so the script reads `.env` without shell exports.
 
-Under the target architecture, local execution should be just another interface over `src/agent/application`, not a standalone script that imports the old `src/lib/agents` surface directly. It should also keep parity with the current script features so the CLI stays a good agent-development loop.
+Chunk 03 already moved the CLI to call `runAgent` through `@/agent` (`createAiSdkModelGateway`, `createE2bSandboxGateway`, `createAiSdkToolFactory`, `createInMemoryMessageStore`, `createNoopTelemetryStore`, `createTerminalEventSink`). The remaining work is the folder relocation, output-shape parity gap, and the cleanup of legacy boundary elements.
+
+Output-shape gap to close in this chunk: when the CLI was rewired to call top-level `runAgent`, it lost direct visibility into `runState.filesWritten` and the live verification list (since `runAgent` returns only `AgentRunResult`). The CLI currently shows `[]` for files written and uses `finalOutput.verification` instead of `runState.verification`. Decide here whether to widen `AgentRunResult` to expose the run state or to have the CLI compose `planRun`/`executeRun` directly the way Inngest does.
 
 ## What "after" looks like
 
@@ -78,12 +81,14 @@ sandbox.follow_up
 Cleanup removes old surfaces:
 
 ```txt
-src/lib/agents/        removed or reduced to non-agent shared pieces
-src/inngest/           removed after src/interfaces/inngest owns it
-src/trpc/              removed after src/interfaces/trpc owns it
-src/modules/           removed after src/features owns it
-scripts/agent-local.ts removed after src/interfaces/cli owns it
+src/inngest/           removed after src/interfaces/inngest owns it (chunk 04)
+src/trpc/              removed after src/interfaces/trpc owns it (chunk 04)
+src/modules/           removed after src/features owns it (chunk 04)
+scripts/agent-local.ts removed after src/interfaces/cli owns it (this chunk)
+src/lib/**             concrete infra moves to src/platform; imports updated; legacy-lib element removed
 ```
+
+`src/lib/agents` was already deleted in chunk 03.
 
 ## Sequencing
 
@@ -91,10 +96,10 @@ scripts/agent-local.ts removed after src/interfaces/cli owns it
 2. Split argument parsing and output formatting into small CLI-owned helpers if that makes the entrypoint easier to maintain.
 3. Preserve current flags and behavior: positional prompt, `--prompt`, `--sandbox-template`, `--sandbox-id`, `--json`, event streaming, preview readiness, final output, verification rows, files written, usage, sandbox URL, and follow-up command.
 4. Move any script-only helper documentation from `scripts/README.md` to the architecture doc or a focused development doc if usage details are too long for `architecture.md`.
-5. Add local workspace, in-memory store, file telemetry, and terminal event sink adapters as needed under `src/agent/adapters`.
+5. `local-workspace`, `memory`, and `terminal` adapters already exist (chunk 03). Add a file-backed telemetry adapter (`createFileTelemetryStore`) under `src/agent/adapters/file/` if `--json` runs need persistent telemetry, and wire the CLI to use `createLocalWorkspaceGateway` when no `--sandbox-id` is given.
 6. Add focused tests for CLI argument parsing, output formatting, and sandbox follow-up command generation without requiring a real E2B sandbox.
 7. Delete temporary compatibility shims and update imports to public surfaces.
-8. Tighten the `eslint-plugin-boundaries` config in `eslint.config.mjs`: remove every `legacy-*` element introduced in chunk 1 (`legacy-lib-agents`, `legacy-modules`, `legacy-inngest`, `legacy-trpc`, `legacy-app-routes`, `legacy-ui`) along with their `// removed by chunk NN` exception entries, and confirm any rule still in warning mode is flipped to error. After this chunk, the only element types in the config are the target elements (`app`, `interfaces`, `agent-domain`, `agent-application`, `agent-ports`, `agent-adapters`, `features`, `platform`, `ui`, `shared`, `generated`).
+8. Tighten the `eslint-plugin-boundaries` config in `eslint.config.mjs`: remove every remaining `legacy-*` element (`legacy-lib`, `legacy-modules`, `legacy-inngest`, `legacy-trpc`) along with their `// removed by chunk NN` exception entries (including the `legacy-lib` allowance currently granted to `agent-adapters` and `ui`), and confirm any rule still in warning mode is flipped to error. After this chunk, the only element types in the config are the target elements (`app`, `interfaces`, `agent-domain`, `agent-application`, `agent-ports`, `agent-adapters`, `agent-testing`, `features`, `platform`, `ui`, `shared`, `generated`).
 9. Retire superseded plans under `docs/plans/` once the migration lands: fold durable facts into source-of-truth docs, archive only plans with lasting decision value, and delete plans that were only execution sequencing.
 
 ## Definition of done / Verification

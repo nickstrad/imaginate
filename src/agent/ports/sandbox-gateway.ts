@@ -1,6 +1,6 @@
 // Sandbox port. Surface mirrors the subset of @e2b/code-interpreter's
-// Sandbox that src/lib/agents/tools.ts and src/lib/agents/executor.ts
-// actually exercise (commands.run, files.read/write, setTimeout, getHost).
+// Sandbox that the agent runtime actually exercises (commands.run,
+// files.read/write, setTimeout, getHost).
 
 export interface SandboxCommandResult {
   exitCode: number;

@@ -1,7 +1,7 @@
 // Narrow LLM port. Mirrors the shape of `generateText` in the AI SDK as used
-// by src/lib/agents/{planner,executor}.ts, but exposes only the fields the
-// runtime actually relies on. No re-export of ai-sdk types — keeps the
-// agent layer free of concrete SDK imports.
+// by the agent runtime, but exposes only the fields the application layer
+// actually relies on. No re-export of ai-sdk types — keeps the agent layer
+// free of concrete SDK imports.
 
 export interface ModelMessageContentPart {
   type: string;
@@ -30,6 +30,16 @@ export interface GenerateTextStepResult {
   toolCalls?: Array<{ toolName: string; args: Record<string, unknown> }>;
   toolResults?: string[];
   reasoningText?: string;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+}
+
+export interface GenerateTextStopWhenState {
+  stepCount: number;
+  steps: GenerateTextStepResult[];
 }
 
 export interface GenerateTextRequest {
@@ -39,7 +49,7 @@ export interface GenerateTextRequest {
   tools?: ToolSet;
   maxOutputTokens?: number;
   providerOptions?: Record<string, unknown>;
-  stopWhen?: (state: { stepCount: number }) => boolean;
+  stopWhen?: Array<(state: GenerateTextStopWhenState) => boolean>;
   onStepFinish?: (step: GenerateTextStepResult) => void | Promise<void>;
 }
 
@@ -54,6 +64,20 @@ export interface GenerateTextResult {
   finishReason?: string;
 }
 
+export interface ModelDescriptor {
+  provider: string;
+  model: string;
+}
+
+export interface ProviderErrorClassification {
+  category: string;
+  retryable: boolean;
+}
+
 export interface ModelGateway {
   generateText(req: GenerateTextRequest): Promise<GenerateTextResult>;
+  resolvePlannerModelId(): string;
+  listExecutorModelIds(): string[];
+  describeModel(modelId: string): ModelDescriptor;
+  classifyError(err: unknown): ProviderErrorClassification;
 }

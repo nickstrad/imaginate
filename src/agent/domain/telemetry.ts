@@ -1,11 +1,19 @@
-import { prisma } from "@/lib/db";
 import type {
   PersistedTelemetry,
   RunState,
   TelemetryPayload,
-  TelemetryStore,
   UsageTotals,
 } from "./types";
+
+// Structural shape mirroring the `TelemetryStore` port. Duplicated here so
+// `agent/domain` does not import from `agent/ports`.
+interface TelemetryUpsertSink {
+  upsert(args: {
+    where: { messageId: string };
+    create: PersistedTelemetry & { messageId: string };
+    update: PersistedTelemetry;
+  }): Promise<unknown>;
+}
 
 const toNum = (v: unknown): number => (typeof v === "number" ? v : 0);
 
@@ -89,7 +97,7 @@ export function toPersistedTelemetry(
 }
 
 export async function persistTelemetryWith(
-  store: TelemetryStore,
+  store: TelemetryUpsertSink,
   messageId: string,
   payload: TelemetryPayload
 ) {
@@ -99,11 +107,4 @@ export async function persistTelemetryWith(
     create: { messageId, ...db },
     update: db,
   });
-}
-
-export async function persistTelemetry(
-  messageId: string,
-  payload: TelemetryPayload
-) {
-  return persistTelemetryWith(prisma.telemetry, messageId, payload);
 }

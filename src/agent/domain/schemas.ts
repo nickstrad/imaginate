@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+// Schema definitions. The Zod-inferred types are re-exported from `./types`
+// so consumers import structural types from one place.
 export const PlanTaskTypeSchema = z.enum([
   "code_change",
   "new_feature",
