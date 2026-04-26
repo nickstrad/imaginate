@@ -58,6 +58,11 @@ type SandboxSummary =
       sandboxUrlError?: undefined;
     };
 
+type LocalLogMetadata = Record<
+  string,
+  string | number | boolean | null | undefined
+>;
+
 class CliError extends Error {
   constructor(message: string) {
     super(message);
@@ -186,6 +191,32 @@ function makeLogger(json: boolean): Logger {
 
 function printJson(record: unknown): void {
   console.log(JSON.stringify(record));
+}
+
+function printLocalLog(
+  event: string,
+  json: boolean,
+  metadata: LocalLogMetadata = {}
+): void {
+  if (json) {
+    printJson({ type: "log", event, metadata: compactMetadata(metadata) });
+    return;
+  }
+
+  const fields = formatMetadata(metadata);
+  console.log(`[agent:local] ${event}${fields ? ` ${fields}` : ""}`);
+}
+
+function compactMetadata(metadata: LocalLogMetadata): LocalLogMetadata {
+  return Object.fromEntries(
+    Object.entries(metadata).filter(([, value]) => value !== undefined)
+  );
+}
+
+function formatMetadata(metadata: LocalLogMetadata): string {
+  return Object.entries(compactMetadata(metadata))
+    .map(([key, value]) => `${key}=${value ?? "-"}`)
+    .join(" ");
 }
 
 function printUsage(error?: string): void {
@@ -380,6 +411,13 @@ function formatUsage(usage: UsageTotals): string {
 }
 
 async function runAgent(args: CliArgs): Promise<number> {
+  printLocalLog("run.started", args.json, {
+    promptChars: args.prompt.length,
+    sandboxMode: args.sandboxId ? "connect" : "create",
+    sandboxId: args.sandboxId,
+    sandboxTemplate: args.sandboxId ? undefined : args.sandboxTemplate,
+  });
+
   const log = makeLogger(args.json);
   const runState = createRunState();
   const thoughts: Thought[] = [];
@@ -391,12 +429,30 @@ async function runAgent(args: CliArgs): Promise<number> {
   const previousMessages: ModelMessage[] = [];
 
   let sandboxPromise: Promise<SandboxLike> | undefined;
+  let sandboxReadyLogged = false;
   const getSandbox = async () => {
-    sandboxPromise ??= args.sandboxId
-      ? Sandbox.connect(args.sandboxId)
-      : Sandbox.create(args.sandboxTemplate);
+    if (!sandboxPromise) {
+      printLocalLog(
+        args.sandboxId ? "sandbox.connecting" : "sandbox.creating",
+        args.json,
+        {
+          sandboxId: args.sandboxId,
+          sandboxTemplate: args.sandboxId ? undefined : args.sandboxTemplate,
+        }
+      );
+      sandboxPromise = args.sandboxId
+        ? Sandbox.connect(args.sandboxId)
+        : Sandbox.create(args.sandboxTemplate);
+    }
+
     const sandbox = await sandboxPromise;
     await sandbox.setTimeout(SANDBOX_DEFAULT_TIMEOUT_MS);
+    if (!sandboxReadyLogged) {
+      sandboxReadyLogged = true;
+      printLocalLog("sandbox.ready", args.json, {
+        sandboxId: sandbox.sandboxId,
+      });
+    }
     return sandbox;
   };
 
@@ -405,19 +461,28 @@ async function runAgent(args: CliArgs): Promise<number> {
     emit: (event) => printEvent(event, args.json),
   };
 
+  printLocalLog("planner.starting", args.json);
   const plan = await runPlanner({
     userPrompt: args.prompt,
     previousMessages,
     log,
     hooks,
   });
+  printLocalLog("planner.done", args.json, {
+    requiresCoding: plan.requiresCoding,
+    taskType: plan.taskType,
+    verification: plan.verification,
+    targetFiles: plan.targetFiles.length,
+  });
   printPlan(plan, args.json);
 
   if (!plan.requiresCoding) {
+    printLocalLog("run.no_coding_required", args.json);
     printNoCodeAnswer(plan.answer, args.json);
     return 0;
   }
 
+  printLocalLog("executor.starting", args.json);
   runState.plan = plan;
   const outcome = await runCodingAgentWithEscalation({
     thoughts,
@@ -431,9 +496,16 @@ async function runAgent(args: CliArgs): Promise<number> {
   });
 
   const exitCode = exitCodeForOutcome(outcome);
+  printLocalLog("executor.done", args.json, {
+    status: outcomeStatus(outcome),
+    steps: outcome.stepsCount,
+    totalTokens: outcome.usage.totalTokens,
+    exitCode,
+  });
   const sandboxSummary =
     exitCode === 0 ? await resolveSandboxSummary(getSandbox) : {};
   printOutcome(outcome, args.json, sandboxSummary);
+  printLocalLog("run.finished", args.json, { exitCode });
   return exitCode;
 }
 
