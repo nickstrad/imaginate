@@ -87,7 +87,13 @@ const result = await runAgent({
 ## Definition of done / Verification
 
 - The planner/executor use case is importable from `@/agent`.
-- Unit tests can exercise planner fallback, escalation, verification tracking, and event emission with fake ports.
+- Unit tests against fake ports cover the orchestrator paths that previously required real Prisma + E2B:
+  - success on first ladder slot
+  - mid-ladder failure with retry
+  - full-ladder exhaustion
+  - transient retry (classifier-driven)
+  - verification-required escalation
+  - planner fallback when the LLM throws or returns no plan
 - `src/lib/agents` no longer owns the runtime; it is removed or reduced to temporary shims with named follow-up removal.
 - Domain/application tests do not need Prisma, E2B, Inngest, Next, or the AI SDK.
 - Existing web-triggered agent runs and `npm run agent:local` still complete successfully.
