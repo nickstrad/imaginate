@@ -25,6 +25,25 @@ if (!user) return null;
 
 **Why:** prevents the "added a second line, forgot the braces" bug class and keeps every conditional reading uniformly.
 
+### Avoid `any` — explicit override required
+
+`@typescript-eslint/no-explicit-any` is an error in `eslint.config.mjs`. Do not reach for `any` to silence the type checker. Prefer `unknown` and narrow with a guard, a precise interface, or a generic.
+
+When `any` really is the right call — usually a test fake mimicking only the subset of a third-party return shape the code under test reads, or a deeply convoluted upstream type whose precise shape would cost more than it earns — it must be suppressed explicitly:
+
+```ts
+// Yes — explicit, scoped, and explains the trade-off.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- test fake: mimicking only the subset of generateText's return shape that the executor reads.
+const fakeGenerateText = (async () => ({ steps: [], text: "" })) as any;
+
+// No — silent any.
+const fakeGenerateText = (async () => ({ steps: [], text: "" })) as any;
+```
+
+The disable comment must name the rule and include a `-- <reason>` clause. File-wide disables for `no-explicit-any` are not allowed; suppress per occurrence so each one is reviewable.
+
+**Why:** every `any` erases a real type contract and propagates outward. The rule plus the per-line override forces a deliberate, reviewable choice instead of the gradual any-creep that test files in particular are prone to.
+
 ## Adding a new rule
 
 - Each rule gets a short heading, a one-line statement, a before/after snippet, and a one-line "Why."

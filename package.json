@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "agent:local": "NODE_OPTIONS=--conditions=react-server tsx scripts/agent-local.ts",
-    "lint": "next lint",
+    "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
@@ -17,7 +17,11 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,md,css,yml,yaml}": "prettier --write"
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix --max-warnings=0",
+      "prettier --write"
+    ],
+    "*.{json,md,css,yml,yaml}": "prettier --write"
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "^1.0.55",

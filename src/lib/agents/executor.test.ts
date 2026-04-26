@@ -117,7 +117,8 @@ describe("runExecutorOnce", () => {
     const fakeGenerateText = (async () => ({
       steps: [],
       text: "all done <task_summary>made the button blue</task_summary>",
-    })) as any; // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test fake: mimicking only the subset of generateText's return shape that the executor reads.
+    })) as any;
 
     // mark a successful verification + a write so shouldEscalate returns false
     const opts = makeOpts(events, fakeGenerateText);

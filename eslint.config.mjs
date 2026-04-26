@@ -151,6 +151,25 @@ const eslintConfig = [
     ignores: ["src/generated/prisma/**"],
   },
   {
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/ui/components/ui/**/*.{ts,tsx}", "src/ui/hooks/use-mobile.ts"],
+    rules: {
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/purity": "off",
+    },
+  },
+  {
     files: ["src/**/*.{ts,tsx,js,jsx}"],
     plugins: { boundaries },
     settings: {
