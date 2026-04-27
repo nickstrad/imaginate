@@ -7,6 +7,11 @@ export interface ModelSpec {
   model: ModelId;
 }
 
+export interface ModelRoute {
+  primary: ModelSpec;
+  fallbacks: readonly ModelSpec[];
+}
+
 export interface ResolvedModelConfig extends ModelSpec {
   apiKey: string;
 }

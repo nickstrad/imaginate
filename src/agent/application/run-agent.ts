@@ -59,6 +59,11 @@ export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
   const ladder = deps.modelGateway.listExecutorModelIds();
 
   if (plan.requiresCoding) {
+    // Each ladder rung is itself a route with OpenRouter fallback models
+    // configured at the gateway. By the time `executeRun` throws a retryable
+    // error here, OpenRouter has already exhausted the in-route fallback
+    // list, so advancing this ladder means "the entire route failed,"
+    // not "the primary model failed." See docs/plans/open/openrouter-model-route-fallbacks.md.
     for (let i = 0; i < ladder.length; i++) {
       const modelId = ladder[i];
       let descriptorString: string;

@@ -1,5 +1,6 @@
 import { env } from "@/platform/config/env";
-import type { ModelSpec } from "./types";
+import { MODEL_KEYS } from "@/shared/config/models";
+import type { ModelRoute, ModelSpec } from "./types";
 
 export const MODEL_REGISTRY = {
   planner: { provider: "openrouter", model: env.MODEL_PLANNER },
@@ -22,3 +23,33 @@ export const EXECUTOR_LADDER: readonly ModelSpec[] = [
   MODEL_REGISTRY.executorFallback1,
   MODEL_REGISTRY.executorFallback2,
 ] as const;
+
+const spec = (model: keyof typeof MODEL_KEYS): ModelSpec => ({
+  provider: "openrouter",
+  model,
+});
+
+// Per-route OpenRouter fallback lists. See
+// docs/plans/open/openrouter-model-route-fallbacks.md for selection rationale.
+// Order = preference; OpenRouter walks this list left-to-right when the
+// primary errors with a retryable failure (rate limit, downtime, moderation,
+// context-length validation). Cross-provider diversity is intentional —
+// a single-provider outage should not take down a layer.
+export const MODEL_ROUTES = {
+  planner: {
+    primary: MODEL_REGISTRY.planner,
+    fallbacks: [spec("OPENAI_GPT_5_MINI"), spec("GROK_4_1_FAST")],
+  },
+  executorDefault: {
+    primary: MODEL_REGISTRY.executorDefault,
+    fallbacks: [spec("QWEN_3_CODER"), spec("DEEPSEEK_V3_2")],
+  },
+  executorFallback1: {
+    primary: MODEL_REGISTRY.executorFallback1,
+    fallbacks: [spec("CLAUDE_HAIKU_4_5"), spec("GROK_CODE_FAST_1")],
+  },
+  executorFallback2: {
+    primary: MODEL_REGISTRY.executorFallback2,
+    fallbacks: [spec("KIMI_K2_6"), spec("CLAUDE_OPUS_4_7")],
+  },
+} satisfies Record<string, ModelRoute>;

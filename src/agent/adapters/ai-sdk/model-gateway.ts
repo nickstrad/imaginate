@@ -2,6 +2,7 @@ import { generateText, tool, type ModelMessage as AiModelMessage } from "ai";
 import {
   EXECUTOR_LADDER,
   createModelProvider,
+  fallbackSlugsFor,
   resolvePlannerModel,
   resolveSpec,
   type ModelSpec,
@@ -99,8 +100,9 @@ export function createAiSdkModelGateway(): ModelGateway {
     async generateText(req: GenerateTextRequest): Promise<GenerateTextResult> {
       const spec = parseSpec(req.modelId);
       const resolved = resolveSpec(spec);
+      const fallbackSlugs = fallbackSlugsFor(spec);
       const result = await generateText({
-        model: createModelProvider(resolved),
+        model: createModelProvider(resolved, { fallbackSlugs }),
         system: req.system,
         messages: req.messages as AiModelMessage[],
         tools: translateTools(req.tools),
