@@ -12,12 +12,12 @@ This plan keeps PostgreSQL as the primary store for now. Object storage can be a
 
 Current telemetry is a useful seed, but it is not yet a useful analysis substrate.
 
-- `src/lib/agents/telemetry.ts` builds a richer `TelemetryPayload` than `prisma/schema.prisma` persists. Fields such as `plannerTaskType`, `totalAttempts`, `escalatedTo`, `verificationSuccessCount`, and `verificationFailureCount` are calculated and then dropped.
-- `src/inngest/functions.ts` writes step snapshots during `onStepFinish`, then overwrites the same row at the end of the run. That is acceptable for progress snapshots, but it loses intermediate history.
+- `src/agent/domain/telemetry.ts` builds a richer `TelemetryPayload` than `prisma/schema.prisma` persists. Fields such as `plannerTaskType`, `totalAttempts`, `escalatedTo`, `verificationSuccessCount`, and `verificationFailureCount` are calculated and then dropped.
+- `src/interfaces/inngest/functions.ts` writes step snapshots during `onStepFinish`, then overwrites the same row at the end of the run. That is acceptable for progress snapshots, but it loses intermediate history.
 - The current `Telemetry` table can answer coarse questions about steps, files, commands, build success, and token totals. It cannot answer deeper harness questions about attempt outcomes, escalation reasons, model behavior, verification details, durations, or tool-call patterns.
-- Telemetry persistence is partially abstracted through `TelemetryStore`, but Prisma-specific run persistence still leaks through the Inngest orchestration path.
+- Telemetry persistence is abstracted through the `TelemetryStore` port (`src/agent/ports/telemetry-store.ts`) with a Prisma adapter, but the persisted schema is the bottleneck.
 
-This plan must respect the architecture doc's `src/lib/agents/` rules: pure agent telemetry assembly stays in `src/lib/agents`, while Inngest remains orchestration and adapter code.
+This plan must respect the architecture contract: pure telemetry assembly stays in `src/agent/domain`, the persistence port lives in `src/agent/ports`, the Prisma adapter lives in `src/agent/adapters/prisma`, and `src/interfaces/inngest` remains orchestration glue.
 
 ## What "after" looks like
 
@@ -83,4 +83,4 @@ Chunks 1 and 2 are the practical first slice. Chunk 3 should wait until the summ
 
 ## Conflicts checked
 
-Checked `docs/plans/open/` and `docs/plans/drift/`. This plan overlaps with `agent-runtime-decoupling`, `testability-refactor`, and `inngest-reliability-refactor`; the boundary is that those plans own runtime extraction/retry/testability, while this plan owns telemetry data shape, persistence semantics, privacy boundaries, and analysis targets.
+Checked `docs/plans/open/` and `docs/plans/drift/`. Overlaps with `openrouter-model-route-fallbacks` on model/route observability: that plan owns routing behavior; this plan owns the durable summary/event schema that records which route and model were attempted and used. No overlap with `sandbox-auto-revive`. `drift/` is empty. The earlier runtime-extraction and Inngest-reliability plans (`agent-runtime-decoupling`, `agent-core-architecture`) have shipped and live in `docs/plans/archive/`.

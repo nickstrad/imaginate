@@ -6,7 +6,7 @@ Make the existing telemetry summary trustworthy before adding new tables or even
 
 ## The problem
 
-`src/lib/agents/telemetry.ts` calculates more information than the database stores. `TelemetryPayload` includes planner task type, attempt count, final escalated model, and verification counts, but `toPersistedTelemetry` drops them because `prisma/schema.prisma` has no matching columns.
+`src/agent/domain/telemetry.ts` calculates more information than the database stores. `TelemetryPayload` includes planner task type, attempt count, final escalated model, and verification counts, but `toPersistedTelemetry` drops them because `prisma/schema.prisma` has no matching columns.
 
 The row also has `createdAt` but no `updatedAt`, even though the code upserts it during step snapshots and again at final persistence.
 
@@ -52,13 +52,13 @@ type RunTelemetrySummary = PersistedTelemetry & {
 ## Sequencing
 
 1. Add Prisma columns and migration.
-2. Update `PersistedTelemetry`, `TelemetryPayload` or renamed summary type, and `TelemetryStore`.
-3. Update `toPersistedTelemetry` so no calculated summary fields are dropped.
+2. Update `PersistedTelemetry`, `TelemetryPayload` or renamed summary type, and the `TelemetryStore` port + Prisma adapter.
+3. Update `toPersistedTelemetry` in `src/agent/domain/telemetry.ts` so no calculated summary fields are dropped.
 4. Update telemetry tests to assert the full persisted shape.
 
 ## Definition of done / verification
 
-- `npm test -- src/lib/agents/telemetry.test.ts` covers the full persisted payload.
+- `npm test -- src/agent/domain/telemetry.test.ts` covers the full persisted payload.
 - Prisma migration includes every field already calculated by `buildTelemetry`.
 - The telemetry row's `updatedAt` changes on later upserts.
 
@@ -70,4 +70,4 @@ type RunTelemetrySummary = PersistedTelemetry & {
 
 ## Conflicts checked
 
-Overlaps with the `testability-refactor` telemetry persistence chunks, but this chunk is limited to schema/type honesty and can land before deeper callback or repository extraction.
+No conflicts in current `open/` or `drift/`. This chunk is limited to schema/type honesty and can land before any deeper callback or repository extraction.

@@ -61,4 +61,4 @@ Keep these as normalized scalar columns where they are common query dimensions. 
 
 ## Conflicts checked
 
-Overlaps with `inngest-reliability-refactor` usage/cost logging. That plan owns retry safety and Inngest step boundaries; this chunk owns outcome/model dimensions in persisted telemetry.
+Overlaps with `openrouter-model-route-fallbacks` on which model/route is recorded: that plan emits the route info, this chunk persists it as queryable summary dimensions.

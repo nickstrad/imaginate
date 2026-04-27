@@ -94,4 +94,4 @@ The exact names can change during implementation. The important shape is one sum
 
 ## Conflicts checked
 
-Depends on the `testability-refactor` split-step-callback work or an equivalent extraction, because step metadata should not deepen the current `onStepFinish` tangle. This chunk should either follow that plan or explicitly include the minimal extraction needed to avoid violating the architecture doc's Inngest orchestration guidance.
+The `onStepFinish` tangle in `src/interfaces/inngest/functions.ts` is the main risk: step metadata should be captured in `src/agent/application` (the use cases that already produce runtime events) and persisted via the `TelemetryStore` port, not by deepening the Inngest callback. No conflicts with currently-open plans.

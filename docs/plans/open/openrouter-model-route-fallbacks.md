@@ -111,7 +111,7 @@ Before implementing that exact shape, verify the current `@openrouter/ai-sdk-pro
 
 ## Sequencing
 
-1. Add model route types under the current model layer (`src/lib/models`) or the future `src/agent` model gateway if `agent-core-architecture` has already moved the runtime.
+1. Add model route types in the agent model gateway (`src/agent/adapters/ai-sdk/model-gateway.ts`) and shared model config (`src/platform/models`).
 2. Extend model configuration so each logical role/rung can declare ordered fallback model IDs. Prefer environment variables that are easy to leave empty, such as comma-separated `MODEL_PLANNER_FALLBACKS`, `MODEL_EXECUTOR_DEFAULT_FALLBACKS`, `MODEL_EXECUTOR_FALLBACK_1_FALLBACKS`, and `MODEL_EXECUTOR_FALLBACK_2_FALLBACKS`.
 3. Resolve routes into `{ primary, fallbackModels }` while validating that every configured model exists in `MODEL_IDS`.
 4. Thread the planner route into `runPlanner` and each executor route into `runExecutorOnce`.
@@ -135,8 +135,7 @@ Before implementing that exact shape, verify the current `@openrouter/ai-sdk-pro
 - Switching to OpenRouter's `openrouter/auto` router.
 - Automatically choosing fallback models from live OpenRouter rankings.
 - Redesigning prompts, tools, sandbox behavior, or the final-output acceptance heuristic.
-- Completing the broader `agent-core-architecture` migration; this plan should land either before that migration or be implemented through the new model gateway once it exists.
 
 ## Conflicts checked
 
-Checked `docs/plans/open/` and `docs/plans/drift/`. This overlaps with `agent-core-architecture` where it introduces a future `ModelGateway`; if that migration lands first, implement routes in the gateway instead of `src/lib/models`. It overlaps with `agent-telemetry-refactor` on model/route observability; this plan owns routing behavior, while telemetry owns durable analysis schema. It supersedes the old retryable-provider-error ladder behavior from `agent-runtime-decoupling` by narrowing app-level escalation to capability or complete-route failure.
+Checked `docs/plans/open/` and `docs/plans/drift/`. Overlaps with `agent-telemetry-refactor` on model/route observability; this plan owns routing behavior (request-time fallback + escalation semantics), while telemetry owns durable analysis schema for which route/model was attempted and used. No overlap with `sandbox-auto-revive`. `drift/` is empty.

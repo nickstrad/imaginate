@@ -74,4 +74,4 @@ Object storage should be an archive/export path, not the primary store, until us
 
 ## Conflicts checked
 
-Complements the `agent-runtime-decoupling` eval harness plan. The eval harness can emit or consume the same compact summary shape, while this chunk focuses on analysis of persisted production/dev run telemetry.
+No conflicts with currently-open plans. A future eval harness can emit or consume the same compact summary shape; this chunk focuses on analysis of persisted production/dev run telemetry.
