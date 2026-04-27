@@ -22,14 +22,15 @@ const boundaryElements = [
 
 // Allow-list per element. Mirrors "Direction of dependencies" in
 // docs/architecture/architecture.md.
+const to = (...types) => [{ to: { type: types } }];
 const elementRules = [
   {
-    from: ["app"],
-    allow: ["app", "interfaces", "features", "ui", "shared", "generated"],
+    from: { type: "app" },
+    allow: to("app", "interfaces", "features", "ui", "shared", "generated"),
   },
   {
-    from: ["interfaces"],
-    allow: [
+    from: { type: "interfaces" },
+    allow: to(
       "interfaces",
       "agent-application",
       "agent-adapters",
@@ -39,11 +40,11 @@ const elementRules = [
       "shared",
       "ui",
       "generated",
-    ],
+    ),
   },
   {
-    from: ["features"],
-    allow: [
+    from: { type: "features" },
+    allow: to(
       "features",
       "agent-application",
       "agent-ports",
@@ -51,56 +52,56 @@ const elementRules = [
       "ui",
       "shared",
       "generated",
-    ],
+    ),
   },
   {
-    from: ["agent-adapters"],
-    allow: [
+    from: { type: "agent-adapters" },
+    allow: to(
       "agent-adapters",
       "agent-ports",
       "agent-domain",
       "platform",
       "shared",
       "generated",
-    ],
+    ),
   },
   {
-    from: ["agent-application"],
-    allow: ["agent-application", "agent-domain", "agent-ports", "shared"],
+    from: { type: "agent-application" },
+    allow: to("agent-application", "agent-domain", "agent-ports", "shared"),
   },
   {
-    from: ["agent-ports"],
-    allow: ["agent-ports", "agent-domain", "shared"],
+    from: { type: "agent-ports" },
+    allow: to("agent-ports", "agent-domain", "shared"),
   },
   {
-    from: ["agent-domain"],
-    allow: ["agent-domain", "shared"],
+    from: { type: "agent-domain" },
+    allow: to("agent-domain", "shared"),
   },
   {
-    from: ["agent-testing"],
-    allow: [
+    from: { type: "agent-testing" },
+    allow: to(
       "agent-testing",
       "agent-domain",
       "agent-ports",
       "agent-application",
       "shared",
-    ],
+    ),
   },
   {
-    from: ["platform"],
-    allow: ["platform", "shared", "generated"],
+    from: { type: "platform" },
+    allow: to("platform", "shared", "generated"),
   },
   {
-    from: ["ui"],
-    allow: ["ui", "shared"],
+    from: { type: "ui" },
+    allow: to("ui", "shared"),
   },
   {
-    from: ["shared"],
-    allow: ["shared"],
+    from: { type: "shared" },
+    allow: to("shared"),
   },
   {
-    from: ["generated"],
-    allow: ["generated"],
+    from: { type: "generated" },
+    allow: to("generated"),
   },
 ];
 
@@ -146,7 +147,7 @@ const eslintConfig = [
         {
           default: "disallow",
           message:
-            "Import from '${dependency.type}' is not allowed in '${file.type}'. See docs/architecture/architecture.md.",
+            "Import from '{{to.type}}' is not allowed in '{{from.type}}'. See docs/architecture/architecture.md.",
           rules: elementRules,
         },
       ],
