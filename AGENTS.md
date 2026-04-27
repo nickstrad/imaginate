@@ -61,6 +61,16 @@ When invoked via a slash command, load the docs listed under that command **befo
 
 If a command doesn't appear here, fall back to the table.
 
+## `CLAUDE.md` ↔ `AGENTS.md` convention
+
+`AGENTS.md` is the source of truth at every level. The sibling `CLAUDE.md` is a symlink to `AGENTS.md` so Claude Code's auto-loaded `CLAUDE.md` resolves to the AGENTS.md content without duplication or drift. When you add a new `AGENTS.md` (root or any `docs/` subfolder), create the symlink in the same change set:
+
+```bash
+ln -s AGENTS.md CLAUDE.md
+```
+
+Do not put unique guidance in `CLAUDE.md`; if a rule should apply to Claude, it belongs in `AGENTS.md`.
+
 ## Doc maintenance rules
 
 - `architecture.md` is an explicit contract for `src/`, not a changelog. Normal feature PRs conform to it. Architecture-changing PRs must be planned first, then update `architecture.md` and any lint enforcement deliberately in the same change set.
