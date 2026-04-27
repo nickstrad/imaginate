@@ -6,7 +6,7 @@ import {
   listMessages,
   MessageProjectNotFoundError,
 } from "@/features/messages";
-import { consumeRateLimit } from "@/lib/rate-limit";
+import { consumeRateLimit } from "@/platform/rate-limit";
 import { createTRPCRouter, publicProcedure } from "../init";
 import { inngest } from "@/interfaces/inngest/client";
 import { eventNameForMode } from "@/interfaces/inngest/events";

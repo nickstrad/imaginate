@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, ChevronsUpDown, SunMoonIcon } from "lucide-react";
 
-import { cn } from "@/lib/shared/utils";
+import { cn } from "@/shared/utils";
 import { Button } from "@/ui/components/ui/button";
 import {
   DropdownMenu,

@@ -1,5 +1,5 @@
 import "server-only";
-import { env } from "@/lib/config/env";
+import { env } from "@/platform/config/env";
 import type { Provider } from "./types";
 
 const providerKeys: Record<Provider, string | null> = {

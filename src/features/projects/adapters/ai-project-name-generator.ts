@@ -1,7 +1,7 @@
 import { generateText } from "ai";
-import { createModelProvider, MODEL_REGISTRY } from "@/lib/models";
-import { PROJECT_NAMING_PROMPT } from "@/lib/prompts";
-import { getProviderKey } from "@/lib/providers";
+import { createModelProvider, MODEL_REGISTRY } from "@/platform/models";
+import { PROJECT_NAMING_PROMPT } from "@/shared/prompts";
+import { getProviderKey } from "@/platform/providers";
 import type { ProjectNameGenerator } from "../application";
 
 const PROMPT_TRUNCATE_CHARS = 2000;

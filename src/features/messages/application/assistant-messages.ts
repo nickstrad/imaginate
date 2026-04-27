@@ -1,5 +1,5 @@
 import type { MessageRepository } from "./repository";
-import type { Thought } from "@/lib/schemas/thought";
+import type { Thought } from "@/shared/schemas/thought";
 
 export async function createPendingCodeAssistantMessage(
   input: { projectId: string },

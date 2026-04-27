@@ -1,5 +1,5 @@
 import type { Fragment, Message } from "@/generated/prisma";
-import type { Thought } from "@/lib/schemas/thought";
+import type { Thought } from "@/shared/schemas/thought";
 
 export type AgentMode = "ask" | "code";
 

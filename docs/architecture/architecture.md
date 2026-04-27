@@ -4,8 +4,6 @@ This document is the contract for `src/`. It names the layers, fixes the directi
 
 This file is a contract, not a changelog. Normal feature PRs conform to it. Architecture-changing PRs must be planned first (see `docs/plans/AGENTS.md`) and update this document and the lint rules in the same change set.
 
-The migration that produced this contract is tracked in `docs/plans/open/agent-core-architecture/`. Read that plan folder if you need the rationale or the order in which folders move.
-
 ## Top-level layout
 
 ```txt
@@ -34,19 +32,20 @@ src/agent/
 
 ## Direction of dependencies
 
-Arrows mean "is allowed to import from". Anything not listed is forbidden.
+Arrows mean "is allowed to import from". Same-layer imports are always allowed; the entries below describe cross-layer permissions only. Anything not listed is forbidden.
 
 ```txt
-app                -> interfaces, features, ui, shared
-interfaces         -> agent (application + adapters), features, platform, shared
-features           -> agent (application), platform, ui, shared
-agent/adapters     -> agent/ports, agent/domain, platform, shared
+app                -> interfaces, features, ui, shared, generated
+interfaces         -> agent (application + adapters + ports), features, platform, ui, shared, generated
+features           -> agent (application + ports), platform, ui, shared, generated
+agent/adapters     -> agent/ports, agent/domain, platform, shared, generated
 agent/application  -> agent/domain, agent/ports, shared
 agent/domain       -> shared
 agent/ports        -> agent/domain, shared
-platform           -> shared
+agent/testing      -> agent/domain, agent/ports, agent/application, shared
+platform           -> shared, generated
 ui                 -> shared
-shared             -> shared
+shared             -> (none)
 generated          -> (no internal imports; consumed by adapters/platform only)
 ```
 
@@ -126,10 +125,4 @@ If a new responsibility doesn't fit, propose an addition through a plan in `docs
 
 ## Lint enforcement
 
-Import direction is enforced by `eslint-plugin-boundaries` in `eslint.config.mjs`. The plugin declares an element type per layer (`app`, `interfaces`, `agent-domain`, `agent-application`, `agent-ports`, `agent-adapters`, `features`, `platform`, `ui`, `shared`, `generated`) and a dependency matrix that mirrors the graph above.
-
-During the `agent-core-architecture` migration the config also declares a temporary `legacy-lib` element for `src/lib/**`. Chunk 5 of the migration moves the remaining concrete/shared infrastructure into `src/platform` or `src/shared`, then removes this final legacy element so only the target elements remain.
-
-## Migration note
-
-Earlier versions of this document centered the architecture on `src/lib` as a reusable leaf layer. That direction has been retired. Agent runtime code lives under `src/agent/` per the layout above; the remaining `src/lib/**` modules are temporary legacy infrastructure waiting for the platform/shared cleanup. See `docs/plans/open/agent-core-architecture/` for the migration sequence.
+Import direction is enforced by `eslint-plugin-boundaries` in `eslint.config.mjs`. The plugin declares an element type per layer (`app`, `interfaces`, `agent-domain`, `agent-application`, `agent-ports`, `agent-adapters`, `agent-testing`, `features`, `platform`, `ui`, `shared`, `generated`) and a dependency matrix that mirrors the graph above.

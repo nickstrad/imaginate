@@ -1,4 +1,4 @@
-import { env } from "@/lib/config/env";
+import { env } from "@/platform/config/env";
 import type { ModelSpec } from "./types";
 
 export const MODEL_REGISTRY = {

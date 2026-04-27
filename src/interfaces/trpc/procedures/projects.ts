@@ -7,7 +7,7 @@ import {
   listProjects,
   ProjectNotFoundError,
 } from "@/features/projects";
-import { consumeRateLimit } from "@/lib/rate-limit";
+import { consumeRateLimit } from "@/platform/rate-limit";
 import { createTRPCRouter, publicProcedure } from "../init";
 import { inngest } from "@/interfaces/inngest/client";
 import { EVENT_NAMES, eventNameForMode } from "@/interfaces/inngest/events";

@@ -1,5 +1,5 @@
 import type { Message, MessageMode } from "@/generated/prisma";
-import type { Thought } from "@/lib/schemas/thought";
+import type { Thought } from "@/shared/schemas/thought";
 import type { ProjectMessage } from "./types";
 
 export class MessageProjectNotFoundError extends Error {

@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { MODEL_KEYS } from "./models";
+import { MODEL_KEYS } from "@/shared/config/models";
 
 const ModelIdSchema = z.enum(MODEL_KEYS);
 

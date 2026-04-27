@@ -1,4 +1,4 @@
-import { env } from "@/lib/config/env";
+import { env } from "@/platform/config/env";
 import type { RateLimitConfig } from "./types";
 
 export const DURATION_SECONDS = 60 * 60;

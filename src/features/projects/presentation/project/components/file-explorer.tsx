@@ -10,7 +10,7 @@ import { Fragment } from "@/generated/prisma";
 import React from "react";
 import { ScrollArea } from "@/ui/components/ui/scroll-area";
 import { Button } from "@/ui/components/ui/button";
-import { cn } from "@/lib/shared/utils";
+import { cn } from "@/shared/utils";
 import {
   Collapsible,
   CollapsibleContent,

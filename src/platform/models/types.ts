@@ -1,6 +1,6 @@
 import type { MessageRole } from "@/generated/prisma";
-import type { ModelId } from "@/lib/config/models";
-import type { Provider } from "@/lib/providers";
+import type { ModelId } from "@/shared/config/models";
+import type { Provider } from "@/platform/providers";
 
 export interface ModelSpec {
   provider: Provider;

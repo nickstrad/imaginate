@@ -11,7 +11,7 @@ import {
   getSandbox,
   getSandboxUrl,
   SANDBOX_DEFAULT_TIMEOUT_MS,
-} from "@/lib/sandbox";
+} from "@/platform/sandbox";
 import {
   buildTelemetry,
   createRunState,
@@ -22,19 +22,19 @@ import {
   type Thought,
   type UsageTotals,
 } from "@/agent";
-import { createLogger, timed, type Logger } from "@/lib/log";
+import { createLogger, timed, type Logger } from "@/platform/log";
 import {
   createModelProvider,
   getPreviousMessages,
   resolvePlannerModel,
-} from "@/lib/models";
+} from "@/platform/models";
 import {
   ASK_AGENT_PROMPT,
   buildExecutorSystemPrompt,
   CACHE_PROVIDER_OPTIONS,
   PLANNER_PROMPT,
-} from "@/lib/prompts";
-import { classifyProviderError } from "@/lib/errors";
+} from "@/shared/prompts";
+import { classifyProviderError } from "@/shared/errors";
 import {
   completeCodeAssistantMessage,
   createAskAssistantMessage,

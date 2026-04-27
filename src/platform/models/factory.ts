@@ -1,7 +1,7 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { LanguageModel } from "ai";
-import { MODEL_IDS } from "@/lib/config/models";
-import { getProviderKey } from "@/lib/providers";
+import { MODEL_IDS } from "@/shared/config/models";
+import { getProviderKey } from "@/platform/providers";
 import { MODEL_REGISTRY } from "./constants";
 import type { KeyResolver, ModelSpec, ResolvedModelConfig } from "./types";
 

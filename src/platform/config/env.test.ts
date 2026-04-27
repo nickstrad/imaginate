@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { EnvSchema } from "./env";
-import { MODEL_KEYS } from "./models";
+import { MODEL_KEYS } from "@/shared/config/models";
 
 describe("EnvSchema model fields", () => {
   it("applies defaults when MODEL_* vars are absent", () => {

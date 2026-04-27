@@ -6,7 +6,7 @@ import {
   Code as CodeIcon,
   MessageCircleQuestion as MessageCircleQuestionIcon,
 } from "lucide-react";
-import { cn } from "@/lib/shared/utils";
+import { cn } from "@/shared/utils";
 
 export type Mode = "code" | "ask";
 

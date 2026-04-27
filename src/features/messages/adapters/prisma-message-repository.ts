@@ -4,9 +4,16 @@ import {
   MessageStatus,
   MessageType,
   type Message,
+  type Prisma,
 } from "@/generated/prisma";
-import { prisma } from "@/lib/db";
-import { thoughtsToPrismaJson, type Thought } from "@/lib/schemas/thought";
+import { prisma } from "@/platform/db";
+import { ThoughtsSchema, type Thought } from "@/shared/schemas/thought";
+
+function thoughtsToPrismaJson(thoughts: Thought[]): Prisma.InputJsonValue {
+  return ThoughtsSchema.parse(
+    thoughts
+  ) satisfies Thought[] as Prisma.InputJsonValue;
+}
 import type {
   CompleteCodeMessageInput,
   CreateAskAssistantMessageInput,

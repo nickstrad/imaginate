@@ -13,8 +13,8 @@ import {
   recordAssistantThoughts,
   type MessageRepository,
 } from "@/features/messages";
-import type { Logger } from "@/lib/log";
-import type { Thought } from "@/lib/schemas/thought";
+import type { Logger } from "@/platform/log";
+import type { Thought } from "@/shared/schemas/thought";
 
 type RuntimeLogEntry = {
   level: "info" | "warn";

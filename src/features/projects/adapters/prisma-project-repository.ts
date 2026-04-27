@@ -1,5 +1,5 @@
 import { MessageMode, type Project } from "@/generated/prisma";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/platform/db";
 import type {
   CreateProjectRecordInput,
   ProjectRepository,

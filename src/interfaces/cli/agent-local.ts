@@ -22,17 +22,17 @@ import {
   type Logger,
   type LogInput,
   type LogMetadata,
-} from "@/lib/log";
+} from "@/platform/log";
 import {
   ensurePreviewReady,
   getSandboxUrl,
   SANDBOX_DEFAULT_TIMEOUT_MS,
-} from "@/lib/sandbox";
+} from "@/platform/sandbox";
 import {
   buildExecutorSystemPrompt,
   CACHE_PROVIDER_OPTIONS,
   PLANNER_PROMPT,
-} from "@/lib/prompts";
+} from "@/shared/prompts";
 
 type SandboxLike = Awaited<ReturnType<typeof Sandbox.create>>;
 

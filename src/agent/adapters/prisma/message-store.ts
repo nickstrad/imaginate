@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { prisma } from "@/platform/db";
 import { MessageRole, MessageStatus, MessageType } from "@/generated/prisma";
 import type {
   AppendedMessage,

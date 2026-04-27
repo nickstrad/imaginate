@@ -1,4 +1,4 @@
-import { createLogger } from "@/lib/log";
+import { createLogger } from "@/platform/log";
 import {
   PREVIEW_PROBE_ATTEMPTS,
   PREVIEW_PROBE_INTERVAL_MS,

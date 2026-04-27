@@ -1,9 +1,9 @@
 import crypto from "crypto";
 import { TRPCError } from "@trpc/server";
-import { isDevelopment } from "@/lib/config/env";
+import { isDevelopment } from "@/platform/config/env";
 import { GLOBAL_FALLBACK_KEY } from "./constants";
 import { createRateLimiter } from "./factory";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/platform/db";
 import type { RateLimiter } from "./types";
 
 export function hashKey(key: string): string {

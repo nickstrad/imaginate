@@ -1,5 +1,5 @@
 import { RateLimiterPrisma } from "rate-limiter-flexible";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/platform/db";
 import { DEFAULT_RATE_LIMIT_CONFIG } from "./constants";
 import type { RateLimitConfig, RateLimiter } from "./types";
 

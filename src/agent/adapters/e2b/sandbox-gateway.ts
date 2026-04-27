@@ -1,4 +1,4 @@
-import { ensurePreviewReady, getSandbox } from "@/lib/sandbox";
+import { ensurePreviewReady, getSandbox } from "@/platform/sandbox";
 import type {
   SandboxCommandOptions,
   SandboxCommandResult,

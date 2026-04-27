@@ -5,7 +5,7 @@ export default defineConfig({
     tsconfigPaths: true,
     alias: {
       "server-only": new URL(
-        "./src/lib/shared/test/stubs/server-only.ts",
+        "./src/shared/test/stubs/server-only.ts",
         import.meta.url
       ).pathname,
     },
@@ -17,7 +17,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html"],
       include: ["src/**/*.ts"],
-      exclude: ["src/**/*.test.ts", "src/lib/shared/test/**"],
+      exclude: ["src/**/*.test.ts", "src/shared/test/**"],
     },
   },
 });

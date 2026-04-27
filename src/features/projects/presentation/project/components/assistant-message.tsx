@@ -11,9 +11,9 @@ import {
   CheckCircleIcon,
   MousePointerClickIcon,
 } from "lucide-react";
-import { cn } from "@/lib/shared/utils";
+import { cn } from "@/shared/utils";
 import { Fragment, MessageStatus } from "@/generated/prisma";
-import type { Thought } from "@/lib/schemas/thought";
+import type { Thought } from "@/shared/schemas/thought";
 import type { Message } from "./types";
 
 const loadingMessages = [

@@ -6,7 +6,6 @@ import boundaries from "eslint-plugin-boundaries";
 // Element types and the allow-list below mirror the dependency graph in that
 // doc. Update them together.
 const boundaryElements = [
-  // Target elements (final architecture).
   { type: "agent-domain", pattern: "src/agent/domain/**" },
   { type: "agent-application", pattern: "src/agent/application/**" },
   { type: "agent-ports", pattern: "src/agent/ports/**" },
@@ -19,49 +18,19 @@ const boundaryElements = [
   { type: "generated", pattern: "src/generated/**" },
   { type: "app", pattern: "src/app/**" },
   { type: "ui", pattern: "src/ui/**" },
-
-  // Legacy elements — temporary escape hatches during the
-  // agent-core-architecture migration. Each entry names the chunk that
-  // removes it. Chunk 5 deletes this whole block.
-  // removed by chunk 05
-  { type: "legacy-lib", pattern: "src/lib/**" },
 ];
-
-const targetTypes = [
-  "app",
-  "interfaces",
-  "agent-domain",
-  "agent-application",
-  "agent-ports",
-  "agent-adapters",
-  "agent-testing",
-  "features",
-  "platform",
-  "ui",
-  "shared",
-  "generated",
-];
-
-const legacyTypes = ["legacy-lib"];
 
 // Allow-list per element. Mirrors "Direction of dependencies" in
-// docs/architecture/architecture.md. Legacy elements are unrestricted to
-// avoid lint churn while chunks 2-4 migrate code; chunk 5 deletes them.
+// docs/architecture/architecture.md.
 const elementRules = [
   {
     from: ["app"],
-    allow: [
-      "interfaces",
-      "features",
-      "ui",
-      "shared",
-      "generated",
-      ...legacyTypes,
-    ],
+    allow: ["app", "interfaces", "features", "ui", "shared", "generated"],
   },
   {
     from: ["interfaces"],
     allow: [
+      "interfaces",
       "agent-application",
       "agent-adapters",
       "agent-ports",
@@ -70,58 +39,60 @@ const elementRules = [
       "shared",
       "ui",
       "generated",
-      ...legacyTypes,
     ],
   },
   {
     from: ["features"],
     allow: [
+      "features",
       "agent-application",
       "agent-ports",
       "platform",
       "ui",
       "shared",
       "generated",
-      ...legacyTypes,
     ],
   },
   {
     from: ["agent-adapters"],
     allow: [
+      "agent-adapters",
       "agent-ports",
       "agent-domain",
       "platform",
       "shared",
       "generated",
-      // removed by chunk 05 (when src/lib/* moves into src/platform)
-      "legacy-lib",
     ],
   },
   {
     from: ["agent-application"],
-    allow: ["agent-domain", "agent-ports", "shared"],
+    allow: ["agent-application", "agent-domain", "agent-ports", "shared"],
   },
   {
     from: ["agent-ports"],
-    allow: ["agent-domain", "shared"],
+    allow: ["agent-ports", "agent-domain", "shared"],
   },
   {
     from: ["agent-domain"],
-    allow: ["shared"],
+    allow: ["agent-domain", "shared"],
   },
   {
     from: ["agent-testing"],
-    allow: ["agent-domain", "agent-ports", "agent-application", "shared"],
+    allow: [
+      "agent-testing",
+      "agent-domain",
+      "agent-ports",
+      "agent-application",
+      "shared",
+    ],
   },
   {
     from: ["platform"],
-    allow: ["shared", "generated"],
+    allow: ["platform", "shared", "generated"],
   },
   {
     from: ["ui"],
-    // legacy-lib allowed temporarily for `@/lib/utils` (cn/clsx helper).
-    // removed by chunk 05 once `src/lib/shared/utils` moves to `src/shared`.
-    allow: ["shared", "ui", "legacy-lib"],
+    allow: ["ui", "shared"],
   },
   {
     from: ["shared"],
@@ -130,11 +101,6 @@ const elementRules = [
   {
     from: ["generated"],
     allow: ["generated"],
-  },
-  // Legacy: unrestricted during migration. Removed by chunk 5.
-  {
-    from: legacyTypes,
-    allow: [...targetTypes, ...legacyTypes],
   },
 ];
 

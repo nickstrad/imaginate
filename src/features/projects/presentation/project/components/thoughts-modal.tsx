@@ -15,7 +15,7 @@ import {
 import { Separator } from "@/ui/components/ui/separator";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
-import type { Thought } from "@/lib/schemas/thought";
+import type { Thought } from "@/shared/schemas/thought";
 
 interface ThoughtsModalProps {
   open: boolean;

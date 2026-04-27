@@ -1,5 +1,5 @@
 import type { ModelMessage } from "ai";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/platform/db";
 import { MessageRole, MessageStatus } from "@/generated/prisma";
 import type { MessageRow } from "./types";
 

@@ -7,7 +7,7 @@ import {
 import { Avatar, AvatarFallback } from "@/ui/components/ui/avatar";
 import { Card, CardContent } from "@/ui/components/ui/card";
 import { SendIcon, UserIcon } from "lucide-react";
-import { cn } from "@/lib/shared/utils";
+import { cn } from "@/shared/utils";
 import React from "react";
 import { toast } from "sonner";
 import { Textarea } from "@/ui/components/ui/textarea";
@@ -17,7 +17,7 @@ import { AssistantMessage } from "@/features/projects/presentation/project/compo
 import { ProjectHeader } from "@/features/projects/presentation/project/components/project-header";
 import { ModeSelector, useModeSelector } from "@/ui/components/mode-selector";
 import { ThoughtsModal } from "@/features/projects/presentation/project/components/thoughts-modal";
-import type { Thought } from "@/lib/schemas/thought";
+import type { Thought } from "@/shared/schemas/thought";
 import type { Message } from "@/features/projects/presentation/project/components/types";
 
 interface Props {

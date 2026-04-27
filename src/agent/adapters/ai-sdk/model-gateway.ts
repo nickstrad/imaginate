@@ -5,8 +5,8 @@ import {
   resolvePlannerModel,
   resolveSpec,
   type ModelSpec,
-} from "@/lib/models";
-import { classifyProviderError } from "@/lib/errors";
+} from "@/platform/models";
+import { classifyProviderError } from "@/shared/errors";
 import type {
   GenerateTextRequest,
   GenerateTextResult,

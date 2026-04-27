@@ -7,7 +7,7 @@ import {
   type LogMetadata,
 } from "./schema";
 import { normalizeMetadata } from "./normalize";
-import { env, isProduction } from "@/lib/config/env";
+import { env, isProduction } from "@/platform/config/env";
 
 const LEVEL_RANK: Record<LogLevel, number> = {
   debug: 10,

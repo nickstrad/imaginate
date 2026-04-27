@@ -4,7 +4,7 @@ import type {
   MessageStatus,
   MessageType,
 } from "@/generated/prisma";
-import type { Thought } from "@/lib/schemas/thought";
+import type { Thought } from "@/shared/schemas/thought";
 
 export interface Message {
   id: string;
