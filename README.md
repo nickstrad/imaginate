@@ -55,22 +55,31 @@ single key. Set `OPENROUTER_API_KEY` in `.env` — get one at
 ## Models
 
 All requests are routed through OpenRouter via `@openrouter/ai-sdk-provider`.
-Wiring lives in `src/lib/models/factory.ts`.
+Wiring lives in `src/platform/models/` (factory, route registry, and
+per-call fallback resolution).
 
 ### Available model keys
 
-Defined in `src/lib/config/models.ts`. Set the env vars below to one of these
-keys to swap the model used for a given role.
+Defined in `src/shared/config/models.ts`. Set the env vars below to one of
+these keys to swap the model used for a given role.
 
 | Key                     | OpenRouter slug                        |
 | ----------------------- | -------------------------------------- |
 | `GEMINI_3_1_FLASH_LITE` | `google/gemini-3.1-flash-lite-preview` |
+| `GEMINI_2_5_FLASH_LITE` | `google/gemini-2.5-flash-lite`         |
 | `GEMINI_3_FLASH`        | `google/gemini-3-flash-preview`        |
 | `GEMMA_3_27B`           | `google/gemma-3-27b-it`                |
-| `OPENAI_GPT_5`          | `openai/gpt-5`                         |
+| `OPENAI_GPT_5_CODEX`    | `openai/gpt-5-codex`                   |
+| `OPENAI_GPT_5_MINI`     | `openai/gpt-5-mini`                    |
+| `CLAUDE_OPUS_4_7`       | `anthropic/claude-opus-4.7`            |
 | `CLAUDE_SONNET_4_6`     | `anthropic/claude-sonnet-4.6`          |
+| `CLAUDE_HAIKU_4_5`      | `anthropic/claude-haiku-4.5`           |
 | `DEEPSEEK_CHAT_V3_1`    | `deepseek/deepseek-chat-v3.1`          |
+| `DEEPSEEK_V3_2`         | `deepseek/deepseek-v3.2`               |
 | `KIMI_K2_6`             | `moonshotai/kimi-k2.6`                 |
+| `QWEN_3_CODER`          | `qwen/qwen3-coder`                     |
+| `GROK_4_1_FAST`         | `x-ai/grok-4.1-fast`                   |
+| `GROK_CODE_FAST_1`      | `x-ai/grok-code-fast-1`                |
 
 ### Roles and defaults
 
@@ -78,15 +87,26 @@ keys to swap the model used for a given role.
 | --------------------- | --------------------------- | ----------------------- |
 | Planner               | `MODEL_PLANNER`             | `GEMINI_3_1_FLASH_LITE` |
 | Executor (default)    | `MODEL_EXECUTOR_DEFAULT`    | `GEMINI_3_FLASH`        |
-| Executor (fallback 1) | `MODEL_EXECUTOR_FALLBACK_1` | `OPENAI_GPT_5`          |
+| Executor (fallback 1) | `MODEL_EXECUTOR_FALLBACK_1` | `OPENAI_GPT_5_CODEX`    |
 | Executor (fallback 2) | `MODEL_EXECUTOR_FALLBACK_2` | `CLAUDE_SONNET_4_6`     |
 
 Executor ladder order on failure: default → fallback 1 → fallback 2.
 
+### Per-call OpenRouter fallbacks
+
+Each role above also ships with a curated OpenRouter `models[]` fallback list
+(see `MODEL_ROUTES` in `src/platform/models/constants.ts`). OpenRouter walks
+this list left-to-right when the primary errors with a retryable failure
+(rate limit, downtime, moderation, context-length validation). Cross-provider
+diversity is intentional — a single-provider outage should not take down a
+layer. This is independent of the executor ladder above: the ladder kicks in
+when an entire route fails, the per-call fallbacks handle transient primary
+failures within a route.
+
 To experiment, set e.g. `MODEL_EXECUTOR_DEFAULT=KIMI_K2_6` in `.env` and
 restart. Unknown keys fail Zod validation at startup. To add a new model,
-append it to `MODEL_IDS` in `src/lib/config/models.ts` (confirm the slug is
-live on <https://openrouter.ai/models> first — IDs and pricing change).
+append it to `MODEL_IDS` in `src/shared/config/models.ts` (confirm the slug
+is live on <https://openrouter.ai/models> first — IDs and pricing change).
 
 ## E2B sandbox template
 
