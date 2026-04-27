@@ -1,4 +1,4 @@
-import ProjectView from "@/interfaces/trpc/components/project-view";
+import ProjectView from "@/features/projects/presentation/project/containers/project-view";
 import { getQueryClient, trpc } from "@/interfaces/trpc/server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { ErrorBoundary } from "react-error-boundary";

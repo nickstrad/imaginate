@@ -2,8 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ProjectList as ProjectListView } from "@/features/projects/presentation/home/components/project-list";
-import { useTRPC } from "../client";
+import { useTRPC } from "@/platform/trpc-client";
+import { ProjectList as ProjectListView } from "../components/project-list";
 
 export function ProjectList() {
   const trpc = useTRPC();

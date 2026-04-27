@@ -1,7 +1,7 @@
 "use client";
 
-import ProjectViewFrame from "@/features/projects/presentation/project/views/project-view";
-import { MessagesContainer } from "./messages-container";
+import { MessagesContainer } from "@/features/messages/presentation/containers/messages-container";
+import ProjectViewFrame from "../views/project-view";
 
 interface ProjectViewProps {
   projectId: string;

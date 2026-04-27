@@ -1,5 +1,5 @@
-import { ProjectForm } from "@/interfaces/trpc/components/project-form";
-import { ProjectList } from "@/interfaces/trpc/components/project-list";
+import { ProjectForm } from "@/features/projects/presentation/home/containers/project-form";
+import { ProjectList } from "@/features/projects/presentation/home/containers/project-list";
 
 export default function Home() {
   return (

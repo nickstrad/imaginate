@@ -13,6 +13,9 @@ const boundaryElements = [
   { type: "agent-testing", pattern: "src/agent/testing/**" },
   { type: "interfaces", pattern: "src/interfaces/**" },
   { type: "features", pattern: "src/features/**" },
+  // More specific platform pattern must come before the generic platform
+  // entry so eslint-plugin-boundaries classifies these files first.
+  { type: "platform-trpc-client", pattern: "src/platform/trpc-client/**" },
   { type: "platform", pattern: "src/platform/**" },
   { type: "shared", pattern: "src/shared/**" },
   { type: "generated", pattern: "src/generated/**" },
@@ -26,7 +29,15 @@ const to = (...types) => [{ to: { type: types } }];
 const elementRules = [
   {
     from: { type: "app" },
-    allow: to("app", "interfaces", "features", "ui", "shared", "generated"),
+    allow: to(
+      "app",
+      "interfaces",
+      "features",
+      "platform-trpc-client",
+      "ui",
+      "shared",
+      "generated",
+    ),
   },
   {
     from: { type: "interfaces" },
@@ -37,6 +48,7 @@ const elementRules = [
       "agent-ports",
       "features",
       "platform",
+      "platform-trpc-client",
       "shared",
       "ui",
       "generated",
@@ -49,6 +61,7 @@ const elementRules = [
       "agent-application",
       "agent-ports",
       "platform",
+      "platform-trpc-client",
       "ui",
       "shared",
       "generated",
@@ -89,7 +102,22 @@ const elementRules = [
   },
   {
     from: { type: "platform" },
-    allow: to("platform", "shared", "generated"),
+    allow: to("platform", "platform-trpc-client", "shared", "generated"),
+  },
+  {
+    // The typed React tRPC client lives here so any layer (features, app,
+    // interfaces) can consume `useTRPC` without violating direction-of-
+    // dependencies. It type-imports `AppRouter` from `interfaces/trpc/routers`,
+    // so this element is allowed to reach into `interfaces` — no other slice
+    // of `platform/` is.
+    from: { type: "platform-trpc-client" },
+    allow: to(
+      "platform-trpc-client",
+      "platform",
+      "interfaces",
+      "shared",
+      "generated",
+    ),
   },
   {
     from: { type: "ui" },

@@ -35,18 +35,19 @@ src/agent/
 Arrows mean "is allowed to import from". Same-layer imports are always allowed; the entries below describe cross-layer permissions only. Anything not listed is forbidden.
 
 ```txt
-app                -> interfaces, features, ui, shared, generated
-interfaces         -> agent (application + adapters + ports), features, platform, ui, shared, generated
-features           -> agent (application + ports), platform, ui, shared, generated
-agent/adapters     -> agent/ports, agent/domain, platform, shared, generated
-agent/application  -> agent/domain, agent/ports, shared
-agent/domain       -> shared
-agent/ports        -> agent/domain, shared
-agent/testing      -> agent/domain, agent/ports, agent/application, shared
-platform           -> shared, generated
-ui                 -> shared
-shared             -> (none)
-generated          -> (no internal imports; consumed by adapters/platform only)
+app                  -> interfaces, features, ui, shared, generated
+interfaces           -> agent (application + adapters + ports), features, platform, ui, shared, generated
+features             -> agent (application + ports), platform, ui, shared, generated
+agent/adapters       -> agent/ports, agent/domain, platform, shared, generated
+agent/application    -> agent/domain, agent/ports, shared
+agent/domain         -> shared
+agent/ports          -> agent/domain, shared
+agent/testing        -> agent/domain, agent/ports, agent/application, shared
+platform             -> shared, generated
+platform/trpc-client -> interfaces (type-only, for AppRouter), platform, shared, generated
+ui                   -> shared
+shared               -> (none)
+generated            -> (no internal imports; consumed by adapters/platform only)
 ```
 
 Key invariants:
@@ -80,10 +81,69 @@ Key invariants:
 - Inside each feature, sub-layers: `application/` (workflow functions), `adapters/` (feature-scoped infrastructure, e.g. repositories), `presentation/` (components and views).
 - Features call the agent through `@/agent`; the agent never calls features.
 
+#### `presentation/` layout: dumb views vs. containers
+
+`presentation/` is split so data-fetching never lives inside JSX-only components. Two roles:
+
+- `presentation/components/` and `presentation/.../views/` — **dumb**. Pure props-in, JSX-out. May import `@/ui/*`, `@/shared/*`, `@/generated/*`, and other dumb components in the same feature. Must **not** import `@tanstack/react-query`, `@/platform/trpc-client`, `next/navigation`, or any data-fetching SDK.
+- `presentation/.../containers/` — **smart**. Call `useTRPC`, mutations, queries, routing, toasts, etc., then render a dumb view. One container per route mount-point.
+
+This makes views trivially testable, reusable across delivery mechanisms (web, future email previews, Storybook), and keeps the data-fetching surface area visible in one place.
+
+Example shape for a `projects` home page:
+
+```txt
+src/features/projects/presentation/home/
+  components/
+    project-list.tsx        # dumb: takes { projects, isLoading, error, onProjectClick }
+    project-form.tsx        # dumb: takes { isPending, onCreate }
+  containers/
+    project-list.tsx        # smart: useTRPC → useQuery → <ProjectListView .../>
+    project-form.tsx        # smart: useTRPC → useMutation → <ProjectFormView .../>
+```
+
+Route entry point:
+
+```tsx
+// src/app/(home)/page.tsx
+import { ProjectForm } from "@/features/projects/presentation/home/containers/project-form";
+import { ProjectList } from "@/features/projects/presentation/home/containers/project-list";
+```
+
+Container pattern:
+
+```tsx
+// src/features/projects/presentation/home/containers/project-list.tsx
+"use client";
+import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useTRPC } from "@/platform/trpc-client";
+import { ProjectList as ProjectListView } from "../components/project-list";
+
+export function ProjectList() {
+  const trpc = useTRPC();
+  const router = useRouter();
+  const { data, isLoading, error } = useQuery(
+    trpc.projects.getMany.queryOptions()
+  );
+  return (
+    <ProjectListView
+      projects={data}
+      isLoading={isLoading}
+      error={error}
+      onProjectClick={(id) => router.push(`/projects/${id}`)}
+    />
+  );
+}
+```
+
+Lint enforcement of the dumb-view boundary (forbidding data-fetching imports inside `components/` and `views/`) is intentionally not yet wired into `eslint-plugin-boundaries`; treat the rule as a code-review and AI-agent contract until it earns enforcement.
+
 ### `src/platform`
 
 - Concrete infrastructure that is not agent-specific: shared Prisma client, logging, queue clients, rate limiters, sandbox provider clients used outside the agent.
-- Imports only `shared`. If a platform module needs a domain type, the type lives in `shared` or is duplicated narrowly.
+- Imports only `shared` and `generated`. If a platform module needs a domain type, the type lives in `shared` or is duplicated narrowly.
+- Exception: `src/platform/trpc-client/` hosts the typed React tRPC client (`useTRPC`, `TRPCReactProvider`, `makeQueryClient`). It type-imports `AppRouter` from `@/interfaces/trpc/routers/_app`, which is the only point in the codebase where `platform → interfaces` is permitted. The exception exists so `features/` and `app/` can call typed tRPC procedures from React without violating direction-of-dependencies; tRPC procedure definitions still live in `interfaces/trpc/`.
 
 ### `src/shared`
 
@@ -92,25 +152,26 @@ Key invariants:
 
 ## Where to put new code
 
-| New code is …                                              | Lives in                                       |
-| ---------------------------------------------------------- | ---------------------------------------------- |
-| A pure rule, schema, or state transition for the agent     | `src/agent/domain/`                            |
-| A new runtime event type or payload field                  | `src/agent/domain/events.ts`                   |
-| A planner/executor use case (emitting existing events)     | `src/agent/application/`                       |
-| A new external dependency the agent needs (SDK, store, …)  | New port in `src/agent/ports/` + adapter under |
-|                                                            | `src/agent/adapters/<integration>/`            |
-| A fake/in-memory implementation for tests                  | `src/agent/testing/`                           |
-| A tRPC procedure                                           | `src/interfaces/trpc/`                         |
-| An Inngest function or event handler                       | `src/interfaces/inngest/`                      |
-| A CLI command or script entrypoint                         | `src/interfaces/cli/`                          |
-| Product workflow that orchestrates agent + persistence     | `src/features/<domain>/application/`           |
-| A repository or feature-scoped infra                       | `src/features/<domain>/adapters/`              |
-| A feature-specific React component or view                 | `src/features/<domain>/presentation/`          |
-| Shared UI primitives (buttons, dialogs, hooks)             | `src/ui/`                                      |
-| Concrete shared infra (Prisma client, logger, rate limits) | `src/platform/`                                |
-| A schema, branded type, or pure helper used anywhere       | `src/shared/`                                  |
-| A Next.js route, layout, or route handler                  | `src/app/`                                     |
-| Generated code (Prisma, OpenAPI clients, …)                | `src/generated/` (never hand-edited)           |
+| New code is …                                              | Lives in                                             |
+| ---------------------------------------------------------- | ---------------------------------------------------- |
+| A pure rule, schema, or state transition for the agent     | `src/agent/domain/`                                  |
+| A new runtime event type or payload field                  | `src/agent/domain/events.ts`                         |
+| A planner/executor use case (emitting existing events)     | `src/agent/application/`                             |
+| A new external dependency the agent needs (SDK, store, …)  | New port in `src/agent/ports/` + adapter under       |
+|                                                            | `src/agent/adapters/<integration>/`                  |
+| A fake/in-memory implementation for tests                  | `src/agent/testing/`                                 |
+| A tRPC procedure                                           | `src/interfaces/trpc/`                               |
+| An Inngest function or event handler                       | `src/interfaces/inngest/`                            |
+| A CLI command or script entrypoint                         | `src/interfaces/cli/`                                |
+| Product workflow that orchestrates agent + persistence     | `src/features/<domain>/application/`                 |
+| A repository or feature-scoped infra                       | `src/features/<domain>/adapters/`                    |
+| A dumb, presentational React component or view             | `src/features/<domain>/presentation/components/`     |
+| A data-fetching React container (tRPC, mutations, routing) | `src/features/<domain>/presentation/.../containers/` |
+| Shared UI primitives (buttons, dialogs, hooks)             | `src/ui/`                                            |
+| Concrete shared infra (Prisma client, logger, rate limits) | `src/platform/`                                      |
+| A schema, branded type, or pure helper used anywhere       | `src/shared/`                                        |
+| A Next.js route, layout, or route handler                  | `src/app/`                                           |
+| Generated code (Prisma, OpenAPI clients, …)                | `src/generated/` (never hand-edited)                 |
 
 If a new responsibility doesn't fit, propose an addition through a plan in `docs/plans/open/`. Do not invent a new top-level folder unilaterally.
 
@@ -125,4 +186,4 @@ If a new responsibility doesn't fit, propose an addition through a plan in `docs
 
 ## Lint enforcement
 
-Import direction is enforced by `eslint-plugin-boundaries` in `eslint.config.mjs`. The plugin declares an element type per layer (`app`, `interfaces`, `agent-domain`, `agent-application`, `agent-ports`, `agent-adapters`, `agent-testing`, `features`, `platform`, `ui`, `shared`, `generated`) and a dependency matrix that mirrors the graph above.
+Import direction is enforced by `eslint-plugin-boundaries` in `eslint.config.mjs`. The plugin declares an element type per layer (`app`, `interfaces`, `agent-domain`, `agent-application`, `agent-ports`, `agent-adapters`, `agent-testing`, `features`, `platform`, `platform-trpc-client`, `ui`, `shared`, `generated`) and a dependency matrix that mirrors the graph above. `platform-trpc-client` is a sub-element of `platform/` carved out so the typed tRPC client may type-import `AppRouter` from `interfaces/trpc/routers/`; no other slice of `platform/` may reach `interfaces/`.
