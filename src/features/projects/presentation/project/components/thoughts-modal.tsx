@@ -3,6 +3,7 @@
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/ui/components/ui/sheet";
@@ -89,6 +90,9 @@ export function ThoughtsModal({
       >
         <SheetHeader className="border-b border-zinc-800">
           <SheetTitle className="text-zinc-100">Agent Thoughts</SheetTitle>
+          <SheetDescription className="sr-only">
+            Step-by-step reasoning and tool calls from the agent.
+          </SheetDescription>
         </SheetHeader>
 
         <ScrollArea className="flex-1 min-w-0">
