@@ -1,0 +1,89 @@
+"use client";
+
+import { Textarea } from "@/ui/components/ui/textarea";
+import { Button } from "@/ui/components/ui/button";
+import { ArrowUp } from "lucide-react";
+import React from "react";
+import { ProjectTemplates } from "./project-templates";
+import {
+  type Mode,
+  ModeSelector,
+  useModeSelector,
+} from "@/ui/components/mode-selector";
+
+interface ProjectFormProps {
+  isPending: boolean;
+  onCreate: (input: { userPrompt: string; mode: Mode }) => void;
+}
+
+export const ProjectForm = ({ isPending, onCreate }: ProjectFormProps) => {
+  const [prompt, setPrompt] = React.useState("");
+  const modeSelectorState = useModeSelector();
+
+  const submit = () => {
+    if (!prompt.trim()) {
+      return;
+    }
+    onCreate({
+      userPrompt: prompt,
+      mode: modeSelectorState.mode,
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    submit();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submit();
+    }
+  };
+
+  return (
+    <div className="w-full max-w-3xl mx-auto">
+      <form
+        onSubmit={handleSubmit}
+        className="border-2 border-border rounded-xl p-6 space-y-4 bg-card shadow-sm"
+      >
+        <div className="mb-4">
+          <ModeSelector
+            mode={modeSelectorState.mode}
+            setMode={modeSelectorState.setMode}
+            availableModes={modeSelectorState.availableModes}
+            disabledModes={["ask"]}
+          />
+        </div>
+        <Textarea
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Describe the web application you want to build..."
+          className="min-h-[120px] resize-none text-base border-0 focus:ring-0 focus:outline-none p-4 text-foreground"
+          disabled={isPending}
+          onKeyDown={handleKeyDown}
+        />
+
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>↵</span>
+            <code className="bg-muted px-2 py-1 rounded text-xs">Enter</code>
+            <span>to submit</span>
+          </div>
+
+          <Button
+            type="submit"
+            disabled={isPending || !prompt.trim()}
+            size="icon"
+            className="h-10 w-10"
+          >
+            <ArrowUp className="h-4 w-4" />
+          </Button>
+        </div>
+      </form>
+
+      <ProjectTemplates onTemplateSelect={setPrompt} />
+    </div>
+  );
+};

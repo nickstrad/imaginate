@@ -89,6 +89,11 @@ function translateTools(
   return out;
 }
 
+type StopWhenState = {
+  stepCount?: number;
+  steps?: unknown[];
+};
+
 export function createAiSdkModelGateway(): ModelGateway {
   return {
     async generateText(req: GenerateTextRequest): Promise<GenerateTextResult> {
@@ -102,15 +107,13 @@ export function createAiSdkModelGateway(): ModelGateway {
         maxOutputTokens: req.maxOutputTokens,
         providerOptions: req.providerOptions,
         stopWhen: req.stopWhen
-          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (req.stopWhen.map(
-              (fn) => (state: any) =>
+          ? (req.stopWhen.map(
+              (fn) => (state: StopWhenState) =>
                 fn({
-                  stepCount: state?.stepCount ?? state?.steps?.length ?? 0,
-                  steps: (state?.steps ?? []).map(translateStep),
+                  stepCount: state.stepCount ?? state.steps?.length ?? 0,
+                  steps: (state.steps ?? []).map(translateStep),
                 })
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ) as any)
+            ) as unknown as Parameters<typeof generateText>[0]["stopWhen"])
           : undefined,
         onStepFinish: req.onStepFinish
           ? async (stepResult: unknown) => {

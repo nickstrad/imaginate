@@ -2,108 +2,100 @@
 
 ## Goal
 
-Separate delivery mechanisms from product features so web routes, tRPC procedures, Inngest handlers, and scripts call the agent through explicit interfaces instead of sharing mixed framework logic.
+Move delivery mechanisms and product-owned code into the target architecture: `src/interfaces/{trpc,inngest,cli}` and `src/features/*`. Preserve public routes, tRPC procedure names, Inngest behavior, and `npm run agent:local` behavior while removing the legacy `src/modules`, `src/trpc`, `src/inngest`, and `scripts/agent-local.ts` surfaces.
 
 ## The problem
 
-The current top-level folders combine product and delivery concerns:
+After chunk 03, the reusable agent runtime lives under `src/agent`, but product entrypoints still use the old web-app layout:
 
-- `src/modules/*/server/procedures.ts` couples feature server behavior to tRPC.
-- `src/inngest/functions.ts` already imports only from `@/agent` (chunk 03), but still lives as a top-level delivery mechanism rather than under `src/interfaces`.
-- `src/trpc/routers/_app.ts` is wiring, but procedures still live inside modules.
-- `scripts/agent-local.ts` is a local interface outside the `src` architecture.
-- `src/app/**` imports views and route handlers according to the existing app/module/trpc/inngest layout.
+- tRPC wiring and client helpers live under `src/trpc`.
+- Inngest client, events, handlers, and agent adapter live under `src/inngest`.
+- Product UI and server procedures live under `src/modules`.
+- The local CLI lives at `scripts/agent-local.ts` even though `docs/architecture/architecture.md` names `src/interfaces/cli` as the CLI home.
 
-That structure works for a web app, but it makes the agent feel like an implementation detail of the web/Inngest path instead of a reusable product capability.
-
-Chunk 03 already rewired Inngest and the local CLI script to import only from `@/agent` and deleted `src/lib/agents`. This chunk's remaining work is the folder relocation (interfaces + features) and the inngest follow-ups listed below.
+That keeps delivery, feature workflows, and presentation tangled, and it forces lint to keep `legacy-modules`, `legacy-trpc`, and `legacy-inngest` exceptions alive.
 
 ## What "after" looks like
 
-Delivery mechanisms move under `src/interfaces`:
+Delivery mechanisms live under `src/interfaces`:
 
 ```txt
 src/interfaces/
   trpc/
+    client.tsx
     init.ts
+    server.tsx
+    query-client.ts
     routers/
     procedures/
   inngest/
     client.ts
     events.ts
-    functions/
+    functions.ts
+    agent-adapter.ts
   cli/
     agent-local.ts
 ```
 
-Product concepts move under `src/features`:
+Product concepts live under `src/features`:
 
 ```txt
 src/features/
   projects/
     application/
-      start-project-agent-run.ts
-      rename-project.ts
     adapters/
-      prisma-project-repository.ts
     presentation/
-      components/
-      views/
   messages/
     application/
     adapters/
-    presentation/
   providers/
     application/
 ```
 
-Feature workflows call the agent but the agent does not call features:
+tRPC procedures become interface adapters over feature application functions. Queue sends stay in interfaces: feature create workflows return persisted data plus neutral run/rename intents, and the tRPC layer maps those intents to typed Inngest events.
 
-```ts
-export async function startProjectAgentRun(input: StartProjectAgentRunInput) {
-  const project = await projectRepository.getById(input.projectId);
-  return runAgent({
-    input: toAgentInput(project, input),
-    deps: agentDeps,
-  });
-}
-```
+Inngest uses typed event schemas for `codeAgent/run`, `askAgent/run`, and `project/rename`. Project rename moves from fire-and-forget in the tRPC process to a non-user-visible Inngest handler that calls the projects feature rename workflow.
 
 ## Sequencing
 
-1. Move tRPC wiring from `src/trpc` to `src/interfaces/trpc`, or create `src/interfaces/trpc` as the new home while keeping temporary re-exports.
-2. Move Inngest client, events, functions, and agent adapter from `src/inngest` to `src/interfaces/inngest`.
-3. Move feature-owned UI and server workflows from `src/modules` to `src/features`.
-4. Convert project/message/provider procedures into thin interface adapters over feature application functions.
-5. Update `src/app` imports to point at `src/features/*/presentation` and `src/interfaces/*` as appropriate.
-6. Keep `scripts/agent-local.ts` in place until chunk 5 moves the local interface, unless moving it here is low-risk after `src/interfaces` exists.
-7. Remove temporary module/trpc/inngest shims after imports are migrated.
+1. Move `src/trpc` to `src/interfaces/trpc` and update app/client imports without changing `/api/trpc` or public router/procedure names.
+2. Move `src/inngest` to `src/interfaces/inngest`, add Zod-backed `EventSchemas`, and update `/api/inngest` to serve code, ask, and project-rename handlers.
+3. Move `scripts/agent-local.ts` to `src/interfaces/cli/agent-local.ts` and update `package.json`.
+4. Move feature UI from `src/modules` into `src/features/*/presentation`; move shared `ModeSelector` into `src/ui`.
+5. Add project/message/provider application functions and Prisma-backed feature repositories.
+6. Replace module server procedures with thin tRPC interface adapters, and move project renaming behind a typed Inngest event.
+7. Delete legacy `src/modules`, `src/trpc`, `src/inngest`, and `scripts/agent-local.ts`; remove `legacy-modules`, `legacy-trpc`, and `legacy-inngest` from `eslint.config.mjs`.
 
 ## Definition of done / Verification
 
-- `src/app` contains Next routes and layouts only.
-- `src/interfaces` contains tRPC, Inngest, and script/CLI entrypoints.
-- `src/features` contains product-specific workflows and presentation.
+- `src/app` imports only route/layout code, `src/interfaces`, `src/features`, and `src/ui`.
+- `src/interfaces` contains tRPC, Inngest, and CLI entrypoints.
+- `src/features` contains product workflows, feature repositories, and feature presentation.
 - `src/agent` has no imports from `src/features` or `src/interfaces`.
-- Existing routes, tRPC calls, Inngest handlers, and the local command preserve user-facing behavior.
-- `npm run lint`, `npm run test`, and the relevant build/check command pass.
+- Existing routes, tRPC calls, Inngest handlers, project rename behavior, and `npm run agent:local` behavior are preserved.
+- `npm run lint`, `npm run test`, `npm run build`, and `npm run agent:local -- --help` pass.
 
 ## Inngest interface follow-ups
 
-Carried over from the retired `inngest-reliability-refactor.md`. Land alongside the Inngest move:
+Land with this chunk:
 
-- **Typed event client.** Replace per-function `parseAgentRunEvent(event.data)` with `new EventSchemas().fromZod({ "codeAgent/run": AgentRunEventSchema, "askAgent/run": AgentRunEventSchema })` on the Inngest client. Delete `parseAgentRunEvent` once handlers read typed `event.data` directly; `inngest.send` then gets compile-time validation.
-- **`NonRetriableError` classification at the boundary.** Wire `formatProviderError` / `classifyProviderError` so auth failure, model-not-found, and quota-exhausted cases throw `NonRetriableError` instead of bubbling as generic errors. Prevents Inngest from burning retries on permanent failures.
-- **Re-enable retries.** `codeAgentFunction` and `askAgentFunction` currently set `retries: 0` to stop a quota-burn loop from re-running `generateText` on retry. The outer `step.run("execute", …)` already memoizes the LLM call, so once `NonRetriableError` classification is in, raise these to `retries: 2` (function-level) and rely on step memoization for safety.
-- **Convert `renameProjectInBackground` to a typed Inngest event.** Currently a fire-and-forget call in `src/modules/projects/server/procedures.ts`. Once the interfaces/features split lands, the naming AI call moves with the projects feature and the rename triggers an Inngest event so failures are observable and retryable. The "interfaces must not import features" boundary is now lint-enforced, so the move is mechanical. Backlog/optional — revisit when rename observability becomes a real concern.
+- **Typed event client.** Add `EventSchemas().fromZod(...)` on the Inngest client for `codeAgent/run`, `askAgent/run`, and `project/rename`; handlers read typed `event.data` directly.
+- **Project rename event.** Convert background project naming to a typed `project/rename` event handled under `src/interfaces/inngest`, with naming failures remaining non-user-visible.
+
+Explicitly defer retry-policy improvements:
+
+- Do not add function-level `retries` config.
+- Do not introduce `NonRetriableError`.
+- Do not change provider error save-vs-throw behavior in the code or ask handlers.
 
 ## Out of scope
 
 - Redesigning UI components.
-- Changing route URLs or public tRPC procedure names unless a temporary compatibility layer is explicitly added.
+- Changing route URLs or public tRPC procedure names.
 - Moving generated Prisma output.
-- Final local CLI cleanup if chunk 5 is a better home for it.
+- Moving remaining `src/lib/**` infrastructure into `src/platform` or `src/shared`; chunk 05 owns that.
+- Inngest retry/error policy improvements after the interfaces/features migration lands.
 
 ## Conflicts checked
 
-This chunk intentionally replaces the old `src/modules`, `src/trpc`, and `src/inngest` layout. `agent-runtime-decoupling` already made Inngest less central; this chunk moves the remaining delivery and feature folders into the new architecture.
+This chunk intentionally replaces the old `src/modules`, `src/trpc`, `src/inngest`, and `scripts/agent-local.ts` layout inside the `agent-core-architecture` migration. Chunk 05 is adjusted to pick up the remaining `src/lib` cleanup instead of repeating the interface move.

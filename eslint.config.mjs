@@ -25,12 +25,6 @@ const boundaryElements = [
   // removes it. Chunk 5 deletes this whole block.
   // removed by chunk 05
   { type: "legacy-lib", pattern: "src/lib/**" },
-  // removed by chunk 04
-  { type: "legacy-modules", pattern: "src/modules/**" },
-  // removed by chunk 04
-  { type: "legacy-inngest", pattern: "src/inngest/**" },
-  // removed by chunk 04
-  { type: "legacy-trpc", pattern: "src/trpc/**" },
 ];
 
 const targetTypes = [
@@ -48,12 +42,7 @@ const targetTypes = [
   "generated",
 ];
 
-const legacyTypes = [
-  "legacy-lib",
-  "legacy-modules",
-  "legacy-inngest",
-  "legacy-trpc",
-];
+const legacyTypes = ["legacy-lib"];
 
 // Allow-list per element. Mirrors "Direction of dependencies" in
 // docs/architecture/architecture.md. Legacy elements are unrestricted to
@@ -131,7 +120,7 @@ const elementRules = [
   {
     from: ["ui"],
     // legacy-lib allowed temporarily for `@/lib/utils` (cn/clsx helper).
-    // removed by chunk 03 once `src/lib/utils` moves to `src/shared`.
+    // removed by chunk 05 once `src/lib/shared/utils` moves to `src/shared`.
     allow: ["shared", "ui", "legacy-lib"],
   },
   {

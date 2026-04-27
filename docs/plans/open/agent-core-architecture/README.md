@@ -2,20 +2,19 @@
 
 ## Goal
 
-Move from the current incremental `src/lib/agents` runtime shape to a first-class agent architecture with explicit core, interface, feature, platform, UI, and shared layers. The immediate runtime decoupling work is complete: planner/executor orchestration, runtime events, the Inngest adapter, and `npm run agent:local` now exist under the old architecture. This plan starts from that baseline and defines the next breaking migration, including a first-class CLI path for improving the agent without always going through the web app.
+Move from the old incremental `src/lib`-centered runtime shape to a first-class agent architecture with explicit core, interface, feature, platform, UI, and shared layers. Chunks 1-4 establish the target architecture, move the agent runtime to `src/agent`, and move delivery/product code to `src/interfaces` and `src/features`. The remaining migration work is the final `src/lib` cleanup.
 
-The plan also owns rebuilding `docs/architecture/architecture.md`. That file is intentionally blank while this architecture is being redesigned; the first chunk writes the new source of truth before source moves begin.
+The plan also owns keeping `docs/architecture/architecture.md` aligned with the migration as source folders move.
 
 ## The problem
 
-The completed runtime-decoupling work made the agent callable outside Inngest, but it did so inside the old folder contract:
+The completed migration chunks made the agent callable outside Inngest and moved the main delivery/product surfaces, but one old folder contract remains:
 
-- Reusable runtime code lives in `src/lib/agents/{planner,executor,runner,runtime}.ts`.
-- Inngest composition lives in `src/inngest/functions.ts` and `src/inngest/agent-adapter.ts`.
-- The local CLI lives in `scripts/agent-local.ts` and already supports prompt input, create/connect sandbox modes, JSONL output, runtime event streaming, preview readiness, final verification/file/usage output, and follow-up commands with `--sandbox-id`.
-- Product entrypoints still use `src/app`, `src/modules`, `src/trpc`, and `src/inngest`.
+- Inngest composition lives in `src/interfaces/inngest/functions.ts` and `src/interfaces/inngest/agent-adapter.ts`.
+- The local CLI lives in `src/interfaces/cli/agent-local.ts` and already supports prompt input, create/connect sandbox modes, JSONL output, runtime event streaming, preview readiness, final verification/file/usage output, and follow-up commands with `--sandbox-id`.
+- Product entrypoints use `src/app`, `src/interfaces`, and `src/features`; the remaining legacy surface is `src/lib/**`.
 
-That is a good working baseline, but not the final architecture. The next migration should give the agent an explicit home and make delivery mechanisms, product features, concrete infrastructure, and pure shared code separable by folder and import rules. The CLI should remain a productively maintained interface, not just a dev-only script that trails the web app.
+That is a good working baseline, but not the final architecture. Chunk 5 should make concrete infrastructure and pure shared code separable by folder and import rules, then remove the last legacy boundary exception.
 
 ## What "after" looks like
 
@@ -85,7 +84,7 @@ npm run agent:local -- --sandbox-id sbx_existing "now add tests"
 npm run agent:local -- --json --prompt "summarize the agent runtime"
 ```
 
-It should expose the same runtime events, final output, verification records, files written, token usage, sandbox URL, and follow-up command that `scripts/agent-local.ts` exposes today.
+It should expose the same runtime events, final output, verification records, files written, token usage, sandbox URL, and follow-up command that `src/interfaces/cli/agent-local.ts` exposes today.
 
 ## Architecture doc deliverable
 
@@ -105,7 +104,7 @@ It should expose the same runtime events, final output, verification records, fi
 2. [Create the agent core skeleton and ports](./02-agent-core-skeleton-and-ports.md)
 3. [Migrate runtime orchestration and adapters](./03-runtime-orchestration-and-adapters.md)
 4. [Rewire interfaces and features](./04-interfaces-and-features.md)
-5. [Move the local runtime path and remove legacy surfaces](./05-local-runtime-and-cleanup.md)
+5. [Clean up platform/shared infrastructure and remove legacy surfaces](./05-local-runtime-and-cleanup.md)
 
 Chunks 1 and 2 can ship together if the team wants the new doc, boundary tooling, and empty destination folders in one PR. Chunks 3-5 depend on chunk 1 because they intentionally follow the new architecture document.
 

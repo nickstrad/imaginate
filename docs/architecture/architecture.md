@@ -119,7 +119,7 @@ If a new responsibility doesn't fit, propose an addition through a plan in `docs
 
 `npm run agent:local` is a supported delivery mechanism, not a dev-only script. It exists so agent changes can be developed, debugged, and iterated without booting the Next dev server, the tRPC route, or the Inngest dev server.
 
-- Code lives under `src/interfaces/cli/` (currently still under `scripts/agent-local.ts` — chunk 5 of `agent-core-architecture` performs the move).
+- Code lives under `src/interfaces/cli/`.
 - The CLI composes `@/agent` use cases with adapters appropriate for local execution (production model adapters, local workspace or in-memory stores, terminal event sink).
 - The CLI must keep parity with the web/Inngest path on the runtime contract: runtime events, final output, verification rows, files written, token usage, sandbox URL, follow-up command.
 - Argument parsing, output formatting, and follow-up command generation belong in CLI-owned helpers, not in `@/agent`.
@@ -128,8 +128,8 @@ If a new responsibility doesn't fit, propose an addition through a plan in `docs
 
 Import direction is enforced by `eslint-plugin-boundaries` in `eslint.config.mjs`. The plugin declares an element type per layer (`app`, `interfaces`, `agent-domain`, `agent-application`, `agent-ports`, `agent-adapters`, `features`, `platform`, `ui`, `shared`, `generated`) and a dependency matrix that mirrors the graph above.
 
-During the `agent-core-architecture` migration the config also declares `legacy-*` elements for paths that have not yet moved (`src/lib/agents`, `src/modules`, `src/inngest`, `src/trpc`, parts of `src/app`, `src/ui` legacy bits). Each legacy element is annotated with a `// removed by chunk NN` comment naming the chunk that retires it. Chunk 5 of the migration removes every legacy element so only the target elements remain.
+During the `agent-core-architecture` migration the config also declares a temporary `legacy-lib` element for `src/lib/**`. Chunk 5 of the migration moves the remaining concrete/shared infrastructure into `src/platform` or `src/shared`, then removes this final legacy element so only the target elements remain.
 
 ## Migration note
 
-Earlier versions of this document centered the architecture on `src/lib` as a reusable leaf layer. That direction has been retired. `src/lib/agents` is a temporary baseline produced by the `agent-runtime-decoupling` work; it is not the final destination. Future agent runtime code lives under `src/agent/` per the layout above. See `docs/plans/open/agent-core-architecture/` for the migration sequence.
+Earlier versions of this document centered the architecture on `src/lib` as a reusable leaf layer. That direction has been retired. Agent runtime code lives under `src/agent/` per the layout above; the remaining `src/lib/**` modules are temporary legacy infrastructure waiting for the platform/shared cleanup. See `docs/plans/open/agent-core-architecture/` for the migration sequence.

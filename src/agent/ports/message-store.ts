@@ -1,6 +1,6 @@
 // Persistence port for assistant/user messages. Surface is intentionally
-// minimal — chunk 04 will rewire src/inngest/functions.ts to use it; chunk
-// 03 may extend it with thought/log persistence as the runtime moves.
+// minimal; feature repositories own web/Inngest message persistence until the
+// runtime needs this port to grow.
 
 export type MessageRole = "user" | "assistant" | "system";
 
