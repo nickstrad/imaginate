@@ -51,3 +51,10 @@ E2B sandboxes do **not** retain filesystem state after expiry. "Revive" means cr
 2. Spec the "rebuild state" procedure — this is the real work, not the connect/create dance.
 3. Add `sandboxId` + last-known-state field to `Project`.
 4. Implement probe + resume mutation.
+
+## Dependencies & conflicts
+
+- **Coordinates with `agent-harness-transport-agnostic/`** — that plan adds `Workspace.acquireSession()` (chunk 9 stub), which is the natural seam to hang revive logic on. If revive ships first, expect a small follow-up to move the resume call into `acquireSession`.
+- **No conflict with** `cli-ink-app/` or `cli-local-sandbox.md` — both target local mode where E2B revive doesn't apply.
+- **No conflict with** `agent-telemetry-refactor/`, `openrouter-model-route-fallbacks.md`, or `enforce-dumb-presentation-views.md`.
+- `docs/plans/drift/` contains only its README.

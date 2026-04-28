@@ -102,13 +102,16 @@ Steps 1 and 2 should ship together because selecting the current local adapter w
 - Replacing model-provider API calls with an offline LLM. This plan removes sandbox API calls; model calls remain controlled by the existing model gateway unless a separate mock/offline-model plan is created.
 - Making the web/Inngest path use the local sandbox adapter.
 - Full security isolation for arbitrary untrusted code in the first local mode. Local mode runs commands on the user's machine and should be labeled accordingly.
-- Persisting local project history. That belongs to `docs/plans/open/cli-sqlite-persistence.md`.
+- Persisting local conversation history. That belongs to `docs/plans/open/cli-ink-app/` (chunk 04).
 - E2B sandbox revive or reconnect behavior. That belongs to `docs/plans/open/sandbox-auto-revive.md`.
 - A polished local project browser UI. This plan only opens the app preview in a browser.
 
-## Conflicts checked
+## Dependencies & conflicts
 
-Checked `docs/plans/open/` and `docs/plans/drift/`. This plan complements `cli-sqlite-persistence.md`: SQLite owns durable local history, while this plan owns local filesystem/process/preview execution. It touches sandbox concepts but does not change E2B lifecycle, so `sandbox-auto-revive.md` remains separate. It does not overlap with `agent-telemetry-refactor`, `openrouter-model-route-fallbacks`, or `enforce-dumb-presentation-views`. `docs/plans/drift/` contains only its README.
+- **Blocks `cli-ink-app/`** — chunk 03 of the Ink plan composes the local-workspace adapter this plan hardens. If this plan slips, the Ink plan inlines the minimum needed and the broader local-sandbox work continues here.
+- **Coordinates with `agent-harness-transport-agnostic/`** — that plan renames `SandboxGateway` to `Workspace` and adds `kind: "remote" | "local" | "readonly"`. This plan's local adapter must implement `Workspace` once the rename ships. Until then it implements `SandboxGateway`; the rename is a mechanical follow-up.
+- **No conflict with** `sandbox-auto-revive.md` (touches sandbox lifecycle, not local-mode behavior), `agent-telemetry-refactor/`, `openrouter-model-route-fallbacks.md`, or `enforce-dumb-presentation-views.md`.
+- `docs/plans/drift/` contains only its README.
 
 ## References
 

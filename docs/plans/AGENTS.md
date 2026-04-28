@@ -27,16 +27,16 @@ If the work is small enough that a PR description covers it, do not write a plan
 
 ## Single-file vs folder-of-files
 
-Pick the shape that matches the scope:
+Pick the shape that matches the scope. **Most plans should be single files.** Promote to a folder only when the work spans more than ~3 dependent PRs.
 
-- **Single file** (`docs/plans/open/<concern>.md`) — one cohesive change, ships in one or two PRs. Examples already in the tree: `inngest-reliability-refactor.md`, `sandbox-auto-revive.md`, `messages-container-tests.md`.
-- **Folder with ordered chunks** (`docs/plans/open/<concern>/`) — multi-step refactor where each chunk is a separately-reviewable PR. Required when a concern has more than ~3 dependent steps. Use a numeric prefix on every chunk file so file order matches execution order:
+- **Single file** (`docs/plans/open/<concern>.md`) — one cohesive change, ships in one or two PRs. Examples in the tree: `cli-local-sandbox.md`, `sandbox-auto-revive.md`, `openrouter-model-route-fallbacks.md`. A folder is **overkill** for these.
+- **Folder with ordered chunks** (`docs/plans/open/<concern>/`) — multi-step refactor where each chunk is a separately-reviewable PR.
 
   ```
   open/<concern>/
     README.md                   Overview, goal, target shape, chunk index, definition of done
-    01-<chunk>.md
-    02-<chunk>.md
+    01-<chunk>.md               Full detail (this is the next chunk to ship)
+    02-<chunk>.md               Lighter detail (the one after that)
     ...
   ```
 
@@ -45,7 +45,29 @@ Pick the shape that matches the scope:
   - The `README.md` is the index: it links every chunk in order and states which chunks can ship together vs. which depend on earlier ones.
   - If you insert a step between `02-` and `03-`, renumber rather than using `02a-`. Renumbering is cheap; chunk filenames are not load-bearing identifiers.
 
-  Existing examples: `open/agent-runtime-decoupling/`, `open/testability-refactor/`.
+## Detail level: progressive disclosure
+
+Plans are guidance for the **next** coding agent, not a finished spec for the whole journey. Detail decays as you look further out, because later chunks will be wrong by the time you reach them. Match the depth to the distance:
+
+- **Current chunk (the next one to ship):** full detail. Goal, problem, "after" sketch with code/paths, sequencing, definition of done, out of scope. ~200–500 words. This is what the agent reads literally tomorrow.
+- **Next chunk (N+1):** lighter file. Goal, what changes and why, what it depends on, rough shape. **No code samples, no exact field lists.** ~100–200 words.
+- **Later chunks (N+2+):** **do not write a separate file yet.** List them as one-line bullets in the README's chunk index ("`03-cwd-workspace` — swap default Workspace to cwd"). Promote a stub to a real chunk file only when it becomes the next-to-implement.
+
+The same idea applies inside a single-file plan: the next sub-step gets full detail; later sub-steps stay as one-line bullets in the sequencing section.
+
+After a chunk ships:
+
+1. Delete or archive the shipped chunk file (per the lifecycle rules).
+2. Promote the next stub from the README index into a full chunk file.
+3. Update the README's "what changes because of …" section if upstream assumptions moved.
+
+**Why this shape:**
+
+- Agents do best with one well-specified next step. Over-specified later steps cause them to implement chunk 3 when you asked for chunk 1.
+- Plans rot. Detailed text written today for chunk 5 is throwaway by the time chunk 5 arrives.
+- A short index makes drift obvious; a 2000-word chunk file disguises it.
+
+**What stays full-detail at all times:** the README's _Goal_, _What "after" looks like_, _Out of scope_, and _Conflicts checked_ sections. Those survive change and are the cheapest part of the plan to keep current.
 
 ## Required sections
 
@@ -57,13 +79,23 @@ Whether a plan is one file or a chunk inside a folder, it should cover the follo
 4. **Sequencing** — for folder plans, the chunk order with dependency notes. For single-file plans, the order of PRs or sub-steps. Mark anything that can ship in parallel.
 5. **Definition of done / Verification** — how we know it landed. Tests added, behavior preserved, telemetry visible, etc. Use `docs/testing/AGENTS.md` for testing criteria and verification expectations.
 6. **Out of scope** — what this plan deliberately does not address. Prevents scope creep and forwards the deferred work to a separate plan.
-7. **Conflicts checked** — a one-line note that you read the rest of `open/` and `drift/` and confirmed no other plan touches the same files/concepts, or names the plan it overlaps with and how the overlap is resolved.
+7. **Dependencies & conflicts** — explicit relationships to every other plan in `open/` and `drift/` that touches the same area, expressed as labeled bullets. Use these labels:
+   - **Depends on `<plan>`** — this plan assumes the named plan has shipped. Implementation should not start until then. State _what_ it depends on (a port, an event, a column) so a reader can tell when the dependency is satisfied.
+   - **Blocks `<plan>`** — the named plan cannot start until this one ships. Reciprocal of "Depends on" — if plan A depends on B, plan B must list A under "Blocks".
+   - **Supersedes `<plan>`** — this plan replaces the named plan. Either delete the superseded plan in the same PR or, if a transitional period is needed, mark it superseded inside its own file. Don't leave the old plan in `open/` without a pointer.
+   - **Coordinates with `<plan>`** — both plans touch a shared concept (port, schema, file) and must agree, but neither blocks the other. Say _what_ they share and where the boundary is.
+   - **No conflict with `<plan>`** — only mention plans worth ruling out (i.e. ones a reasonable reader might assume overlap). Don't list every plan in the folder.
+
+   If there are no other plans in the area, write "No related plans in `open/` or `drift/`." A missing or empty section is a bug — the plan must demonstrate the author surveyed the folder.
 
 ## Authoring procedure
 
 Every time you create or substantially edit a plan:
 
-1. **Survey existing plans first.** List `docs/plans/open/` and `docs/plans/drift/` and skim anything that touches the same area. If there is overlap, either fold the new work into the existing plan or call out the boundary in the new plan's "Conflicts checked" section. Drift plans are auto-generated; if a drift plan covers part of your work, link it and let it stay as-is — do not delete it.
+1. **Survey existing plans first.** List `docs/plans/open/` and `docs/plans/drift/` and skim anything that touches the same area. Map the relationships using the labels in "Dependencies & conflicts" above (Depends on / Blocks / Supersedes / Coordinates with / No conflict with). Drift plans are auto-generated; if a drift plan covers part of your work, link it and let it stay as-is — do not delete it.
+
+   **Reciprocal updates are mandatory.** If your new plan declares "Depends on `B`", open `B` and add "Blocks `<your plan>`" in the same change. If you "Supersede `B`", either delete `B` or add a pointer at the top of `B` in the same change. A unilateral dependency claim is a bug — both sides of the relationship must be visible.
+
 2. **Read `docs/architecture/architecture.md` and `docs/testing/AGENTS.md`.** Plans must respect the documented import rules, folder shapes, "Where to put new code" table, testing criteria, and verification expectations. If the plan needs to break a rule, it must update the relevant source-of-truth doc in the same PR and say so explicitly.
 3. **Pick single-file vs folder shape** per the rules above.
 4. **Write the plan.** Use concrete examples. Reference real paths. Keep it tight — a long plan that no one reads is worse than a short one that gets executed.

@@ -101,11 +101,7 @@ Single PR. Steps in order:
 - Enforcing the rule on `app/` route components (Next.js Server Components legitimately fetch data, so the `presentation/` rule does not apply there).
 - Subdividing `ui/` into smart vs. dumb (`ui/` is already prohibited from importing platform/features and is implicitly dumb).
 
-## Conflicts checked
+## Dependencies & conflicts
 
-Reviewed `docs/plans/open/` and `docs/plans/drift/` on 2026-04-26:
-
-- `open/agent-telemetry-refactor/`, `open/openrouter-model-route-fallbacks.md`, `open/sandbox-auto-revive.md` — none touch `features/*/presentation/` or `eslint.config.mjs` boundaries config.
-- `docs/plans/drift/` — empty (the trpc-container relocation drift was implemented and removed in the same change set that motivated this plan).
-
-No overlap.
+- **No conflict with** `agent-telemetry-refactor/`, `openrouter-model-route-fallbacks.md`, `sandbox-auto-revive.md`, `agent-harness-transport-agnostic/`, `cli-ink-app/`, or `cli-local-sandbox.md` — none touch `features/*/presentation/` or `eslint.config.mjs` boundaries config.
+- `docs/plans/drift/` — empty.

@@ -130,41 +130,41 @@ The choices below were validated against live `openrouter.ai` model pages on **2
 
 **Role:** short, cheap reasoning; structured output and tool-call planning. Latency and $/Mtok matter more than ceiling capability.
 
-| Slot       | OpenRouter slug                       | $/Mtok in / out | Context | Family   | Why                                                                                  |
-| ---------- | ------------------------------------- | --------------- | ------- | -------- | ------------------------------------------------------------------------------------ |
-| primary    | `google/gemini-3.1-flash-lite-preview` | 0.25 / 1.50    | 1M      | Google   | Existing primary; cheap planner with thinking levels.                                |
-| fallback 1 | `openai/gpt-5-mini`                   | 0.25 / 2.00    | 400K    | OpenAI   | Cross-family, similar input price, strong instruction following.                     |
-| fallback 2 | `x-ai/grok-4.1-fast`                  | 0.20 / 0.50    | 2M      | xAI      | Cheaper output than primary, "best agentic tool calling" positioning, third family. |
+| Slot       | OpenRouter slug                        | $/Mtok in / out | Context | Family | Why                                                                                 |
+| ---------- | -------------------------------------- | --------------- | ------- | ------ | ----------------------------------------------------------------------------------- |
+| primary    | `google/gemini-3.1-flash-lite-preview` | 0.25 / 1.50     | 1M      | Google | Existing primary; cheap planner with thinking levels.                               |
+| fallback 1 | `openai/gpt-5-mini`                    | 0.25 / 2.00     | 400K    | OpenAI | Cross-family, similar input price, strong instruction following.                    |
+| fallback 2 | `x-ai/grok-4.1-fast`                   | 0.20 / 0.50     | 2M      | xAI    | Cheaper output than primary, "best agentic tool calling" positioning, third family. |
 
 #### Layer 2 — Executor default
 
 **Role:** the workhorse coder that runs most tasks; long context and fast tool-calling at meaningfully cheaper prices than the strong tiers.
 
-| Slot       | OpenRouter slug                  | $/Mtok in / out  | Context | Family   | Why                                                                                                                |
-| ---------- | -------------------------------- | ---------------- | ------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
-| primary    | `google/gemini-3-flash-preview` | 0.50 / 3.00      | 1M      | Google   | Existing primary; agentic + coding positioning at flash pricing.                                                   |
-| fallback 1 | `qwen/qwen3-coder`              | 0.22 / 1.80      | 262K    | Alibaba  | Coding-optimized for agentic function calling and long-context repo reasoning, very different family from Google. |
-| fallback 2 | `deepseek/deepseek-v3.2`        | 0.25 / 0.38      | 131K    | DeepSeek | Cheapest credible coder; ranks #3 on programming leaderboard; output price ~8× cheaper than primary.               |
+| Slot       | OpenRouter slug                 | $/Mtok in / out | Context | Family   | Why                                                                                                               |
+| ---------- | ------------------------------- | --------------- | ------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
+| primary    | `google/gemini-3-flash-preview` | 0.50 / 3.00     | 1M      | Google   | Existing primary; agentic + coding positioning at flash pricing.                                                  |
+| fallback 1 | `qwen/qwen3-coder`              | 0.22 / 1.80     | 262K    | Alibaba  | Coding-optimized for agentic function calling and long-context repo reasoning, very different family from Google. |
+| fallback 2 | `deepseek/deepseek-v3.2`        | 0.25 / 0.38     | 131K    | DeepSeek | Cheapest credible coder; ranks #3 on programming leaderboard; output price ~8× cheaper than primary.              |
 
 #### Layer 3 — Executor fallback 1
 
 **Role:** stronger coder when the default rung's output is insufficient. Quality matters more than price; cross-provider diversity from layer 2 is the durability lever.
 
-| Slot       | OpenRouter slug              | $/Mtok in / out | Context | Family    | Why                                                                                                                  |
-| ---------- | ---------------------------- | --------------- | ------- | --------- | -------------------------------------------------------------------------------------------------------------------- |
-| primary    | `openai/gpt-5-codex`         | 1.25 / 10.00    | 400K    | OpenAI    | Existing primary; coding-specialized GPT-5 variant.                                                                  |
-| fallback 1 | `anthropic/claude-haiku-4.5` | 1.00 / 5.00     | 200K    | Anthropic | Near-frontier coding at Haiku price; cross-family backstop; cheaper than primary on output.                          |
+| Slot       | OpenRouter slug              | $/Mtok in / out | Context | Family    | Why                                                                                                                         |
+| ---------- | ---------------------------- | --------------- | ------- | --------- | --------------------------------------------------------------------------------------------------------------------------- |
+| primary    | `openai/gpt-5-codex`         | 1.25 / 10.00    | 400K    | OpenAI    | Existing primary; coding-specialized GPT-5 variant.                                                                         |
+| fallback 1 | `anthropic/claude-haiku-4.5` | 1.00 / 5.00     | 200K    | Anthropic | Near-frontier coding at Haiku price; cross-family backstop; cheaper than primary on output.                                 |
 | fallback 2 | `x-ai/grok-code-fast-1`      | 0.20 / 1.50     | 256K    | xAI       | Coding-specialized agentic model with reasoning traces; very cheap; third family for diversity vs primary + first fallback. |
 
 #### Layer 4 — Executor fallback 2
 
 **Role:** strongest / last-resort coder. Top of the OpenRouter programming leaderboard. Quality dominates; price is the lowest concern.
 
-| Slot       | OpenRouter slug              | $/Mtok in / out | Context | Family    | Why                                                                                                                                            |
-| ---------- | ---------------------------- | --------------- | ------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| primary    | `anthropic/claude-sonnet-4.6` | 3.00 / 15.00   | 1M      | Anthropic | Existing primary; "frontier performance across coding, agents, and professional work."                                                          |
-| fallback 1 | `moonshotai/kimi-k2.6`       | 0.74 / 4.66     | 256K    | Moonshot  | **#1 on the programming rankings as of 2026-04-26**, released 2026-04-20; meaningfully cheaper than primary while ranked above it on coding.    |
-| fallback 2 | `anthropic/claude-opus-4.7`  | 5.00 / 25.00    | 1M      | Anthropic | "Built for long-running asynchronous agents," released 2026-04-16; same-family backstop accepted here because no non-Anthropic Opus-class peer at this layer that isn't already a primary elsewhere. |
+| Slot       | OpenRouter slug               | $/Mtok in / out | Context | Family    | Why                                                                                                                                                                                                  |
+| ---------- | ----------------------------- | --------------- | ------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| primary    | `anthropic/claude-sonnet-4.6` | 3.00 / 15.00    | 1M      | Anthropic | Existing primary; "frontier performance across coding, agents, and professional work."                                                                                                               |
+| fallback 1 | `moonshotai/kimi-k2.6`        | 0.74 / 4.66     | 256K    | Moonshot  | **#1 on the programming rankings as of 2026-04-26**, released 2026-04-20; meaningfully cheaper than primary while ranked above it on coding.                                                         |
+| fallback 2 | `anthropic/claude-opus-4.7`   | 5.00 / 25.00    | 1M      | Anthropic | "Built for long-running asynchronous agents," released 2026-04-16; same-family backstop accepted here because no non-Anthropic Opus-class peer at this layer that isn't already a primary elsewhere. |
 
 ### `MODEL_IDS` additions
 
@@ -234,13 +234,9 @@ Otherwise, refresh on a quarterly cadence — this list will rot, and quarterly 
 - Redesigning prompts, tools, sandbox behavior, or the final-output acceptance heuristic.
 - Per-call dynamic re-ordering of fallback lists based on recent error rates — telemetry must land first; see `agent-telemetry-refactor`.
 
-## Conflicts checked
+## Dependencies & conflicts
 
-Reviewed `docs/plans/open/` and `docs/plans/drift/` on 2026-04-26:
-
-- `open/agent-telemetry-refactor/` — overlaps on which model/route was attempted and used. **Boundary:** this plan owns request-time fallback wiring and runner escalation semantics; the telemetry plan owns the durable schema for which route/model was attempted, ultimately used, and at what cost. This plan emits enough runtime context for telemetry to record; it does not define telemetry storage.
-- `open/sandbox-auto-revive.md` — no overlap (sandbox lifecycle, not model routing).
-- `open/enforce-dumb-presentation-views.md` — no overlap (presentation lint, not agent runtime).
+- **Coordinates with `agent-harness-transport-agnostic/`** — that plan introduces `AgentError` and structured escalation reasons via `executeWithLadder` hooks. This plan's runtime fallback wiring should emit through those hooks once they exist; until then it threads the same information through the existing event surface.
+- **Coordinates with `agent-telemetry-refactor/`** — overlaps on which model/route was attempted and used. **Boundary:** this plan owns request-time fallback wiring and runner escalation semantics; the telemetry plan owns the durable schema. This plan emits enough runtime context for telemetry to record; it does not define telemetry storage.
+- **No conflict with** `sandbox-auto-revive.md` (sandbox lifecycle, not model routing), `enforce-dumb-presentation-views.md` (presentation lint, not agent runtime), `cli-ink-app/`, or `cli-local-sandbox.md` (CLI delivery, not model gateway).
 - `docs/plans/drift/` — only the auto-generated `README.md`; no drift plans touch model routing.
-
-No contradicting plans.
