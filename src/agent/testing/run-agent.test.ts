@@ -11,7 +11,7 @@ import {
   createNoopAgentLogger,
 } from "./in-memory-stores";
 import type { GenerateTextRequest, GenerateTextResult } from "../ports";
-import type { FinalOutput, PlanOutput } from "../domain/types";
+import type { FinalOutput, PlanOutput, RunState } from "../domain/types";
 
 const samplePlan: PlanOutput = {
   requiresCoding: true,
@@ -85,6 +85,21 @@ describe("runAgent", () => {
     });
 
     expect(result.finalOutput?.status).toBe("success");
+    expect(result.runState).toBeDefined();
+    expect(Object.isFrozen(result.runState)).toBe(true);
+    expect(Object.isFrozen(result.runState.commandsRun)).toBe(true);
+    expect(Object.isFrozen(result.runState.verification)).toBe(true);
+    expect(Object.isFrozen(result.runState.plan)).toBe(true);
+    expect(Object.isFrozen(result.runState.finalOutput)).toBe(true);
+    expect(Object.isFrozen(result.runState.finalOutput?.verification)).toBe(
+      true
+    );
+    expect(Object.isFrozen(result.runState.plan?.targetFiles)).toBe(true);
+    expect(() => {
+      (result.runState as RunState).totalAttempts = 99;
+    }).toThrow();
+    expect(result.runState.plan).toEqual(samplePlan);
+    expect(result.runState.finalOutput?.status).toBe("success");
     const types = sink.events.map((e) => e.type);
     expect(types).toContain(AgentRuntimeEventType.ExecutorAccepted);
     expect(types[types.length - 1]).toBe(AgentRuntimeEventType.AgentFinished);
@@ -159,6 +174,8 @@ describe("runAgent", () => {
     });
 
     expect(result.lastErrorMessage).toContain("upstream");
+    expect(Object.isFrozen(result.runState)).toBe(true);
+    expect(result.runState.finalOutput).toBeUndefined();
     const failed = sink.events.filter(
       (e) => e.type === AgentRuntimeEventType.ExecutorAttemptFailed
     );

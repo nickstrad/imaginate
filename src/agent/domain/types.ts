@@ -88,6 +88,7 @@ export interface AgentRunResult {
   stepsCount: number;
   usage: UsageTotals;
   lastErrorMessage: string | null;
+  runState: Readonly<RunState>;
 }
 
 export interface RunState {
