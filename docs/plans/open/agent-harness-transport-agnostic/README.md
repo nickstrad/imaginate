@@ -116,7 +116,7 @@ Three phases, ordered. Phase A is additive (no breaking changes). Phase B is int
 6. `06-cancel-and-gate` — Thread `AbortSignal` through `runAgent` → model gateway → sandbox commands. Add optional `toolCallGate` on `ToolFactory`.
 7. `07-pluggable-tools` — `createExecutorTools({ extraTools?, restrictTo?, wrap? })`.
 8. `08-agent-session` — Introduce `createAgentSession` for warm multi-turn (CLI Ink, Slack threads).
-9. `09-workspace-rename` — Rename `SandboxGateway` → `Workspace`, add `kind` and `acquireSession`. Move preview-URL formatting to a separate optional `PreviewProvider` port.
+9. `09-workspace-rename` — Rename `SandboxGateway` → `Workspace`, add `kind` and `acquireSession`. Move preview-URL formatting to a separate optional `PreviewProvider` port. Two CLI bugs the new lifecycle should fix: (a) `agent-local` provisions the e2b sandbox eagerly before the planner runs, so non-coding answers still pay full sandbox-creation cost — `acquireSession` must be lazy (only on first executor tool use); (b) `WorkspaceSession.close()` must be wired into the CLI to end the ~minute keepalive hang where the process blocks after `run.finished` because the e2b connection is never disposed.
 
 Phases gate each other: Phase A must land before Phase B (the ladder extraction depends on `runAgent` already returning structured state and errors). Phase C must wait for Phase B (it composes the narrowed deps and the extracted ladder).
 
