@@ -126,5 +126,5 @@ Large or sensitive content stays out of telemetry by default: raw prompts, reaso
 - **Depends on `agent-harness-transport-agnostic/`** — specifically the frozen `RunState` (chunk 1), `AgentError` (chunk 2), `executeWithLadder` hooks (chunk 4 stub), and the `turnKey`-keyed `TelemetryStore` (chunk 5 stub). Do not start until at least Phase B of the harness plan ships.
 - **Coordinates with `openrouter-model-route-fallbacks.md`** — that plan emits routing decisions into the run result; this plan persists them as queryable summary dimensions. The two share the planner/executor identity fields and must agree on names.
 - **Coordinates with `cli-ink-app/`** — chunk 04 of Ink writes a per-folder SQLite `telemetry` table that mirrors this plan's `RunTelemetrySummary` shape. Schemas differ (SQLite vs Postgres); the TS type is shared.
-- **No conflict with** `cli-local-sandbox.md`, `sandbox-auto-revive.md`, or `enforce-dumb-presentation-views.md`.
+- **No conflict with** `cli-local-sandbox.md` or `sandbox-auto-revive.md`.
 - `docs/plans/drift/` contains only its README.

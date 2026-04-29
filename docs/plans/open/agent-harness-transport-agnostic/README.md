@@ -147,7 +147,6 @@ Phases gate each other: Phase A must land before Phase B (the ladder extraction 
 - **Coordinates with `cli-local-sandbox.md`** — that plan owns the local-workspace adapter; this plan's chunk 9 (stub) only renames the port to `Workspace` and adds `kind` + `acquireSession`. The two plans must agree on the adapter signature when chunk 9 lands.
 - **Coordinates with `sandbox-auto-revive.md`** — chunk 9's `Workspace.acquireSession` is the natural seam for revive logic. Coordinate naming if both ship close together.
 - **Coordinates with `openrouter-model-route-fallbacks.md`** — that plan emits routing decisions; this plan provides the `executeWithLadder` hooks (chunk 4 stub) and `AgentError` (chunk 2) those decisions flow through.
-- **No conflict with** `enforce-dumb-presentation-views.md` (presentation lint, not agent runtime).
 - `docs/plans/drift/` contains only its README.
 
 ## Migration & risk

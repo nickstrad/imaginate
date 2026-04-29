@@ -205,7 +205,7 @@ Chunks 1 and 2 must land before Ink. Chunk 3 unblocks running against cwd. Chunk
 - **Depends on `cli-local-sandbox.md`** — provides the local-workspace adapter that satisfies `Workspace { kind: "local" }`. If it slips, chunk 3 inlines the minimum cwd implementation and the broader sandbox plan continues separately.
 - **Supersedes `cli-sqlite-persistence.md`** — that plan has been deleted. Folder path is the identity; there is no `local_project` table or `--project` flag. Chunk 04 owns the per-folder SQLite schema.
 - **Coordinates with `agent-telemetry-refactor/`** — chunk 04 here writes a per-folder SQLite `telemetry` table that mirrors the `RunTelemetrySummary` type defined by that plan. Schemas differ (SQLite vs Postgres); the TS type is shared.
-- **No conflict with** `openrouter-model-route-fallbacks.md`, `sandbox-auto-revive.md`, or `enforce-dumb-presentation-views.md`.
+- **No conflict with** `openrouter-model-route-fallbacks.md` or `sandbox-auto-revive.md`.
 - `docs/plans/drift/` contains only its README.
 
 ## React / Ink dependency
