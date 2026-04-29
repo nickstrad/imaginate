@@ -1,6 +1,7 @@
 import {
   buildTelemetry,
   createRunState,
+  freezeRunState,
   persistTelemetryWith,
 } from "../domain";
 import { AgentRuntimeEventType } from "../domain/events";
@@ -183,5 +184,6 @@ export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
     stepsCount,
     usage: cumulativeUsage,
     lastErrorMessage,
+    runState: freezeRunState(runState),
   };
 }

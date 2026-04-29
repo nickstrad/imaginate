@@ -374,16 +374,12 @@ function exitCodeForOutcome(result: AgentRunResult): number {
 
 function printOutcome(
   result: AgentRunResult,
-  filesWritten: string[],
-  verification: ReadonlyArray<{
-    kind: string;
-    command: string;
-    success: boolean;
-  }>,
   json: boolean,
   sandboxSummary: SandboxSummary = {}
 ): void {
   const finalOutput = result.finalOutput;
+  const filesWritten = Object.keys(result.runState.filesWritten);
+  const verification = result.runState.verification;
 
   if (json) {
     printJson({
@@ -535,16 +531,9 @@ async function runAgentCli(args: CliArgs): Promise<number> {
     },
   });
 
-  // Note: when plan.requiresCoding === false we still want to print the
-  // answer-only outcome. The runAgent path emits AgentFinished either way,
-  // so we infer the plan from the events we observed via the sink hook.
-  // Simplification: rely on finalOutput presence.
-  if (!result.finalOutput && result.stepsCount === 0) {
-    // No coding path - planner returned a non-coding plan.
-    // The PlannerFinished event already carried the answer (in plan.answer);
-    // we lost it through the runAgent boundary. Print a generic message.
+  if (result.runState.plan && !result.runState.plan.requiresCoding) {
     printLocalLog("run.no_coding_required", args.json);
-    printNoCodeAnswer(undefined, args.json);
+    printNoCodeAnswer(result.runState.plan.answer, args.json);
     return 0;
   }
 
@@ -560,16 +549,7 @@ async function runAgentCli(args: CliArgs): Promise<number> {
     sandboxSummary = await resolveSandboxSummary(sandbox, args.json);
   }
 
-  // We don't have direct access to runState's filesWritten/verification here
-  // since runAgent only returns a digest. Display what we can and rely on
-  // the sandbox URL for inspection.
-  printOutcome(
-    result,
-    [],
-    result.finalOutput?.verification ?? [],
-    args.json,
-    sandboxSummary
-  );
+  printOutcome(result, args.json, sandboxSummary);
   printLocalLog("run.finished", args.json, { exitCode });
   return exitCode;
 }

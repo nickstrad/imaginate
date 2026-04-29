@@ -104,8 +104,8 @@ Three phases, ordered. Phase A is additive (no breaking changes). Phase B is int
 
 **Phase A — additive, no breaking changes**
 
-1. [`01-return-runstate.md`](01-return-runstate.md) — `runAgent` returns `RunState` (frozen). _(current chunk, full detail)_
-2. [`02-error-taxonomy.md`](02-error-taxonomy.md) — Promote `classifyProviderError` into `domain/errors.ts`; emit structured errors on events and in `AgentRunResult.error`. _(N+1, lighter detail)_
+1. ~~`01-return-runstate`~~ — _shipped: `runAgent` returns frozen `RunState` on every path; CLI consumes it for the final summary._
+2. [`02-error-taxonomy.md`](02-error-taxonomy.md) — Promote `classifyProviderError` into `domain/errors.ts`; emit structured errors on events and in `AgentRunResult.error`. _(current chunk)_
 3. `03-richer-events` — Add `tool.call.requested` / `tool.call.completed` with structured args + results. Make `executor.step.finished` authoritative via `toolCallIds`.
 
 **Phase B — interface cleanup**

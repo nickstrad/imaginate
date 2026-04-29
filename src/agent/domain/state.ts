@@ -27,6 +27,20 @@ export function hasSuccessfulVerification(runState: RunState): boolean {
   return runState.verification.some((v) => v.success);
 }
 
+export function freezeRunState(runState: RunState): Readonly<RunState> {
+  return deepFreeze(runState);
+}
+
+function deepFreeze<T>(value: T): T {
+  if (value === null || typeof value !== "object" || Object.isFrozen(value)) {
+    return value;
+  }
+  for (const key of Object.keys(value as object)) {
+    deepFreeze((value as Record<string, unknown>)[key]);
+  }
+  return Object.freeze(value);
+}
+
 export function inferVerificationKind(
   command: string
 ): VerificationKind | null {
