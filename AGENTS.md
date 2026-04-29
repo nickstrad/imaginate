@@ -33,6 +33,22 @@ When creating git worktrees for this repo, place them under the root-level ignor
 
 Use a short, descriptive `<work-name>` based on the plan or task, and use the matching `<work-name>` branch name unless the user asks for something else. Keep `worktrees/` ignored; it is a local workspace organization folder, not project content.
 
+After creating a new worktree, copy the repo-root `.env` into it every time:
+
+```bash
+cp /Users/nick/Software/imaginate/.env /Users/nick/Software/imaginate/worktrees/<work-name>/.env
+```
+
+Do not read, print, or echo the contents of `.env` — copy the file as opaque bytes. The new worktree needs it to run, and `.env*` is gitignored so it does not propagate via git.
+
+After copying `.env`, install dependencies in the new worktree:
+
+```bash
+cd /Users/nick/Software/imaginate/worktrees/<work-name> && npm i
+```
+
+Run this once per new worktree; `node_modules/` is not shared across worktrees.
+
 ## Scratch pad for ephemeral artifacts
 
 `scratch_pad/` (repo root) is the default destination for ephemeral, agent-generated markdown that is not a source-of-truth doc. The folder is gitignored, so files written there stay local and never ship.
