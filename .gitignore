@@ -27,6 +27,9 @@
 # local agent worktrees
 /worktrees/
 
+# scratch pad
+/scratch_pad/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
