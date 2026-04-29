@@ -137,8 +137,6 @@ export function ProjectList() {
 }
 ```
 
-Lint enforcement of the dumb-view boundary (forbidding data-fetching imports inside `components/` and `views/`) is intentionally not yet wired into `eslint-plugin-boundaries`; treat the rule as a code-review and AI-agent contract until it earns enforcement.
-
 ### `src/platform`
 
 - Concrete infrastructure that is not agent-specific: shared Prisma client, logging, queue clients, rate limiters, sandbox provider clients used outside the agent.
@@ -186,4 +184,4 @@ If a new responsibility doesn't fit, propose an addition through a plan in `docs
 
 ## Lint enforcement
 
-Import direction is enforced by `eslint-plugin-boundaries` in `eslint.config.mjs`. The plugin declares an element type per layer (`app`, `interfaces`, `agent-domain`, `agent-application`, `agent-ports`, `agent-adapters`, `agent-testing`, `features`, `platform`, `platform-trpc-client`, `ui`, `shared`, `generated`) and a dependency matrix that mirrors the graph above. `platform-trpc-client` is a sub-element of `platform/` carved out so the typed tRPC client may type-import `AppRouter` from `interfaces/trpc/routers/`; no other slice of `platform/` may reach `interfaces/`.
+Import direction is enforced by `eslint-plugin-boundaries` in `eslint.config.mjs`. The plugin declares an element type per layer (`app`, `interfaces`, `agent-domain`, `agent-application`, `agent-ports`, `agent-adapters`, `agent-testing`, `features`, `feature-view`, `feature-container`, `platform`, `platform-trpc-client`, `ui`, `shared`, `generated`) and a dependency matrix that mirrors the graph above. `feature-view` and `feature-container` subdivide `features/*/presentation/` so dumb views/components cannot import container-only infrastructure. `platform-trpc-client` is a sub-element of `platform/` carved out so the typed tRPC client may type-import `AppRouter` from `interfaces/trpc/routers/`; no other slice of `platform/` may reach `interfaces/`.

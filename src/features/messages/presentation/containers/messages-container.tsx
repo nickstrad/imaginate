@@ -6,6 +6,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { SendIcon, UserIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import React from "react";
 import { toast } from "sonner";
 import { useTRPC } from "@/platform/trpc-client";
@@ -70,6 +71,7 @@ export const MessagesContainer = ({
   >();
   const queryClient = useQueryClient();
   const trpc = useTRPC();
+  const router = useRouter();
   const modeSelectorState = useModeSelector();
   const { data: messages, refetch } = useSuspenseQuery(
     trpc.messages.getMany.queryOptions({ projectId }, { refetchInterval: 2000 })
@@ -198,6 +200,10 @@ export const MessagesContainer = ({
         projects={projects}
         currentProjectName={
           projects.find((p) => p.id === projectId)?.name || projectId
+        }
+        onBackToDashboard={() => router.push("/")}
+        onProjectChange={(nextProjectId) =>
+          router.push(`/projects/${nextProjectId}`)
         }
       />
       <div className="relative flex-1 min-h-0">

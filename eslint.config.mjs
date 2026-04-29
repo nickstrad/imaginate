@@ -12,6 +12,15 @@ const boundaryElements = [
   { type: "agent-adapters", pattern: "src/agent/adapters/**" },
   { type: "agent-testing", pattern: "src/agent/testing/**" },
   { type: "interfaces", pattern: "src/interfaces/**" },
+  {
+    type: "feature-view",
+    pattern: "src/features/*/presentation/**/components/**",
+  },
+  { type: "feature-view", pattern: "src/features/*/presentation/**/views/**" },
+  {
+    type: "feature-container",
+    pattern: "src/features/*/presentation/**/containers/**",
+  },
   { type: "features", pattern: "src/features/**" },
   // More specific platform pattern must come before the generic platform
   // entry so eslint-plugin-boundaries classifies these files first.
@@ -33,10 +42,12 @@ const elementRules = [
       "app",
       "interfaces",
       "features",
+      "feature-view",
+      "feature-container",
       "platform-trpc-client",
       "ui",
       "shared",
-      "generated",
+      "generated"
     ),
   },
   {
@@ -51,21 +62,42 @@ const elementRules = [
       "platform-trpc-client",
       "shared",
       "ui",
-      "generated",
+      "generated"
     ),
   },
   {
     from: { type: "features" },
     allow: to(
       "features",
+      "feature-view",
+      "feature-container",
       "agent-application",
       "agent-ports",
       "platform",
       "platform-trpc-client",
       "ui",
       "shared",
-      "generated",
+      "generated"
     ),
+  },
+  {
+    from: { type: "feature-container" },
+    allow: to(
+      "features",
+      "feature-view",
+      "feature-container",
+      "agent-application",
+      "agent-ports",
+      "platform",
+      "platform-trpc-client",
+      "ui",
+      "shared",
+      "generated"
+    ),
+  },
+  {
+    from: { type: "feature-view" },
+    allow: to("feature-view", "ui", "shared", "generated"),
   },
   {
     from: { type: "agent-adapters" },
@@ -75,7 +107,7 @@ const elementRules = [
       "agent-domain",
       "platform",
       "shared",
-      "generated",
+      "generated"
     ),
   },
   {
@@ -97,7 +129,7 @@ const elementRules = [
       "agent-domain",
       "agent-ports",
       "agent-application",
-      "shared",
+      "shared"
     ),
   },
   {
@@ -116,7 +148,7 @@ const elementRules = [
       "platform",
       "interfaces",
       "shared",
-      "generated",
+      "generated"
     ),
   },
   {
@@ -156,6 +188,43 @@ const eslintConfig = [
     rules: {
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/purity": "off",
+    },
+  },
+  {
+    files: [
+      "src/features/*/presentation/**/components/**/*.{ts,tsx}",
+      "src/features/*/presentation/**/views/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@tanstack/react-query",
+              message:
+                "Dumb views must not fetch data. Move data wiring to a sibling containers/ file.",
+            },
+            {
+              name: "next/navigation",
+              message:
+                "Dumb views must not route. Move navigation to a sibling containers/ file.",
+            },
+            {
+              name: "sonner",
+              message:
+                "Dumb views must not toast. Surface errors via props from the container.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["@/platform/trpc-client", "@/platform/trpc-client/*"],
+              message:
+                "Dumb views must not call useTRPC. Move data wiring to a sibling containers/ file.",
+            },
+          ],
+        },
+      ],
     },
   },
   {

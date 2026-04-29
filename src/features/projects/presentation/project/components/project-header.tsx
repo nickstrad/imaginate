@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, ChevronsUpDown, SunMoonIcon } from "lucide-react";
 
 import { cn } from "@/shared/utils";
@@ -29,18 +28,16 @@ import { useTheme } from "next-themes";
 interface ProjectHeaderProps {
   projects: Project[];
   currentProjectName: string;
+  onBackToDashboard: () => void;
+  onProjectChange: (projectId: string) => void;
 }
 
 export function ProjectHeader({
   projects,
   currentProjectName,
+  onBackToDashboard,
+  onProjectChange,
 }: ProjectHeaderProps) {
-  const router = useRouter();
-
-  const handleProjectChange = (projectId: string) => {
-    router.push(`/projects/${projectId}`);
-  };
-
   const { theme, setTheme } = useTheme();
 
   return (
@@ -55,18 +52,14 @@ export function ProjectHeader({
         <DropdownMenuContent className="w-full min-w-[250px]">
           <DropdownMenuLabel>Projects</DropdownMenuLabel>
           <DropdownMenuGroup>
-            <DropdownMenuItem
-              onSelect={() => {
-                router.push("/");
-              }}
-            >
+            <DropdownMenuItem onSelect={onBackToDashboard}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               <span>Back to dashboard</span>
             </DropdownMenuItem>
             {projects.map((proj) => (
               <DropdownMenuItem
                 key={proj.id}
-                onSelect={() => handleProjectChange(proj.id)}
+                onSelect={() => onProjectChange(proj.id)}
               >
                 <Check
                   className={cn(
