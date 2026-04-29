@@ -31,7 +31,32 @@ When creating git worktrees for this repo, place them under the root-level ignor
 /Users/nick/Software/imaginate/worktrees/<work-name>
 ```
 
-Use a short, descriptive `<work-name>` based on the plan or task, and use the matching `codex/<work-name>` branch name unless the user asks for something else. Keep `worktrees/` ignored; it is a local workspace organization folder, not project content.
+Use a short, descriptive `<work-name>` based on the plan or task, and use the matching `<work-name>` branch name unless the user asks for something else. Keep `worktrees/` ignored; it is a local workspace organization folder, not project content.
+
+## Scratch pad for ephemeral artifacts
+
+`scratch_pad/` (repo root) is the default destination for ephemeral, agent-generated markdown that is not a source-of-truth doc. The folder is gitignored, so files written there stay local and never ship.
+
+**Write to `scratch_pad/<artifact>.md` for:**
+
+- Branch walkthroughs and change summaries.
+- Manual validation / QA checklists.
+- Scratch notes, ad-hoc analysis, throwaway diagrams.
+- Any one-off markdown the user did not explicitly ask to commit.
+
+**Do NOT write to `scratch_pad/` for:**
+
+- Plans → `docs/plans/` (per `docs/plans/AGENTS.md`).
+- Research notes meant to inform future work → `docs/research/`.
+- Architecture / code-style / testing contracts → their `docs/` subfolder.
+- Anything the user explicitly asks to commit or ship.
+
+**Defaults when generating a scratch-pad file:**
+
+- Create `scratch_pad/` if it does not exist; do not stage or commit it.
+- Use kebab-case filenames that name the artifact (`branch-walkthrough.md`, `manual-validation.md`), optionally prefixed by branch slug or date when collisions are likely.
+- Overwrite existing scratch-pad files freely — they are ephemeral. Surface the overwrite in the final reply.
+- Do not paste the full generated file back into chat; the file is the deliverable.
 
 ## Always-load context
 
