@@ -11,8 +11,7 @@ This is a refactor, not a feature. Behavior parity with today is the bar; the wi
 Concrete leaks today (all `file:line`):
 
 - **Loop is duplicated.** `src/agent/application/run-agent.ts:67-147` runs the executor ladder. `src/interfaces/inngest/functions.ts:203-283` re-implements the same ladder because it needs per-step persistence hooks `runAgent` doesn't expose.
-- **`runAgent` discards `RunState`.** Returns only `finalOutput / stepsCount / usage / lastErrorMessage` (`run-agent.ts:178`). CLI rebuilds the rest from event stream (`agent-local.ts:558`).
-- **Errors are lossy.** `run-agent.ts:119-132` classifies, then collapses to a string. Inngest re-classifies (`functions.ts:254`) to recover the category.
+- **Errors are lossy.** `run-agent.ts:151` collapses failures to `lastErrorMessage: string | null`; `AgentRunResult` has no structured error. Inngest re-classifies (`functions.ts:311`, `:454`) to recover the category.
 - **Dead ports.** `MessageStore` is in `AgentRuntimeDeps` (`run-agent-deps.ts:15`) but never read in the harness. `TelemetryStore` is required but only used when `persistTelemetryFor` is set.
 - **Web identity in core ports.** `MessageStore` requires `projectId` (`ports/message-store.ts:8`); `TelemetryStore` keys by `messageId`. CLI fakes `projectId: "local"` (`agent-local.ts:529`); Slack would have to invent a synthetic project per channel.
 - **No interrupts, no tool-call gate.** `execute-run.ts:96-212` cannot be cancelled mid-step and offers no approval hook.
@@ -104,14 +103,13 @@ Three phases, ordered. Phase A is additive (no breaking changes). Phase B is int
 
 **Phase A — additive, no breaking changes**
 
-1. ~~`01-return-runstate`~~ — _shipped: `runAgent` returns frozen `RunState` on every path; CLI consumes it for the final summary._
-2. [`02-error-taxonomy.md`](02-error-taxonomy.md) — Promote `classifyProviderError` into `domain/errors.ts`; emit structured errors on events and in `AgentRunResult.error`. _(current chunk)_
-3. `03-richer-events` — Add `tool.call.requested` / `tool.call.completed` with structured args + results. Make `executor.step.finished` authoritative via `toolCallIds`.
+2. [`02-error-taxonomy.md`](02-error-taxonomy.md) — Promote `classifyProviderError` into `domain/errors.ts`; emit structured `AgentError` on failure events and `AgentRunResult.error`. _(current chunk, full detail)_
+3. [`03-richer-events.md`](03-richer-events.md) — Add `tool.call.requested` / `tool.call.completed` with structured args + results. Make `executor.step.finished` authoritative via `toolCallIds`. _(N+1, lighter detail)_
 
 **Phase B — interface cleanup**
 
 4. `04-extract-execute-with-ladder` — Pull the ladder into `execute-with-ladder.ts` with hook callbacks. `runAgent` becomes a thin wrapper. Inngest deletes its fork.
-5. `05-narrow-deps` — Remove `MessageStore` from `AgentRuntimeDeps`. Move `TelemetryStore` into `persistence?: { ... }`. Drop `projectId` / `messageId` from core ports; replace with opaque `turnKey` / `conversationKey`.
+5. `05-narrow-deps` — Remove `MessageStore` from `AgentRuntimeDeps`. Move `TelemetryStore` into `persistence?: { ... }`. Drop `projectId` / `messageId` from core ports; replace with opaque `turnKey` / `conversationKey`. Removes deprecated `lastErrorMessage`.
 
 **Phase C — new capabilities for non-web transports**
 
