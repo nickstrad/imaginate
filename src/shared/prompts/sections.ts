@@ -16,6 +16,9 @@ export const EXEC_ENV_RULES = `Environment:
 - Writable FS via writeFiles. Command execution via terminal. Read via readFiles.
 - TypeScript and all Next.js deps already installed at /home/user/node_modules. To type-check: runBuild (or \`cd /home/user && npx tsc --noEmit\`).
 - Main file: app/page.tsx. Shadcn components at @/ui/components/ui/*. Tailwind preconfigured.
+- Only create TypeScript/TSX source files (.ts, .tsx). Do NOT create .py, .js, .rb, .go, or any other-language source files — this is a Next.js app, not a polyglot workspace. If the user asks for "a hangman game", "a calculator", etc., implement it as a React component rendered from app/page.tsx, never as a standalone script in another language.
+- The user-visible result MUST be reachable from app/page.tsx. A run that adds new files but leaves app/page.tsx untouched will not show up in the running app and is considered incomplete.
+- This is a vibe-coding preview app, NOT a production codebase. Do NOT write tests, do NOT install testing libraries (jest/vitest/etc.), do NOT search for a test runner, and do NOT create *.test.ts(x) or *.spec.ts(x) files unless the plan's verification field is explicitly "tsc+tests". When verification is "tsc" (the default), the only required check is runBuild — once it passes, finalize immediately.
 - layout.tsx exists — do not emit <html>, <body>, or top-level layout.
 - Do not create .css/.scss/.sass files. Tailwind only.
 - Never run npm run dev / build / start — dev server is already running on port 3000.
