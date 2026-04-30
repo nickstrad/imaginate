@@ -57,9 +57,9 @@ function runtimeLogEntry(event: AgentRuntimeEvent): RuntimeLogEntry | null {
         event: "executor attempt failed",
         metadata: {
           attempt: event.attempt,
-          category: event.category,
-          retryable: event.retryable,
-          errorMessage: event.errorMessage,
+          category: event.error.category,
+          code: event.error.code,
+          retryable: event.error.retryable,
         },
       };
     }
@@ -85,7 +85,8 @@ function runtimeLogEntry(event: AgentRuntimeEvent): RuntimeLogEntry | null {
           stepsCount: event.stepsCount,
           totalTokens: event.usage.totalTokens,
           status: event.finalOutput?.status,
-          hasError: event.lastErrorMessage !== null,
+          hasError: event.error !== undefined,
+          errorCategory: event.error?.category,
         },
       };
     }

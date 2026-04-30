@@ -10,6 +10,7 @@ import type {
   VerificationKind,
   VerificationRecord,
 } from "./schemas";
+import type { AgentError } from "./errors";
 
 export type {
   FinalOutput,
@@ -87,6 +88,8 @@ export interface AgentRunResult {
   finalOutput: FinalOutput | undefined;
   stepsCount: number;
   usage: UsageTotals;
+  error?: AgentError;
+  /** @deprecated Use `error?.message` instead. Removed in harness chunk 05. */
   lastErrorMessage: string | null;
   runState: Readonly<RunState>;
 }

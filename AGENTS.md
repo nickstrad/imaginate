@@ -25,7 +25,9 @@ docs/
 
 ## Local worktrees
 
-When creating git worktrees for this repo, place them under the root-level ignored folder:
+**Worktrees are the standard workflow.** Always create a worktree for feature work, bug fixes, plans, and anything that spans more than a single trivial commit. This keeps `main` clean and allows other branches to merge safely without carrying intermediate work.
+
+Create worktrees under the root-level ignored folder:
 
 ```txt
 /Users/nick/Software/imaginate/worktrees/<work-name>
@@ -33,7 +35,7 @@ When creating git worktrees for this repo, place them under the root-level ignor
 
 Use a short, descriptive `<work-name>` based on the plan or task, and use the matching `<work-name>` branch name unless the user asks for something else. Keep `worktrees/` ignored; it is a local workspace organization folder, not project content.
 
-After creating a new worktree, copy the repo-root `.env` into it every time:
+After creating a new worktree, copy the repo-root `.env` into it:
 
 ```bash
 cp /Users/nick/Software/imaginate/.env /Users/nick/Software/imaginate/worktrees/<work-name>/.env

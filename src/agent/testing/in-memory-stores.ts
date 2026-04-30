@@ -20,6 +20,7 @@ import type {
   ToolFactoryContext,
   ToolSet,
 } from "../ports";
+import { classifyAgentError } from "../domain/errors";
 import type { AgentRuntimeEvent } from "../domain/events";
 import type {
   FinalOutput,
@@ -145,8 +146,7 @@ export function createFakeModelGateway(
   ];
   const describeModel = options.describeModel ?? defaultDescribeModel;
   const errorClassifier =
-    options.errorClassifier ??
-    ((_err: unknown) => ({ category: "unknown", retryable: false }));
+    options.errorClassifier ?? ((err: unknown) => classifyAgentError(err));
   return {
     get calls() {
       return calls;

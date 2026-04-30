@@ -9,6 +9,7 @@ import type {
   PlanOutput,
   UsageTotals,
 } from "./types";
+import type { AgentError, AgentErrorCategory } from "./errors";
 
 export const AgentRuntimeEventType = {
   PlannerStarted: "planner.started",
@@ -41,7 +42,8 @@ export type AgentRuntimeEvent =
   | {
       type: typeof AgentRuntimeEventType.ExecutorAttemptFailed;
       attempt: number;
-      category: string;
+      error: AgentError;
+      category: AgentErrorCategory;
       retryable: boolean;
       errorMessage: string;
     }
@@ -59,5 +61,6 @@ export type AgentRuntimeEvent =
       stepsCount: number;
       usage: UsageTotals;
       finalOutput: FinalOutput | undefined;
+      error?: AgentError;
       lastErrorMessage: string | null;
     };

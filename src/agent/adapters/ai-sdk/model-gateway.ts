@@ -7,7 +7,6 @@ import {
   resolveSpec,
   type ModelSpec,
 } from "@/platform/models";
-import { classifyProviderError } from "@/shared/errors";
 import type {
   GenerateTextRequest,
   GenerateTextResult,
@@ -17,6 +16,7 @@ import type {
   ProviderErrorClassification,
   ToolDefinition,
 } from "../../ports";
+import { classifyAgentError } from "../../domain/errors";
 
 function specToString(spec: { provider: string; model: string }): string {
   return `${spec.provider}:${spec.model}`;
@@ -167,8 +167,7 @@ export function createAiSdkModelGateway(): ModelGateway {
       return { provider: resolved.provider, model: resolved.model };
     },
     classifyError(err: unknown): ProviderErrorClassification {
-      const c = classifyProviderError(err);
-      return { category: c.category, retryable: c.retryable };
+      return classifyAgentError(err);
     },
   };
 }

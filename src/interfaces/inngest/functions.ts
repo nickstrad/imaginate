@@ -13,11 +13,14 @@ import {
   SANDBOX_DEFAULT_TIMEOUT_MS,
 } from "@/platform/sandbox";
 import {
+  agentErrorMessage,
   buildTelemetry,
+  classifyAgentError,
   createRunState,
   executeRun,
   persistTelemetryWith,
   planRun,
+  type AgentError,
   type FinalOutput,
   type Thought,
   type UsageTotals,
@@ -34,7 +37,6 @@ import {
   CACHE_PROVIDER_OPTIONS,
   PLANNER_PROMPT,
 } from "@/shared/prompts";
-import { classifyProviderError } from "@/shared/errors";
 import {
   completeCodeAssistantMessage,
   createAskAssistantMessage,
@@ -53,6 +55,11 @@ import { EVENT_NAMES } from "./events";
 
 type StepCtx = {
   run: (id: string, fn: () => Promise<unknown>) => Promise<unknown>;
+};
+
+type RuntimeErrorState = {
+  cause: unknown;
+  error: AgentError;
 };
 
 function loggedStep<T>(
@@ -197,7 +204,7 @@ export const codeAgentFunction = inngest.createFunction(
     });
 
     let stepsCount = 0;
-    let lastError: unknown;
+    let runtimeError: RuntimeErrorState | undefined;
     const ladder = execDeps.modelGateway.listExecutorModelIds();
 
     const executeOutcome = await loggedStep(log, step, "execute", async () => {
@@ -212,7 +219,7 @@ export const codeAgentFunction = inngest.createFunction(
             event: "ladder slot unavailable",
             metadata: { modelId, err: String(err) },
           });
-          lastError = err;
+          runtimeError = { cause: err, error: classifyAgentError(err) };
           continue;
         }
 
@@ -252,19 +259,22 @@ export const codeAgentFunction = inngest.createFunction(
         stepsCount = outcome.stepsCount;
 
         if (outcome.error) {
-          const classified = execDeps.modelGateway.classifyError(outcome.error);
-          lastError = outcome.error;
+          const error = execDeps.modelGateway.classifyError(outcome.error);
+          runtimeError = { cause: outcome.error, error };
           await execDeps.eventSink.emit({
             type: "executor.attempt.failed" as const,
             attempt: i + 1,
-            category: classified.category,
-            retryable: classified.retryable,
+            error,
+            category: error.category,
+            retryable: error.retryable,
           });
-          if (!classified.retryable) {
+          if (!error.retryable) {
             break;
           }
           continue;
         }
+
+        runtimeError = undefined;
 
         if (!outcome.escalated) {
           await execDeps.eventSink.emit({
@@ -281,18 +291,17 @@ export const codeAgentFunction = inngest.createFunction(
         });
       }
 
-      const lastErrorMessage =
-        lastError === undefined
-          ? null
-          : lastError instanceof Error
-            ? lastError.message
-            : String(lastError);
+      const error = runtimeError?.error;
+      const lastErrorMessage = runtimeError
+        ? agentErrorMessage(runtimeError.cause)
+        : null;
 
       await execDeps.eventSink.emit({
         type: "agent.finished" as const,
         stepsCount,
         usage: cumulativeUsage,
         finalOutput: runState.finalOutput,
+        error,
         lastErrorMessage,
       });
 
@@ -300,32 +309,37 @@ export const codeAgentFunction = inngest.createFunction(
         runState,
         stepsCount,
         usage: cumulativeUsage,
+        error,
         lastErrorMessage,
       };
     });
 
     const finalRunState = executeOutcome.runState;
     const finalOutput: FinalOutput | undefined = finalRunState.finalOutput;
+    const terminalError = executeOutcome.error;
 
-    if (executeOutcome.lastErrorMessage && !finalOutput) {
-      const classified = classifyProviderError(executeOutcome.lastErrorMessage);
+    if (terminalError && !finalOutput) {
       log.warn({
         event: "executor exhausted with provider error",
         metadata: {
-          category: classified.category,
-          rawError: executeOutcome.lastErrorMessage,
+          category: terminalError.category,
+          code: terminalError.code,
+          rawError: terminalError.message,
         },
       });
       await loggedStep(log, step, "save-provider-error", () =>
         saveProviderErrorAssistantMessage(
           {
             messageId: persistedMessage.id,
-            message: classified.userMessage,
+            message: terminalError.message,
           },
           { repository: messageRepository }
         )
       );
-      return { error: classified.userMessage, category: classified.category };
+      return {
+        error: terminalError.message,
+        category: terminalError.category,
+      };
     }
 
     const isError = !finalOutput || finalOutput.status === "failed";
@@ -458,14 +472,14 @@ export const askAgentFunction = inngest.createFunction(
           category: null as string | null,
         };
       } catch (err) {
-        const classified = classifyProviderError(err);
+        const classified = classifyAgentError(err);
         log.error({
           event: "generate failed",
           metadata: { err, category: classified.category },
         });
         return {
           text: "",
-          error: classified.userMessage,
+          error: classified.message,
           category: classified.category,
         };
       }

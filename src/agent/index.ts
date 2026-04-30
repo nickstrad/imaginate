@@ -6,7 +6,9 @@ export * from "./ports";
 export * from "./adapters";
 export {
   AGENT_CONFIG,
+  agentErrorMessage,
   buildTelemetry,
+  classifyAgentError,
   createRunState,
   EscalateReason,
   extractTelemetry,
@@ -19,6 +21,7 @@ export {
   toPersistedTelemetry,
 } from "./domain";
 export { AgentRuntimeEventType, type AgentRuntimeEvent } from "./domain/events";
+export type { AgentError, AgentErrorCategory } from "./domain/errors";
 export type {
   AgentRunInput,
   AgentRunResult,
