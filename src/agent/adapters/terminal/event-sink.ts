@@ -20,13 +20,13 @@ function formatEvent(event: AgentRuntimeEvent): string {
     case AgentRuntimeEventType.ExecutorStepFinished:
       return `${event.type} step=${event.step.stepIndex} finishReason=${event.step.finishReason ?? "-"}`;
     case AgentRuntimeEventType.ExecutorAttemptFailed:
-      return `${event.type} attempt=${event.attempt} category=${event.category} retryable=${event.retryable}`;
+      return `${event.type} attempt=${event.attempt} category=${event.error.category} retryable=${event.error.retryable} error=${event.error.message}`;
     case AgentRuntimeEventType.ExecutorEscalated:
       return `${event.type} attempt=${event.attempt} reason=${event.reason ?? "-"}`;
     case AgentRuntimeEventType.ExecutorAccepted:
       return `${event.type} attempt=${event.attempt}`;
     case AgentRuntimeEventType.AgentFinished:
-      return `${event.type} status=${event.finalOutput?.status ?? "missing"} steps=${event.stepsCount} totalTokens=${event.usage.totalTokens}`;
+      return `${event.type} status=${event.finalOutput?.status ?? "missing"} steps=${event.stepsCount} totalTokens=${event.usage.totalTokens} error=${event.error?.message ?? "-"}`;
   }
 }
 

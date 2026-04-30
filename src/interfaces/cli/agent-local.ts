@@ -315,8 +315,9 @@ function formatEvent(event: AgentRuntimeEvent): string {
       return [
         event.type,
         `attempt=${event.attempt}`,
-        `category=${event.category}`,
-        `retryable=${event.retryable}`,
+        `category=${event.error.category}`,
+        `retryable=${event.error.retryable}`,
+        `error=${event.error.message}`,
       ].join(" ");
     case AgentRuntimeEventType.ExecutorEscalated:
       return [
@@ -332,7 +333,7 @@ function formatEvent(event: AgentRuntimeEvent): string {
         `status=${event.finalOutput?.status ?? "missing"}`,
         `steps=${event.stepsCount}`,
         `totalTokens=${event.usage.totalTokens}`,
-        `lastError=${event.lastErrorMessage ?? "-"}`,
+        `error=${event.error?.message ?? event.lastErrorMessage ?? "-"}`,
       ].join(" ");
   }
 }
@@ -390,6 +391,7 @@ function printOutcome(
       filesWritten,
       usage: result.usage,
       stepsCount: result.stepsCount,
+      error: result.error,
       lastErrorMessage: result.lastErrorMessage,
       sandboxId: sandboxSummary.sandboxId,
       sandboxUrl: sandboxSummary.sandboxUrl,
@@ -406,7 +408,11 @@ function printOutcome(
     });
     printLocalLog("outcome.summary", json, { summary: finalOutput.summary });
   } else {
-    printLocalLog("outcome.final_output", json, { status: "missing" });
+    printLocalLog("outcome.final_output", json, {
+      status: "missing",
+      errorCategory: result.error?.category,
+      error: result.error?.message,
+    });
   }
 
   if (verification.length) {
@@ -433,7 +439,8 @@ function printOutcome(
     promptTokens: result.usage.promptTokens,
     completionTokens: result.usage.completionTokens,
     totalTokens: result.usage.totalTokens,
-    lastError: result.lastErrorMessage,
+    errorCategory: result.error?.category,
+    lastError: result.error?.message ?? result.lastErrorMessage,
   });
 
   if (sandboxSummary.sandboxUrl) {

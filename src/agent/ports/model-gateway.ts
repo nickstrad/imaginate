@@ -3,6 +3,8 @@
 // actually relies on. No re-export of ai-sdk types — keeps the agent layer
 // free of concrete SDK imports.
 
+import type { AgentError } from "../domain/errors";
+
 export interface ModelMessageContentPart {
   type: string;
   [key: string]: unknown;
@@ -69,10 +71,7 @@ export interface ModelDescriptor {
   model: string;
 }
 
-export interface ProviderErrorClassification {
-  category: string;
-  retryable: boolean;
-}
+export type ProviderErrorClassification = AgentError;
 
 export interface ModelGateway {
   generateText(req: GenerateTextRequest): Promise<GenerateTextResult>;

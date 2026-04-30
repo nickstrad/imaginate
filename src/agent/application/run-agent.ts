@@ -5,6 +5,11 @@ import {
   persistTelemetryWith,
 } from "../domain";
 import { AgentRuntimeEventType } from "../domain/events";
+import {
+  agentErrorMessage,
+  classifyAgentError,
+  type AgentError,
+} from "../domain/errors";
 import type {
   AgentRunInput,
   AgentRunResult,
@@ -28,6 +33,11 @@ export interface RunAgentArgs {
   };
   persistTelemetryFor?: { messageId: string };
 }
+
+type RuntimeErrorState = {
+  cause: unknown;
+  error: AgentError;
+};
 
 export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
   const { input, deps, config, persistTelemetryFor } = args;
@@ -56,7 +66,7 @@ export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
   runState.plan = plan;
 
   let stepsCount = 0;
-  let lastError: unknown;
+  let runtimeError: RuntimeErrorState | undefined;
   const ladder = deps.modelGateway.listExecutorModelIds();
 
   if (plan.requiresCoding) {
@@ -64,7 +74,7 @@ export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
     // configured at the gateway. By the time `executeRun` throws a retryable
     // error here, OpenRouter has already exhausted the in-route fallback
     // list, so advancing this ladder means "the entire route failed,"
-    // not "the primary model failed." See docs/plans/open/openrouter-model-route-fallbacks.md.
+    // not "the primary model failed." See docs/plans/archive/openrouter-model-route-fallbacks.md.
     for (let i = 0; i < ladder.length; i++) {
       const modelId = ladder[i];
       let descriptorString: string;
@@ -76,7 +86,7 @@ export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
           event: "ladder slot unavailable",
           metadata: { modelId, err: String(err) },
         });
-        lastError = err;
+        runtimeError = { cause: err, error: classifyAgentError(err) };
         continue;
       }
 
@@ -118,19 +128,22 @@ export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
       stepsCount = outcome.stepsCount;
 
       if (outcome.error) {
-        const classified = deps.modelGateway.classifyError(outcome.error);
-        lastError = outcome.error;
+        const error = deps.modelGateway.classifyError(outcome.error);
+        runtimeError = { cause: outcome.error, error };
         await deps.eventSink.emit({
           type: AgentRuntimeEventType.ExecutorAttemptFailed,
           attempt: i + 1,
-          category: classified.category,
-          retryable: classified.retryable,
+          error,
+          category: error.category,
+          retryable: error.retryable,
         });
-        if (!classified.retryable) {
+        if (!error.retryable) {
           break;
         }
         continue;
       }
+
+      runtimeError = undefined;
 
       if (!outcome.escalated) {
         await deps.eventSink.emit({
@@ -148,12 +161,10 @@ export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
     }
   }
 
-  const lastErrorMessage =
-    lastError === undefined
-      ? null
-      : lastError instanceof Error
-        ? lastError.message
-        : String(lastError);
+  const error = runtimeError?.error;
+  const lastErrorMessage = runtimeError
+    ? agentErrorMessage(runtimeError.cause)
+    : null;
 
   if (persistTelemetryFor) {
     const payload = buildTelemetry(runState, stepsCount, cumulativeUsage);
@@ -176,6 +187,7 @@ export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
     stepsCount,
     usage: cumulativeUsage,
     finalOutput: runState.finalOutput,
+    error,
     lastErrorMessage,
   });
 
@@ -183,6 +195,7 @@ export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
     finalOutput: runState.finalOutput,
     stepsCount,
     usage: cumulativeUsage,
+    error,
     lastErrorMessage,
     runState: freezeRunState(runState),
   };

@@ -12,6 +12,7 @@ import {
 } from "./in-memory-stores";
 import type { GenerateTextRequest, GenerateTextResult } from "../ports";
 import type { FinalOutput, PlanOutput, RunState } from "../domain/types";
+import type { AgentError, AgentErrorCategory } from "../domain/errors";
 
 const samplePlan: PlanOutput = {
   requiresCoding: true,
@@ -59,6 +60,19 @@ function executorFinalize(output: FinalOutput) {
 function executorEmptyStep() {
   return async (_req: GenerateTextRequest): Promise<GenerateTextResult> => {
     return { steps: [] };
+  };
+}
+
+function classifiedError(
+  category: AgentErrorCategory,
+  retryable: boolean,
+  message = "classified"
+): AgentError {
+  return {
+    code: `test.${category}`,
+    category,
+    retryable,
+    message,
   };
 }
 
@@ -119,7 +133,7 @@ describe("runAgent", () => {
         retryableErr,
         executorFinalize(successFinal),
       ],
-      errorClassifier: () => ({ category: "rate_limit", retryable: true }),
+      errorClassifier: () => classifiedError("rate_limit", true),
     });
 
     await runAgent({
@@ -144,10 +158,17 @@ describe("runAgent", () => {
       (e) => e.type === AgentRuntimeEventType.ExecutorAttemptFailed
     );
     expect(failed).toMatchObject({ retryable: true });
+    expect(failed).toMatchObject({
+      error: { category: "rate_limit", retryable: true },
+    });
     const accepted = sink.events.find(
       (e) => e.type === AgentRuntimeEventType.ExecutorAccepted
     );
     expect(accepted).toMatchObject({ attempt: 2 });
+    const finished = sink.events.find(
+      (e) => e.type === AgentRuntimeEventType.AgentFinished
+    );
+    expect(finished).toMatchObject({ error: undefined });
   });
 
   it("full ladder exhaustion", async () => {
@@ -156,7 +177,8 @@ describe("runAgent", () => {
     const gateway = createFakeModelGateway({
       executorModelIds: ["fake:a", "fake:b", "fake:c"],
       responses: [plannerCapture(samplePlan), err, err, err],
-      errorClassifier: () => ({ category: "rate_limit", retryable: true }),
+      errorClassifier: () =>
+        classifiedError("rate_limit", true, "Provider rate limit exceeded"),
     });
 
     const result = await runAgent({
@@ -173,6 +195,11 @@ describe("runAgent", () => {
       config: baseConfig(),
     });
 
+    expect(result.error).toMatchObject({
+      category: "rate_limit",
+      retryable: true,
+      message: "Provider rate limit exceeded",
+    });
     expect(result.lastErrorMessage).toContain("upstream");
     expect(Object.isFrozen(result.runState)).toBe(true);
     expect(result.runState.finalOutput).toBeUndefined();
@@ -180,6 +207,23 @@ describe("runAgent", () => {
       (e) => e.type === AgentRuntimeEventType.ExecutorAttemptFailed
     );
     expect(failed).toHaveLength(3);
+    expect(failed[2]).toMatchObject({
+      error: {
+        category: "rate_limit",
+        retryable: true,
+        message: "Provider rate limit exceeded",
+      },
+    });
+    const finished = sink.events.find(
+      (e) => e.type === AgentRuntimeEventType.AgentFinished
+    );
+    expect(finished).toMatchObject({
+      error: {
+        category: "rate_limit",
+        retryable: true,
+        message: "Provider rate limit exceeded",
+      },
+    });
     expect(result.finalOutput).toBeUndefined();
   });
 
@@ -189,7 +233,7 @@ describe("runAgent", () => {
     const gateway = createFakeModelGateway({
       executorModelIds: ["fake:a", "fake:b", "fake:c"],
       responses: [plannerCapture(samplePlan), err],
-      errorClassifier: () => ({ category: "auth", retryable: false }),
+      errorClassifier: () => classifiedError("auth", false),
     });
 
     await runAgent({
@@ -214,6 +258,9 @@ describe("runAgent", () => {
       (e) => e.type === AgentRuntimeEventType.ExecutorAttemptFailed
     );
     expect(failed).toMatchObject({ retryable: false });
+    expect(failed).toMatchObject({
+      error: { category: "auth", retryable: false },
+    });
   });
 
   it("verification-required escalation", async () => {
