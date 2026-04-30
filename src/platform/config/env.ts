@@ -18,13 +18,9 @@ export const EnvSchema = z.object({
   OPENROUTER_API_KEY: z.string().min(1).optional(),
 
   MODEL_PLANNER: ModelIdSchema.default(MODEL_KEYS.GEMINI_3_1_FLASH_LITE),
-  MODEL_EXECUTOR_DEFAULT: ModelIdSchema.default(MODEL_KEYS.GEMINI_3_FLASH),
-  MODEL_EXECUTOR_FALLBACK_1: ModelIdSchema.default(
-    MODEL_KEYS.OPENAI_GPT_5_CODEX
-  ),
-  MODEL_EXECUTOR_FALLBACK_2: ModelIdSchema.default(
-    MODEL_KEYS.CLAUDE_SONNET_4_6
-  ),
+  MODEL_EXECUTOR_DEFAULT: ModelIdSchema.default(MODEL_KEYS.CLAUDE_SONNET_4_6),
+  MODEL_EXECUTOR_FALLBACK_1: ModelIdSchema.default(MODEL_KEYS.CLAUDE_HAIKU_4_5),
+  MODEL_EXECUTOR_FALLBACK_2: ModelIdSchema.default(MODEL_KEYS.CLAUDE_OPUS_4_7),
 
   LOG_LEVEL: z.preprocess(
     (v) => (typeof v === "string" ? v.toLowerCase() : v),

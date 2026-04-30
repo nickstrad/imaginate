@@ -10,6 +10,8 @@ export const MODEL_IDS = {
   CLAUDE_OPUS_4_7: "anthropic/claude-opus-4.7",
   DEEPSEEK_CHAT_V3_1: "deepseek/deepseek-chat-v3.1",
   DEEPSEEK_V3_2: "deepseek/deepseek-v3.2",
+  DEEPSEEK_V4_PRO: "deepseek/deepseek-v4-pro:exacto",
+  DEEPSEEK_V4_FLASH: "deepseek/deepseek-v4-flash",
   KIMI_K2_6: "moonshotai/kimi-k2.6",
   QWEN_3_CODER: "qwen/qwen3-coder",
   GROK_4_1_FAST: "x-ai/grok-4.1-fast",

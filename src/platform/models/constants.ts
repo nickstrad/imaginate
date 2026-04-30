@@ -38,18 +38,18 @@ const spec = (model: keyof typeof MODEL_KEYS): ModelSpec => ({
 export const MODEL_ROUTES = {
   planner: {
     primary: MODEL_REGISTRY.planner,
-    fallbacks: [spec("OPENAI_GPT_5_MINI"), spec("GROK_4_1_FAST")],
+    fallbacks: [spec("DEEPSEEK_CHAT_V3_1"), spec("GROK_4_1_FAST")],
   },
   executorDefault: {
     primary: MODEL_REGISTRY.executorDefault,
-    fallbacks: [spec("QWEN_3_CODER"), spec("DEEPSEEK_V3_2")],
+    fallbacks: [spec("QWEN_3_CODER"), spec("DEEPSEEK_V4_FLASH")],
   },
   executorFallback1: {
     primary: MODEL_REGISTRY.executorFallback1,
-    fallbacks: [spec("CLAUDE_HAIKU_4_5"), spec("GROK_CODE_FAST_1")],
+    fallbacks: [spec("GROK_CODE_FAST_1"), spec("DEEPSEEK_V4_FLASH")],
   },
   executorFallback2: {
     primary: MODEL_REGISTRY.executorFallback2,
-    fallbacks: [spec("KIMI_K2_6"), spec("CLAUDE_OPUS_4_7")],
+    fallbacks: [spec("OPENAI_GPT_5_CODEX"), spec("KIMI_K2_6")],
   },
 } satisfies Record<string, ModelRoute>;
