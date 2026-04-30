@@ -103,12 +103,11 @@ Three phases, ordered. Phase A is additive (no breaking changes). Phase B is int
 
 **Phase A — additive, no breaking changes**
 
-2. [`02-error-taxonomy.md`](02-error-taxonomy.md) — Promote `classifyProviderError` into `domain/errors.ts`; emit structured `AgentError` on failure events and `AgentRunResult.error`. _(current chunk, full detail)_
-3. [`03-richer-events.md`](03-richer-events.md) — Add `tool.call.requested` / `tool.call.completed` with structured args + results. Make `executor.step.finished` authoritative via `toolCallIds`. _(N+1, lighter detail)_
+3. [`03-richer-events.md`](03-richer-events.md) — Add `tool.call.requested` / `tool.call.completed` with structured args + results. Make `executor.step.finished` authoritative via `toolCallIds`. _(current chunk, full detail)_
 
 **Phase B — interface cleanup**
 
-4. `04-extract-execute-with-ladder` — Pull the ladder into `execute-with-ladder.ts` with hook callbacks. `runAgent` becomes a thin wrapper. Inngest deletes its fork.
+4. `04-extract-execute-with-ladder` — Pull the ladder into `execute-with-ladder.ts` with hook callbacks. `runAgent` becomes a thin wrapper. Inngest deletes its fork. _(N+1, lighter detail)_
 5. `05-narrow-deps` — Remove `MessageStore` from `AgentRuntimeDeps`. Move `TelemetryStore` into `persistence?: { ... }`. Drop `projectId` / `messageId` from core ports; replace with opaque `turnKey` / `conversationKey`. Removes deprecated `lastErrorMessage`.
 
 **Phase C — new capabilities for non-web transports**
@@ -145,7 +144,6 @@ Phases gate each other: Phase A must land before Phase B (the ladder extraction 
 - **Blocks `cli-ink-app/`** — that plan's chunks 3, 4, 5, and 7 compose primitives this plan introduces (`Workspace`, narrowed deps, `createAgentSession`, `AbortSignal`, `tool.call.*` events). Ink should not start until at least Phase B is shipped.
 - **Blocks `agent-telemetry-refactor/`** — that plan's `summarizeRun`, `turnKey` keying, single end-of-run write, and reuse of `AgentError` / `EscalationReason` all assume this plan's harness surface.
 - **Coordinates with `cli-local-sandbox.md`** — that plan owns the local-workspace adapter; this plan's chunk 9 (stub) only renames the port to `Workspace` and adds `kind` + `acquireSession`. The two plans must agree on the adapter signature when chunk 9 lands.
-- **Coordinates with `sandbox-auto-revive.md`** — chunk 9's `Workspace.acquireSession` is the natural seam for revive logic. Coordinate naming if both ship close together.
 - `openrouter-model-route-fallbacks.md` is archived. Treat it as historical route-fallback context only, not an active dependency or conflict for this plan.
 - `docs/plans/drift/` contains only its README.
 
