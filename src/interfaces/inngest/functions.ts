@@ -309,6 +309,13 @@ export const codeAgentFunction = inngest.createFunction(
 
     if (executeOutcome.lastErrorMessage && !finalOutput) {
       const classified = classifyProviderError(executeOutcome.lastErrorMessage);
+      log.warn({
+        event: "executor exhausted with provider error",
+        metadata: {
+          category: classified.category,
+          rawError: executeOutcome.lastErrorMessage,
+        },
+      });
       await loggedStep(log, step, "save-provider-error", () =>
         saveProviderErrorAssistantMessage(
           {

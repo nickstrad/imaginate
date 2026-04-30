@@ -43,6 +43,7 @@ export type AgentRuntimeEvent =
       attempt: number;
       category: string;
       retryable: boolean;
+      errorMessage: string;
     }
   | {
       type: typeof AgentRuntimeEventType.ExecutorEscalated;

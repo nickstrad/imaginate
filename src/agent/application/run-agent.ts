@@ -125,6 +125,10 @@ export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
           attempt: i + 1,
           category: classified.category,
           retryable: classified.retryable,
+          errorMessage:
+            outcome.error instanceof Error
+              ? `${outcome.error.message}${outcome.error.stack ? `\n${outcome.error.stack}` : ""}`
+              : String(outcome.error),
         });
         if (!classified.retryable) {
           break;

@@ -317,6 +317,7 @@ function formatEvent(event: AgentRuntimeEvent): string {
         `attempt=${event.attempt}`,
         `category=${event.category}`,
         `retryable=${event.retryable}`,
+        `error=${event.errorMessage}`,
       ].join(" ");
     case AgentRuntimeEventType.ExecutorEscalated:
       return [

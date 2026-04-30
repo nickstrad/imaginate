@@ -59,6 +59,7 @@ function runtimeLogEntry(event: AgentRuntimeEvent): RuntimeLogEntry | null {
           attempt: event.attempt,
           category: event.category,
           retryable: event.retryable,
+          errorMessage: event.errorMessage,
         },
       };
     }
@@ -142,8 +143,10 @@ export function makePersistedThoughtSink(args: {
   return async (event) => {
     logAgentRuntimeEvent(log, event);
     if (event.type === AgentRuntimeEventType.ExecutorStepFinished) {
-      // Mirror the AI-SDK Thought shape into the Inngest persistence schema.
-      thoughts.push(event.step.thought as Thought);
+      // The agent runtime is the single source of truth for the `thoughts`
+      // array — `execute-run.ts` already appends each step before emitting
+      // ExecutorStepFinished. The sink only persists the current snapshot;
+      // pushing here would double-record every step.
       await recordAssistantThoughts(
         {
           messageId: persistedMessageId,

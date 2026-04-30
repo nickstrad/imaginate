@@ -20,7 +20,7 @@ function formatEvent(event: AgentRuntimeEvent): string {
     case AgentRuntimeEventType.ExecutorStepFinished:
       return `${event.type} step=${event.step.stepIndex} finishReason=${event.step.finishReason ?? "-"}`;
     case AgentRuntimeEventType.ExecutorAttemptFailed:
-      return `${event.type} attempt=${event.attempt} category=${event.category} retryable=${event.retryable}`;
+      return `${event.type} attempt=${event.attempt} category=${event.category} retryable=${event.retryable} error=${event.errorMessage}`;
     case AgentRuntimeEventType.ExecutorEscalated:
       return `${event.type} attempt=${event.attempt} reason=${event.reason ?? "-"}`;
     case AgentRuntimeEventType.ExecutorAccepted:
