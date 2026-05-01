@@ -1,5 +1,9 @@
 procs:
+  postgres:
+    shell: "make db/local/up"
   next:
     shell: "npm run dev"
   inngest:
     shell: "npx inngest-cli@1.19.1 dev"
+  prisma:
+    shell: "make run/prisma"

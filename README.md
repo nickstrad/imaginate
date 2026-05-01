@@ -8,6 +8,15 @@ sign-in required.
 
 ```bash
 npm install
+# Terminal 1: keep local Postgres visible in the foreground.
+make db/local/up
+```
+
+Set `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/imaginate?schema=public`
+in your local `.env`, then run:
+
+```bash
+make db/local/migrate
 npm run dev
 ```
 
@@ -29,7 +38,7 @@ fallbacks.
 
 | Variable                    | Required | Notes                                                                             |
 | --------------------------- | -------- | --------------------------------------------------------------------------------- |
-| `DATABASE_URL`              | yes      | Postgres connection string (project targets Neon)                                 |
+| `DATABASE_URL`              | yes      | Postgres connection string; local dev can use the Docker database below           |
 | `NEXT_PUBLIC_APP_URL`       | yes      | e.g. `http://localhost:3000`                                                      |
 | `E2B_API_KEY`               | yes      | <https://e2b.dev> — sandbox for generated code                                    |
 | `OPENROUTER_API_KEY`        | prod     | <https://openrouter.ai/keys>                                                      |
@@ -44,6 +53,63 @@ fallbacks.
 | `MODEL_EXECUTOR_DEFAULT`    | no       | model key for the default executor                                                |
 | `MODEL_EXECUTOR_FALLBACK_1` | no       | model key for the first executor fallback                                         |
 | `MODEL_EXECUTOR_FALLBACK_2` | no       | model key for the second executor fallback                                        |
+
+## Local PostgreSQL
+
+Local development should point Prisma at the checked-in Docker Compose database
+instead of a hosted Postgres instance. Start it in a dedicated terminal so it is
+obvious when Postgres is running:
+
+```bash
+make db/local/up
+```
+
+`make db/local/up` keeps Postgres attached to the terminal. Press `Ctrl-C` in
+that terminal to stop it.
+
+Set the database URL in your local `.env`:
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/imaginate?schema=public
+```
+
+Then apply migrations:
+
+```bash
+make db/local/migrate
+```
+
+Useful database commands:
+
+| Command                 | Scope             | Description                                      |
+| ----------------------- | ----------------- | ------------------------------------------------ |
+| `make db/local/up`      | local Docker only | Start the local Postgres container               |
+| `make db/local/down`    | local Docker only | Stop the local Postgres container                |
+| `make db/local/status`  | local Docker only | Show local container status                      |
+| `make db/local/logs`    | local Docker only | Follow local Postgres logs                       |
+| `make db/local/verify`  | local DB check    | Verify local DB config, readiness, and Prisma    |
+| `make db/local/wipe`    | local Docker only | Stop Postgres and delete its volume              |
+| `make db/local/rebuild` | local Docker only | Wipe the local DB and print the foreground flow  |
+| `make db/local/migrate` | local/dev Prisma  | Apply dev migrations; may create migration files |
+| `make db/local/reset`   | local/dev Prisma  | Reset and reapply migrations; never use on prod  |
+| `make db/prod/migrate`  | prod Prisma       | Deploy already-committed migrations to prod      |
+
+The `db/local/*` commands only touch the Docker Compose services in this repo.
+Use `make db/local/reset` when Prisma can connect and you only need the
+schema/data reset for the configured local database. Use `make db/local/rebuild`
+after changing migrations or schema state and you want to remove all persisted
+local Docker Compose database state. It does not restart Postgres detached; run
+`make db/local/up` in a visible terminal before migrating again. For production,
+use `make db/prod/migrate`; it runs Prisma's deploy command instead of the local
+development migrator.
+
+Reach for `make db/local/rebuild` when migration/schema changes appear stuck due
+to persisted local Docker volume state, or when you deliberately want an empty
+local database from scratch.
+
+Run `make db/local/verify` when you want a quick confidence check that `.env`
+points at the local Postgres database, Docker Compose sees the service, Prisma
+loads the schema, and Prisma can execute a query against the configured database.
 
 ## How it works
 
