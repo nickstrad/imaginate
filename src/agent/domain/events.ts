@@ -16,6 +16,8 @@ export const AgentRuntimeEventType = {
   PlannerFinished: "planner.finished",
   PlannerFailed: "planner.failed",
   ExecutorAttemptStarted: "executor.attempt.started",
+  ToolCallRequested: "tool.call.requested",
+  ToolCallCompleted: "tool.call.completed",
   ExecutorStepFinished: "executor.step.finished",
   ExecutorAttemptFailed: "executor.attempt.failed",
   ExecutorEscalated: "executor.escalated",
@@ -36,8 +38,34 @@ export type AgentRuntimeEvent =
       model: string;
     }
   | {
+      type: typeof AgentRuntimeEventType.ToolCallRequested;
+      callId: string;
+      stepIndex: number;
+      toolName: string;
+      args: Record<string, unknown>;
+    }
+  | {
+      type: typeof AgentRuntimeEventType.ToolCallCompleted;
+      callId: string;
+      stepIndex: number;
+      toolName: string;
+      ok: true;
+      durationMs?: number;
+      result: unknown;
+    }
+  | {
+      type: typeof AgentRuntimeEventType.ToolCallCompleted;
+      callId: string;
+      stepIndex: number;
+      toolName: string;
+      ok: false;
+      durationMs?: number;
+      error: AgentError;
+    }
+  | {
       type: typeof AgentRuntimeEventType.ExecutorStepFinished;
       step: AgentStepSnapshot;
+      toolCallIds: string[];
     }
   | {
       type: typeof AgentRuntimeEventType.ExecutorAttemptFailed;

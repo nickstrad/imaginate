@@ -282,6 +282,18 @@ function formatList(values: string[]): string {
   return values.length ? values.join(",") : "-";
 }
 
+function formatInlineJson(value: unknown): string {
+  try {
+    const rendered = JSON.stringify(value);
+    if (!rendered) {
+      return "-";
+    }
+    return rendered.length > 160 ? rendered.slice(0, 157) + "..." : rendered;
+  } catch {
+    return String(value);
+  }
+}
+
 function formatEvent(event: AgentRuntimeEvent): string {
   switch (event.type) {
     case AgentRuntimeEventType.PlannerStarted:
@@ -302,11 +314,39 @@ function formatEvent(event: AgentRuntimeEvent): string {
         `attempt=${event.attempt}`,
         `model=${event.model}`,
       ].join(" ");
+    case AgentRuntimeEventType.ToolCallRequested:
+      return [
+        event.type,
+        `step=${event.stepIndex}`,
+        `callId=${event.callId}`,
+        `tool=${event.toolName}`,
+        `args=${formatInlineJson(event.args)}`,
+      ].join(" ");
+    case AgentRuntimeEventType.ToolCallCompleted:
+      return event.ok
+        ? [
+            event.type,
+            `step=${event.stepIndex}`,
+            `callId=${event.callId}`,
+            `tool=${event.toolName}`,
+            "ok=true",
+            `result=${formatInlineJson(event.result)}`,
+          ].join(" ")
+        : [
+            event.type,
+            `step=${event.stepIndex}`,
+            `callId=${event.callId}`,
+            `tool=${event.toolName}`,
+            "ok=false",
+            `category=${event.error.category}`,
+            `error=${event.error.message}`,
+          ].join(" ");
     case AgentRuntimeEventType.ExecutorStepFinished:
       return [
         event.type,
         `step=${event.step.stepIndex}`,
         `finishReason=${event.step.finishReason ?? "-"}`,
+        `toolCallIds=${formatList(event.toolCallIds)}`,
         `tools=${formatList(
           event.step.thought.toolCalls?.map((tc) => tc.toolName) ?? []
         )}`,

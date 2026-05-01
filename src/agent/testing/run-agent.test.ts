@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { runAgent } from "../application/run-agent";
-import { AgentRuntimeEventType } from "../domain/events";
+import {
+  AgentRuntimeEventType,
+  type AgentRuntimeEvent,
+} from "../domain/events";
 import {
   createFakeModelGateway,
   createFakeSandboxGateway,
@@ -63,6 +66,74 @@ function executorEmptyStep() {
   };
 }
 
+function executorToolCallSuccess(output: FinalOutput) {
+  return async (req: GenerateTextRequest): Promise<GenerateTextResult> => {
+    const args = { files: [{ path: "src/app.ts", content: "ok" }] };
+    await req.onToolCallStart?.({
+      callId: "call_write_1",
+      stepIndex: 0,
+      toolName: "writeFiles",
+      args,
+    });
+    await req.onToolCallFinish?.({
+      callId: "call_write_1",
+      stepIndex: 0,
+      toolName: "writeFiles",
+      args,
+      ok: true,
+      durationMs: 12,
+      result: { success: true },
+    });
+    const finalize = req.tools?.finalize;
+    if (finalize) {
+      await finalize.execute(output);
+    }
+    return {
+      steps: [
+        {
+          stepIndex: 0,
+          text: "wrote",
+          toolCalls: [{ callId: "call_write_1", toolName: "writeFiles", args }],
+        },
+      ],
+    };
+  };
+}
+
+function executorToolCallFailure() {
+  return async (req: GenerateTextRequest): Promise<GenerateTextResult> => {
+    const args = { command: "npm test" };
+    const err = new Error("tool exploded");
+    await req.onToolCallStart?.({
+      callId: "call_run_1",
+      stepIndex: 0,
+      toolName: "runCommand",
+      args,
+    });
+    await req.onToolCallFinish?.({
+      callId: "call_run_1",
+      stepIndex: 0,
+      toolName: "runCommand",
+      args,
+      ok: false,
+      durationMs: 7,
+      error: err,
+    });
+    throw err;
+  };
+}
+
+function eventOfType<T extends AgentRuntimeEvent["type"]>(
+  events: ReadonlyArray<AgentRuntimeEvent>,
+  type: T
+): Extract<AgentRuntimeEvent, { type: T }> {
+  const event = events.find((candidate) => candidate.type === type);
+  if (!event) {
+    throw new Error(`missing event: ${type}`);
+  }
+  return event as Extract<AgentRuntimeEvent, { type: T }>;
+}
+
 function classifiedError(
   category: AgentErrorCategory,
   retryable: boolean,
@@ -76,6 +147,29 @@ function classifiedError(
   };
 }
 
+type TestModelGateway = ReturnType<typeof createFakeModelGateway>;
+type TestEventSink = ReturnType<typeof createInMemoryEventSink>;
+
+function createRunDeps(gateway: TestModelGateway, sink: TestEventSink) {
+  return {
+    modelGateway: gateway,
+    sandboxGateway: createFakeSandboxGateway(),
+    toolFactory: createFakeToolFactory(),
+    messageStore: createInMemoryMessageStore(),
+    telemetryStore: createInMemoryTelemetryStore(),
+    eventSink: sink,
+    logger: createNoopAgentLogger(),
+  };
+}
+
+function runTestAgent(gateway: TestModelGateway, sink: TestEventSink) {
+  return runAgent({
+    input: { prompt: "hi", projectId: "p1" },
+    deps: createRunDeps(gateway, sink),
+    config: baseConfig(),
+  });
+}
+
 describe("runAgent", () => {
   it("success on first ladder slot", async () => {
     const sink = createInMemoryEventSink();
@@ -84,19 +178,7 @@ describe("runAgent", () => {
       responses: [plannerCapture(samplePlan), executorFinalize(successFinal)],
     });
 
-    const result = await runAgent({
-      input: { prompt: "hi", projectId: "p1" },
-      deps: {
-        modelGateway: gateway,
-        sandboxGateway: createFakeSandboxGateway(),
-        toolFactory: createFakeToolFactory(),
-        messageStore: createInMemoryMessageStore(),
-        telemetryStore: createInMemoryTelemetryStore(),
-        eventSink: sink,
-        logger: createNoopAgentLogger(),
-      },
-      config: baseConfig(),
-    });
+    const result = await runTestAgent(gateway, sink);
 
     expect(result.finalOutput?.status).toBe("success");
     expect(result.runState).toBeDefined();
@@ -123,6 +205,85 @@ describe("runAgent", () => {
     expect(accepted).toMatchObject({ attempt: 1 });
   });
 
+  it("emits paired tool-call events before the step finishes", async () => {
+    const sink = createInMemoryEventSink();
+    const gateway = createFakeModelGateway({
+      executorModelIds: ["fake:a"],
+      responses: [
+        plannerCapture(samplePlan),
+        executorToolCallSuccess(successFinal),
+      ],
+    });
+
+    await runTestAgent(gateway, sink);
+
+    const types = sink.events.map((e) => e.type);
+    const requestedIdx = types.indexOf(AgentRuntimeEventType.ToolCallRequested);
+    const completedIdx = types.indexOf(AgentRuntimeEventType.ToolCallCompleted);
+    const stepIdx = types.indexOf(AgentRuntimeEventType.ExecutorStepFinished);
+    expect(requestedIdx).toBeGreaterThanOrEqual(0);
+    expect(completedIdx).toBeGreaterThan(requestedIdx);
+    expect(stepIdx).toBeGreaterThan(completedIdx);
+
+    expect(
+      eventOfType(sink.events, AgentRuntimeEventType.ToolCallRequested)
+    ).toMatchObject({
+      callId: "call_write_1",
+      stepIndex: 0,
+      toolName: "writeFiles",
+      args: { files: [{ path: "src/app.ts", content: "ok" }] },
+    });
+    expect(
+      eventOfType(sink.events, AgentRuntimeEventType.ToolCallCompleted)
+    ).toMatchObject({
+      callId: "call_write_1",
+      stepIndex: 0,
+      toolName: "writeFiles",
+      ok: true,
+      result: { success: true },
+    });
+    expect(
+      eventOfType(sink.events, AgentRuntimeEventType.ExecutorStepFinished)
+    ).toMatchObject({
+      toolCallIds: ["call_write_1"],
+      step: {
+        thought: {
+          toolCalls: [
+            {
+              callId: "call_write_1",
+              toolName: "writeFiles",
+            },
+          ],
+        },
+      },
+    });
+  });
+
+  it("emits structured tool-call errors", async () => {
+    const sink = createInMemoryEventSink();
+    const gateway = createFakeModelGateway({
+      executorModelIds: ["fake:a"],
+      responses: [plannerCapture(samplePlan), executorToolCallFailure()],
+    });
+
+    await runTestAgent(gateway, sink);
+
+    expect(
+      eventOfType(sink.events, AgentRuntimeEventType.ToolCallCompleted)
+    ).toMatchObject({
+      callId: "call_run_1",
+      stepIndex: 0,
+      toolName: "runCommand",
+      ok: false,
+      error: {
+        code: "runtime.tool_failed",
+        category: "tool_failed",
+        retryable: false,
+        message: "Tool call failed: tool exploded",
+      },
+    });
+  });
+
   it("mid-ladder failure with retry", async () => {
     const sink = createInMemoryEventSink();
     const retryableErr = new Error("rate limited");
@@ -136,19 +297,7 @@ describe("runAgent", () => {
       errorClassifier: () => classifiedError("rate_limit", true),
     });
 
-    await runAgent({
-      input: { prompt: "hi", projectId: "p1" },
-      deps: {
-        modelGateway: gateway,
-        sandboxGateway: createFakeSandboxGateway(),
-        toolFactory: createFakeToolFactory(),
-        messageStore: createInMemoryMessageStore(),
-        telemetryStore: createInMemoryTelemetryStore(),
-        eventSink: sink,
-        logger: createNoopAgentLogger(),
-      },
-      config: baseConfig(),
-    });
+    await runTestAgent(gateway, sink);
 
     const started = sink.events.filter(
       (e) => e.type === AgentRuntimeEventType.ExecutorAttemptStarted
@@ -181,19 +330,7 @@ describe("runAgent", () => {
         classifiedError("rate_limit", true, "Provider rate limit exceeded"),
     });
 
-    const result = await runAgent({
-      input: { prompt: "hi", projectId: "p1" },
-      deps: {
-        modelGateway: gateway,
-        sandboxGateway: createFakeSandboxGateway(),
-        toolFactory: createFakeToolFactory(),
-        messageStore: createInMemoryMessageStore(),
-        telemetryStore: createInMemoryTelemetryStore(),
-        eventSink: sink,
-        logger: createNoopAgentLogger(),
-      },
-      config: baseConfig(),
-    });
+    const result = await runTestAgent(gateway, sink);
 
     expect(result.error).toMatchObject({
       category: "rate_limit",
@@ -236,19 +373,7 @@ describe("runAgent", () => {
       errorClassifier: () => classifiedError("auth", false),
     });
 
-    await runAgent({
-      input: { prompt: "hi", projectId: "p1" },
-      deps: {
-        modelGateway: gateway,
-        sandboxGateway: createFakeSandboxGateway(),
-        toolFactory: createFakeToolFactory(),
-        messageStore: createInMemoryMessageStore(),
-        telemetryStore: createInMemoryTelemetryStore(),
-        eventSink: sink,
-        logger: createNoopAgentLogger(),
-      },
-      config: baseConfig(),
-    });
+    await runTestAgent(gateway, sink);
 
     const started = sink.events.filter(
       (e) => e.type === AgentRuntimeEventType.ExecutorAttemptStarted
@@ -274,19 +399,7 @@ describe("runAgent", () => {
       ],
     });
 
-    await runAgent({
-      input: { prompt: "hi", projectId: "p1" },
-      deps: {
-        modelGateway: gateway,
-        sandboxGateway: createFakeSandboxGateway(),
-        toolFactory: createFakeToolFactory(),
-        messageStore: createInMemoryMessageStore(),
-        telemetryStore: createInMemoryTelemetryStore(),
-        eventSink: sink,
-        logger: createNoopAgentLogger(),
-      },
-      config: baseConfig(),
-    });
+    await runTestAgent(gateway, sink);
 
     const escalated = sink.events.filter(
       (e) => e.type === AgentRuntimeEventType.ExecutorEscalated
@@ -306,19 +419,7 @@ describe("runAgent", () => {
       responses: [plannerErr, executorFinalize(successFinal)],
     });
 
-    await runAgent({
-      input: { prompt: "hi", projectId: "p1" },
-      deps: {
-        modelGateway: gateway,
-        sandboxGateway: createFakeSandboxGateway(),
-        toolFactory: createFakeToolFactory(),
-        messageStore: createInMemoryMessageStore(),
-        telemetryStore: createInMemoryTelemetryStore(),
-        eventSink: sink,
-        logger: createNoopAgentLogger(),
-      },
-      config: baseConfig(),
-    });
+    await runTestAgent(gateway, sink);
 
     const types = sink.events.map((e) => e.type);
     const plannerStartedIdx = types.indexOf(

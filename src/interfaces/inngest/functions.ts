@@ -267,6 +267,7 @@ export const codeAgentFunction = inngest.createFunction(
             error,
             category: error.category,
             retryable: error.retryable,
+            errorMessage: error.message,
           });
           if (!error.retryable) {
             break;

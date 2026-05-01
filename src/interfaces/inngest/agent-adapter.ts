@@ -14,7 +14,7 @@ import {
   type MessageRepository,
 } from "@/features/messages";
 import type { Logger } from "@/platform/log";
-import type { Thought } from "@/shared/schemas/thought";
+import type { Thought, ThoughtToolCall } from "@/shared/schemas/thought";
 
 type RuntimeLogEntry = {
   level: "info" | "warn";
@@ -49,6 +49,30 @@ function runtimeLogEntry(event: AgentRuntimeEvent): RuntimeLogEntry | null {
         level: "info",
         event: "executor attempt",
         metadata: { attempt: event.attempt, model: event.model },
+      };
+    }
+    case AgentRuntimeEventType.ToolCallRequested: {
+      return {
+        level: "info",
+        event: "tool call requested",
+        metadata: {
+          callId: event.callId,
+          stepIndex: event.stepIndex,
+          toolName: event.toolName,
+        },
+      };
+    }
+    case AgentRuntimeEventType.ToolCallCompleted: {
+      return {
+        level: event.ok ? "info" : "warn",
+        event: "tool call completed",
+        metadata: {
+          callId: event.callId,
+          stepIndex: event.stepIndex,
+          toolName: event.toolName,
+          ok: event.ok,
+          errorCategory: event.ok ? undefined : event.error.category,
+        },
       };
     }
     case AgentRuntimeEventType.ExecutorAttemptFailed: {
@@ -96,6 +120,59 @@ function runtimeLogEntry(event: AgentRuntimeEvent): RuntimeLogEntry | null {
   }
 }
 
+type ThoughtToolCallCompletion = NonNullable<ThoughtToolCall["completion"]>;
+
+function durationPart(durationMs: number | undefined): { durationMs?: number } {
+  return typeof durationMs === "number" ? { durationMs } : {};
+}
+
+function toJsonCompatible(value: unknown): unknown {
+  if (value === undefined) {
+    return null;
+  }
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return String(value);
+  }
+}
+
+function completionFromEvent(
+  event: Extract<
+    AgentRuntimeEvent,
+    { type: typeof AgentRuntimeEventType.ToolCallCompleted }
+  >
+): ThoughtToolCallCompletion {
+  if (event.ok) {
+    return {
+      ok: true,
+      ...durationPart(event.durationMs),
+      result: toJsonCompatible(event.result),
+    };
+  }
+  return {
+    ok: false,
+    ...durationPart(event.durationMs),
+    error: event.error,
+  };
+}
+
+function projectThoughtsWithCompletions(
+  thoughts: Thought[],
+  completions: ReadonlyMap<string, ThoughtToolCallCompletion>
+): Thought[] {
+  if (completions.size === 0) {
+    return thoughts;
+  }
+  return thoughts.map((thought) => ({
+    ...thought,
+    toolCalls: thought.toolCalls?.map((toolCall) => {
+      const completion = completions.get(toolCall.callId);
+      return completion ? { ...toolCall, completion } : toolCall;
+    }),
+  }));
+}
+
 export function logAgentRuntimeEvent(
   log: Logger,
   event: AgentRuntimeEvent
@@ -141,17 +218,25 @@ export function makePersistedThoughtSink(args: {
   messageRepository: MessageRepository;
 }): (event: AgentRuntimeEvent) => Promise<void> {
   const { log, persistedMessageId, thoughts, messageRepository } = args;
+  const toolCallCompletions = new Map<string, ThoughtToolCallCompletion>();
   return async (event) => {
     logAgentRuntimeEvent(log, event);
+    if (event.type === AgentRuntimeEventType.ToolCallCompleted) {
+      toolCallCompletions.set(event.callId, completionFromEvent(event));
+    }
     if (event.type === AgentRuntimeEventType.ExecutorStepFinished) {
       // The agent runtime is the single source of truth for the `thoughts`
       // array — `execute-run.ts` already appends each step before emitting
       // ExecutorStepFinished. The sink only persists the current snapshot;
       // pushing here would double-record every step.
+      const projectedThoughts = projectThoughtsWithCompletions(
+        thoughts,
+        toolCallCompletions
+      );
       await recordAssistantThoughts(
         {
           messageId: persistedMessageId,
-          thoughts,
+          thoughts: projectedThoughts,
         },
         {
           repository: messageRepository,

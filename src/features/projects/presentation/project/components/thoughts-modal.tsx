@@ -27,9 +27,12 @@ interface ThoughtsModalProps {
 const ToolCallsSection = ({ thought }: { thought: Thought }) => {
   const [expanded, setExpanded] = useState(false);
   const callCount = thought.toolCalls?.length ?? 0;
-  const resultCount = thought.toolResults?.length ?? 0;
+  const resultCount =
+    thought.toolCalls?.filter((toolCall) => toolCall.completion).length ?? 0;
 
-  if (callCount === 0 && resultCount === 0) return null;
+  if (callCount === 0) {
+    return null;
+  }
 
   return (
     <div className="ml-6 mt-3">
@@ -47,8 +50,8 @@ const ToolCallsSection = ({ thought }: { thought: Thought }) => {
           </span>
         </CollapsibleTrigger>
         <CollapsibleContent className="mt-2 space-y-3">
-          {thought.toolCalls?.map((tc, tcIdx) => (
-            <div key={tcIdx}>
+          {thought.toolCalls?.map((tc) => (
+            <div key={tc.callId}>
               <div className="text-xs text-zinc-400 font-mono mb-1">
                 → {tc.toolName}
               </div>
@@ -57,14 +60,20 @@ const ToolCallsSection = ({ thought }: { thought: Thought }) => {
                   {JSON.stringify(tc.args, null, 2)}
                 </pre>
               </div>
-              {thought.toolResults?.[tcIdx] && (
+              {tc.completion && (
                 <>
                   <div className="text-xs text-zinc-400 font-mono mt-1 mb-1">
-                    ← result
+                    ← {tc.completion.ok ? "result" : "error"}
                   </div>
                   <div className="bg-zinc-900 rounded border border-zinc-800 p-2 text-xs">
-                    <pre className="text-zinc-300 overflow-x-auto max-h-32 text-xs">
-                      {thought.toolResults[tcIdx]}
+                    <pre className="text-zinc-300 overflow-x-auto max-h-32 text-xs whitespace-pre-wrap break-all">
+                      {JSON.stringify(
+                        tc.completion.ok
+                          ? tc.completion.result
+                          : tc.completion.error,
+                        null,
+                        2
+                      )}
                     </pre>
                   </div>
                 </>

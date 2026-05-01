@@ -17,8 +17,14 @@ function formatEvent(event: AgentRuntimeEvent): string {
       return `${event.type} error=${event.error}`;
     case AgentRuntimeEventType.ExecutorAttemptStarted:
       return `${event.type} attempt=${event.attempt} model=${event.model}`;
+    case AgentRuntimeEventType.ToolCallRequested:
+      return `${event.type} step=${event.stepIndex} callId=${event.callId} tool=${event.toolName}`;
+    case AgentRuntimeEventType.ToolCallCompleted:
+      return event.ok
+        ? `${event.type} step=${event.stepIndex} callId=${event.callId} tool=${event.toolName} ok=true`
+        : `${event.type} step=${event.stepIndex} callId=${event.callId} tool=${event.toolName} ok=false category=${event.error.category}`;
     case AgentRuntimeEventType.ExecutorStepFinished:
-      return `${event.type} step=${event.step.stepIndex} finishReason=${event.step.finishReason ?? "-"}`;
+      return `${event.type} step=${event.step.stepIndex} finishReason=${event.step.finishReason ?? "-"} toolCallIds=${event.toolCallIds.join(",") || "-"}`;
     case AgentRuntimeEventType.ExecutorAttemptFailed:
       return `${event.type} attempt=${event.attempt} category=${event.error.category} retryable=${event.error.retryable} error=${event.error.message}`;
     case AgentRuntimeEventType.ExecutorEscalated:

@@ -157,10 +157,16 @@ export function createFakeModelGateway(
       if (next instanceof Error) {
         throw next;
       }
+      let result: GenerateTextResult;
       if (typeof next === "function") {
-        return await next(req);
+        result = await next(req);
+      } else {
+        result = next ?? { steps: [] };
       }
-      return next ?? { steps: [] };
+      for (const step of result.steps) {
+        await req.onStepFinish?.(step);
+      }
+      return result;
     },
     resolvePlannerModelId() {
       return plannerModelId;

@@ -29,6 +29,7 @@ export type VerificationToolKind = Extract<
 >;
 
 export interface ThoughtToolCall {
+  callId: string;
   toolName: string;
   args: Record<string, unknown>;
 }
@@ -37,7 +38,6 @@ export interface Thought {
   stepIndex: number;
   text: string;
   toolCalls?: ThoughtToolCall[];
-  toolResults?: string[];
   reasoningText?: string;
   finishReason?: string;
 }

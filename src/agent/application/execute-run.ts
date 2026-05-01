@@ -2,7 +2,9 @@ import {
   AGENT_CONFIG,
   TASK_SUMMARY_RE,
   addUsage,
+  agentErrorMessage,
   buildTelemetry,
+  classifyAgentError,
   EscalateReason,
   extractTaskSummary,
   readUsage,
@@ -10,6 +12,7 @@ import {
   stepTextOf,
 } from "../domain";
 import { AgentRuntimeEventType } from "../domain/events";
+import type { AgentError } from "../domain/errors";
 import type {
   AgentStepSnapshot,
   PlanOutput,
@@ -26,6 +29,8 @@ import type {
   ModelGateway,
   ModelMessage,
   SandboxGateway,
+  ToolCallFinishEvent,
+  ToolCallStartEvent,
   ToolFactory,
 } from "../ports";
 import { planSnippet } from "./plan-run";
@@ -64,7 +69,6 @@ function snapshotFromStep(step: GenerateTextStepResult): AgentStepSnapshot {
     stepIndex: step.stepIndex,
     text: step.text ?? "",
     toolCalls: step.toolCalls,
-    toolResults: step.toolResults,
     reasoningText: step.reasoningText,
     finishReason: step.finishReason,
   };
@@ -72,6 +76,39 @@ function snapshotFromStep(step: GenerateTextStepResult): AgentStepSnapshot {
     stepIndex: step.stepIndex,
     thought,
     finishReason: step.finishReason,
+  };
+}
+
+function toolCallEventBase(event: ToolCallStartEvent | ToolCallFinishEvent) {
+  return {
+    callId: event.callId,
+    stepIndex: event.stepIndex,
+    toolName: event.toolName,
+  };
+}
+
+function recordCompletedToolCallId(
+  map: Map<number, string[]>,
+  stepIndex: number,
+  id: string
+) {
+  const ids = map.get(stepIndex) ?? [];
+  if (!ids.includes(id)) {
+    ids.push(id);
+  }
+  map.set(stepIndex, ids);
+}
+
+function classifyToolCallError(err: unknown): AgentError {
+  const classified = classifyAgentError(err);
+  if (classified.category === "cancelled") {
+    return classified;
+  }
+  return {
+    code: "runtime.tool_failed",
+    category: "tool_failed",
+    retryable: false,
+    message: `Tool call failed: ${agentErrorMessage(err)}`,
   };
 }
 
@@ -116,6 +153,42 @@ export async function executeRun(args: {
   const tools = deps.toolFactory.createExecutorTools({ sandbox, runState });
 
   const systemPrompt = input.buildExecutorSystemPrompt(planSnippet(plan));
+  const completedToolCallIdsByStep = new Map<number, string[]>();
+
+  const onToolCallStart = async (event: ToolCallStartEvent) => {
+    await deps.eventSink.emit({
+      type: AgentRuntimeEventType.ToolCallRequested,
+      ...toolCallEventBase(event),
+      args: event.args,
+    });
+  };
+
+  const onToolCallFinish = async (event: ToolCallFinishEvent) => {
+    recordCompletedToolCallId(
+      completedToolCallIdsByStep,
+      event.stepIndex,
+      event.callId
+    );
+    const base = {
+      ...toolCallEventBase(event),
+      durationMs: event.durationMs,
+    };
+    if (event.ok) {
+      await deps.eventSink.emit({
+        type: AgentRuntimeEventType.ToolCallCompleted,
+        ...base,
+        ok: true,
+        result: event.result,
+      });
+      return;
+    }
+    await deps.eventSink.emit({
+      type: AgentRuntimeEventType.ToolCallCompleted,
+      ...base,
+      ok: false,
+      error: classifyToolCallError(event.error),
+    });
+  };
 
   try {
     const result = await deps.modelGateway.generateText({
@@ -125,6 +198,8 @@ export async function executeRun(args: {
       tools,
       maxOutputTokens: AGENT_CONFIG.maxOutputTokens,
       providerOptions: input.providerCacheOptions,
+      onToolCallStart,
+      onToolCallFinish,
       stopWhen: [
         () => runState.finalOutput !== undefined,
         ({ steps }) => {
@@ -135,6 +210,9 @@ export async function executeRun(args: {
       ],
       onStepFinish: async (stepResult) => {
         const snapshot = snapshotFromStep(stepResult);
+        const toolCallIds = [
+          ...(completedToolCallIdsByStep.get(snapshot.stepIndex) ?? []),
+        ];
 
         deps.logger.info({
           event: "agent step",
@@ -173,6 +251,7 @@ export async function executeRun(args: {
           deps.eventSink.emit({
             type: AgentRuntimeEventType.ExecutorStepFinished,
             step: snapshot,
+            toolCallIds,
           }),
           telemetryPromise,
         ]);

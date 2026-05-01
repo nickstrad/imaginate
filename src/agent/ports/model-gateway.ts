@@ -25,12 +25,26 @@ export interface ToolDefinition {
 
 export type ToolSet = Record<string, ToolDefinition>;
 
+export interface GenerateTextToolCall {
+  callId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+}
+
+export type ToolCallStartEvent = GenerateTextToolCall & {
+  stepIndex: number;
+};
+
+export type ToolCallFinishEvent = GenerateTextToolCall & {
+  stepIndex: number;
+  durationMs?: number;
+} & ({ ok: true; result: unknown } | { ok: false; error: unknown });
+
 export interface GenerateTextStepResult {
   stepIndex: number;
   text?: string;
   finishReason?: string;
-  toolCalls?: Array<{ toolName: string; args: Record<string, unknown> }>;
-  toolResults?: string[];
+  toolCalls?: GenerateTextToolCall[];
   reasoningText?: string;
   usage?: {
     promptTokens: number;
@@ -52,6 +66,8 @@ export interface GenerateTextRequest {
   maxOutputTokens?: number;
   providerOptions?: Record<string, unknown>;
   stopWhen?: Array<(state: GenerateTextStopWhenState) => boolean>;
+  onToolCallStart?: (event: ToolCallStartEvent) => void | Promise<void>;
+  onToolCallFinish?: (event: ToolCallFinishEvent) => void | Promise<void>;
   onStepFinish?: (step: GenerateTextStepResult) => void | Promise<void>;
 }
 
