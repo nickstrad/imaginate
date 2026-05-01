@@ -109,6 +109,7 @@ Steps 1 and 2 should ship together because selecting the current local adapter w
 ## Dependencies & conflicts
 
 - **Blocks `cli-ink-app/`** — chunk 03 of the Ink plan composes the local-workspace adapter this plan hardens. If this plan slips, the Ink plan inlines the minimum needed and the broader local-sandbox work continues here.
+- **Blocks `cli-git-tools.md`** — git tools must run against the same local `Workspace` rooted at cwd that this plan delivers. The git plan starts only after the local adapter is hardened (path containment, command timeouts, `getHost`).
 - **Coordinates with `agent-harness-transport-agnostic/`** — that plan renames `SandboxGateway` to `Workspace` and adds `kind: "remote" | "local" | "readonly"`. This plan's local adapter must implement `Workspace` once the rename ships. Until then it implements `SandboxGateway`; the rename is a mechanical follow-up.
 - **No conflict with** `sandbox-auto-revive.md` (touches sandbox lifecycle, not local-mode behavior), `agent-telemetry-refactor/`, or `openrouter-model-route-fallbacks.md`.
 - `docs/plans/drift/` contains only its README.

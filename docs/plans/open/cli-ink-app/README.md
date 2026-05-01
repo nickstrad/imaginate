@@ -1,5 +1,9 @@
 # CLI Ink coding agent
 
+## Required reading before planning
+
+Before writing a new full chunk file here, promoting a stub, or reshaping the chunk index, read [`docs/documentation/harness-engineering/harness_engineering_a_design_guide_claude_code.pdf`](../../../documentation/harness-engineering/harness_engineering_a_design_guide_claude_code.pdf). It overlaps directly with this plan's surface area (chat loop, tool log, interrupts, per-folder persistence, approval flows) and should guide how chunks are scoped — full-detail vs. one-line stubs, where seams belong, and which CLI behaviors are worth specifying up front vs. discovering at implementation.
+
 **Implement after `agent-harness-transport-agnostic/`.** This plan assumes the harness refactor has shipped: `createAgentSession`, `Workspace` (replacing `SandboxGateway`), `AgentError`, structured `tool.call.*` events, `AbortSignal` support, optional `toolCallGate`, narrowed `AgentRuntimeDeps` (no `MessageStore`), and `runAgent` returning a frozen `RunState`. Several originally-tricky chunks shrink because they now compose harness primitives instead of reinventing them.
 
 ## Goal
@@ -170,7 +174,9 @@ Identity is the file path (`<cwd>/.imaginate/agent.sqlite`). No `project` table.
 4. `04-sqlite-per-folder` ‖ — CLI-owned per-folder SQLite for messages + runs + telemetry; harness `TelemetryStore` keyed on opaque `turnKey`. Can ship in parallel with chunk 3.
 5. `05-ink-shell` — Add `ink`, render the first interactive shell using `createAgentSession`. Transcript, prompt input, active run status, footer.
 6. `06-tool-and-verify-panels` — Plan output, structured tool log (from `tool.call.*`), verification rows, token usage, diff summary, `AgentError` rendering.
-7. `07-polish` — Real Ctrl+C cancel via `AbortSignal`, optional `toolCallGate` for `/approve` mode, scroll, slash commands, narrow-terminal layout, plain-text fallback.
+7. `07-interrupts-and-polish` — Three flavors of step-boundary interrupt: Ctrl+C full cancel via `AbortSignal`; Escape pause-and-steer via `PauseController` (the prompt-input stays editable while paused, submit calls `resumeWith({ additionalUserMessage })`, the run continues with the new context); optional `toolCallGate` for `/approve` mode. Plus scroll, slash commands, narrow-terminal layout, plain-text fallback.
+
+Git tool rendering (status/diff/branch/commit panels) lands alongside chunk 06 and is owned by `cli-git-tools.md`; chunk 06 generalizes its tool log so the git plan can mount a diff-aware renderer without forking the panel.
 
 Chunks 1 and 2 must land before Ink. Chunk 3 unblocks running against cwd. Chunk 4 unblocks back-and-forth conversation. Chunk 5 ships the first interactive app. Chunks 6 and 7 are incremental.
 
@@ -182,6 +188,7 @@ Chunks 1 and 2 must land before Ink. Chunk 3 unblocks running against cwd. Chunk
 - Re-running in the same folder loads previous messages into the planner. Different folders → independent histories.
 - The Ink app sends prompts, shows messages, surfaces planner output, structured tool calls, command results, verification rows, token usage, and final output as live updates from `AgentRuntimeEvent`s.
 - Ctrl+C cancels in-flight runs via the harness `AbortSignal`; cancellation produces an `AgentError` with `category: "cancelled"`.
+- Escape pauses the in-flight run at the next step boundary without killing it; the user can type a new message and submit it, which resumes the same run with the new message threaded into the conversation. The pause UI distinguishes "paused, awaiting input" from "running" and from "cancelled."
 - Reducer tests cover state transitions using plain runtime events and `AgentError`s.
 - Ink component tests cover transcript rendering, prompt submission, active-run status, error state, and narrow-terminal layout via `ink-testing-library`.
 - SQLite store tests use temp-file databases.
@@ -205,6 +212,7 @@ Chunks 1 and 2 must land before Ink. Chunk 3 unblocks running against cwd. Chunk
 - **Depends on `cli-local-sandbox.md`** — provides the local-workspace adapter that satisfies `Workspace { kind: "local" }`. If it slips, chunk 3 inlines the minimum cwd implementation and the broader sandbox plan continues separately.
 - **Supersedes `cli-sqlite-persistence.md`** — that plan has been deleted. Folder path is the identity; there is no `local_project` table or `--project` flag. Chunk 04 owns the per-folder SQLite schema.
 - **Coordinates with `agent-telemetry-refactor/`** — chunk 04 here writes a per-folder SQLite `telemetry` table that mirrors the `RunTelemetrySummary` type defined by that plan. Schemas differ (SQLite vs Postgres); the TS type is shared.
+- **Coordinates with `cli-git-tools.md`** — that plan adds git as an agent tool surface with its own permission classes; chunk 06 here renders its `tool.call.*` events. The two plans must agree on the tool-log component contract (panel slot + structured payload shape) before chunk 06 ships.
 - **No conflict with** `openrouter-model-route-fallbacks.md` or `sandbox-auto-revive.md`.
 - `docs/plans/drift/` contains only its README.
 

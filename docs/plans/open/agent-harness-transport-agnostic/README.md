@@ -1,5 +1,9 @@
 # Agent harness: transport-agnostic core
 
+## Required reading before planning
+
+Before writing a new full chunk file here, promoting a stub, or reshaping the chunk index, read [`docs/documentation/harness-engineering/harness_engineering_a_design_guide_claude_code.pdf`](../../../documentation/harness-engineering/harness_engineering_a_design_guide_claude_code.pdf). The Claude Code harness design guide informs how this plan splits primitives (cancel, gate, pause, session, workspace) and what depth each chunk should carry — apply its lessons when deciding full-detail vs. one-line stubs and when scoping interrupts, sessions, and tool surfaces.
+
 ## Goal
 
 Refactor `src/agent` so the same harness powers the web app (Inngest), the CLI (Ink coding agent), and future transports (Slack, evals, internal tooling) without each one forking the loop, faking identifiers, or losing structured information. The end state is a small, neutral core (`runAgent` / `AgentSession` / events / ports) plus thin transport adapters that compose it.
@@ -108,7 +112,7 @@ Three phases, ordered. Phase A is additive (no breaking changes). Phase B is int
 
 **Phase C — new capabilities for non-web transports**
 
-6. `06-cancel-and-gate` — Thread `AbortSignal` through `runAgent` → model gateway → sandbox commands. Add optional `toolCallGate` on `ToolFactory`.
+6. `06-interrupts` — Thread `AbortSignal` through `runAgent` → model gateway → sandbox commands (full cancel). Add optional `toolCallGate` on `ToolFactory` (per-tool approval). Add a `PauseController` primitive that suspends the executor at the next step boundary and resumes via `resumeWith({ additionalUserMessage })`, so transports can implement "press Escape to inject a new instruction without killing the run." All three are flavors of cooperative step-boundary interrupts; they share the same suspension machinery but expose different verbs.
 7. `07-pluggable-tools` — `createExecutorTools({ extraTools?, restrictTo?, wrap? })`.
 8. `08-agent-session` — Introduce `createAgentSession` for warm multi-turn (CLI Ink, Slack threads).
 9. `09-workspace-rename` — Rename `SandboxGateway` → `Workspace`, add `kind` and `acquireSession`. Move preview-URL formatting to a separate optional `PreviewProvider` port. Two CLI bugs the new lifecycle should fix: (a) `agent-local` provisions the e2b sandbox eagerly before the planner runs, so non-coding answers still pay full sandbox-creation cost — `acquireSession` must be lazy (only on first executor tool use); (b) `WorkspaceSession.close()` must be wired into the CLI to end the ~minute keepalive hang where the process blocks after `run.finished` because the e2b connection is never disposed.
@@ -122,6 +126,7 @@ Phases gate each other: Phase A must land before Phase B (the ladder extraction 
 - A new transport can be wired by implementing `Workspace`, providing event/persistence hooks, and calling `createAgentSession` — no need to fork loops, ports, or error taxonomies.
 - `runAgent` can be cancelled with `AbortSignal`; in-flight model and sandbox calls observe the signal.
 - A tool-call gate can pause execution for approval and resume cleanly.
+- A `PauseController` can suspend the run at the next step boundary; the transport can call `resumeWith({ additionalUserMessage })` to thread a new user message into the conversation and continue the same run without losing prior state.
 - Errors reach transports as structured `{ code, category, retryable, message }`, not strings.
 - The harness can be exercised end-to-end with no `MessageStore` in scope.
 - Behavior parity: existing web-app runs produce identical user-visible output and message rows.
@@ -138,6 +143,7 @@ Phases gate each other: Phase A must land before Phase B (the ladder extraction 
 ## Dependencies & conflicts
 
 - **Blocks `cli-ink-app/`** — that plan's chunks 3, 4, 5, and 7 compose primitives this plan introduces (`Workspace`, narrowed deps, `createAgentSession`, `AbortSignal`, `tool.call.*` events). Ink should not start until at least Phase B is shipped.
+- **Blocks `cli-git-tools.md`** — that plan composes `toolCallGate` (chunk 06) and `AbortSignal` plumbing through `Workspace.commands.run` to gate and interrupt git operations. It cannot start until Phase C ships those primitives.
 - **Blocks `agent-telemetry-refactor/`** — that plan's `summarizeRun`, `turnKey` keying, single end-of-run write, and reuse of `AgentError` / `EscalationReason` all assume this plan's harness surface.
 - **Coordinates with `cli-local-sandbox.md`** — that plan owns the local-workspace adapter; this plan's chunk 9 (stub) only renames the port to `Workspace` and adds `kind` + `acquireSession`. The two plans must agree on the adapter signature when chunk 9 lands.
 - `openrouter-model-route-fallbacks.md` is archived. Treat it as historical route-fallback context only, not an active dependency or conflict for this plan.
