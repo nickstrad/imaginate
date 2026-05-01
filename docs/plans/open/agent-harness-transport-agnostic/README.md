@@ -1,9 +1,5 @@
 # Agent harness: transport-agnostic core
 
-## Required reading before planning
-
-Before writing a new full chunk file here, promoting a stub, or reshaping the chunk index, read [`docs/documentation/harness-engineering/harness_engineering_a_design_guide_claude_code.pdf`](../../../documentation/harness-engineering/harness_engineering_a_design_guide_claude_code.pdf). The Claude Code harness design guide informs how this plan splits primitives (cancel, gate, pause, session, workspace) and what depth each chunk should carry — apply its lessons when deciding full-detail vs. one-line stubs and when scoping interrupts, sessions, and tool surfaces.
-
 ## Goal
 
 Refactor `src/agent` so the same harness powers the web app (Inngest), the CLI (Ink coding agent), and future transports (Slack, evals, internal tooling) without each one forking the loop, faking identifiers, or losing structured information. The end state is a small, neutral core (`runAgent` / `AgentSession` / events / ports) plus thin transport adapters that compose it.

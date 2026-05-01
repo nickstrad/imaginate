@@ -1,9 +1,5 @@
 # CLI Ink coding agent
 
-## Required reading before planning
-
-Before writing a new full chunk file here, promoting a stub, or reshaping the chunk index, read [`docs/documentation/harness-engineering/harness_engineering_a_design_guide_claude_code.pdf`](../../../documentation/harness-engineering/harness_engineering_a_design_guide_claude_code.pdf). It overlaps directly with this plan's surface area (chat loop, tool log, interrupts, per-folder persistence, approval flows) and should guide how chunks are scoped — full-detail vs. one-line stubs, where seams belong, and which CLI behaviors are worth specifying up front vs. discovering at implementation.
-
 **Implement after `agent-harness-transport-agnostic/`.** This plan assumes the harness refactor has shipped: `createAgentSession`, `Workspace` (replacing `SandboxGateway`), `AgentError`, structured `tool.call.*` events, `AbortSignal` support, optional `toolCallGate`, narrowed `AgentRuntimeDeps` (no `MessageStore`), and `runAgent` returning a frozen `RunState`. Several originally-tricky chunks shrink because they now compose harness primitives instead of reinventing them.
 
 ## Goal
