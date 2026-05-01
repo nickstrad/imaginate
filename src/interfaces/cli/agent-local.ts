@@ -447,11 +447,21 @@ function printOutcome(
       title: finalOutput.title,
     });
     printLocalLog("outcome.summary", json, { summary: finalOutput.summary });
+    if (finalOutput.status === "failed") {
+      printLocalLog("outcome.failure", json, {
+        errorCategory: result.error?.category,
+        errorCode: result.error?.code,
+        error: result.error?.message,
+        lastErrorMessage: result.lastErrorMessage,
+      });
+    }
   } else {
     printLocalLog("outcome.final_output", json, {
       status: "missing",
       errorCategory: result.error?.category,
+      errorCode: result.error?.code,
       error: result.error?.message,
+      lastErrorMessage: result.lastErrorMessage,
     });
   }
 

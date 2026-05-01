@@ -261,6 +261,18 @@ export const codeAgentFunction = inngest.createFunction(
         if (outcome.error) {
           const error = execDeps.modelGateway.classifyError(outcome.error);
           runtimeError = { cause: outcome.error, error };
+          log.warn({
+            event: "executor attempt failed",
+            metadata: {
+              attempt: i + 1,
+              model: descriptorString,
+              category: error.category,
+              code: error.code,
+              retryable: error.retryable,
+              errorMessage: error.message,
+              rawError: agentErrorMessage(outcome.error),
+            },
+          });
           await execDeps.eventSink.emit({
             type: "executor.attempt.failed" as const,
             attempt: i + 1,
@@ -344,6 +356,21 @@ export const codeAgentFunction = inngest.createFunction(
     }
 
     const isError = !finalOutput || finalOutput.status === "failed";
+
+    if (isError) {
+      log.warn({
+        event: "run failed",
+        metadata: {
+          finalStatus: finalOutput?.status,
+          finalSummary: finalOutput?.summary,
+          stepsCount: executeOutcome.stepsCount,
+          terminalErrorCategory: terminalError?.category,
+          terminalErrorCode: terminalError?.code,
+          terminalErrorMessage: terminalError?.message,
+          lastErrorMessage: executeOutcome.lastErrorMessage,
+        },
+      });
+    }
 
     const sandboxUrl = await loggedStep(
       log,
