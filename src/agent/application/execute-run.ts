@@ -220,8 +220,8 @@ export async function executeRun(args: {
             stepIndex: snapshot.stepIndex,
             finishReason: snapshot.finishReason,
             text:
-              snapshot.thought.text.length > 300
-                ? snapshot.thought.text.slice(0, 300) + "…"
+              snapshot.thought.text.length > 2000
+                ? snapshot.thought.text.slice(0, 2000) + "…"
                 : snapshot.thought.text,
             toolCalls: snapshot.thought.toolCalls?.map((tc) => tc.toolName),
           },

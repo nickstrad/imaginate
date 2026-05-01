@@ -205,6 +205,11 @@ export const codeAgentFunction = inngest.createFunction(
 
     let stepsCount = 0;
     let runtimeError: RuntimeErrorState | undefined;
+    const escalations: Array<{
+      attempt: number;
+      model: string;
+      reason?: string;
+    }> = [];
     const ladder = execDeps.modelGateway.listExecutorModelIds();
 
     const executeOutcome = await loggedStep(log, step, "execute", async () => {
@@ -297,6 +302,44 @@ export const codeAgentFunction = inngest.createFunction(
           break;
         }
 
+        escalations.push({
+          attempt: i + 1,
+          model: descriptorString,
+          reason: outcome.reason,
+        });
+        log.warn({
+          event: "executor escalated",
+          metadata: {
+            attempt: i + 1,
+            model: descriptorString,
+            reason: outcome.reason ?? null,
+            hasFinalOutput: runState.finalOutput !== undefined,
+            finalStatus: runState.finalOutput?.status,
+          },
+        });
+        if (outcome.reason === "stub_language") {
+          const lastText = thoughts[thoughts.length - 1]?.text ?? "";
+          const lower = lastText.toLowerCase();
+          const terms = ["todo", "placeholder", "not implemented"];
+          for (const term of terms) {
+            const idx = lower.indexOf(term);
+            if (idx === -1) {
+              continue;
+            }
+            const start = Math.max(0, idx - 80);
+            const end = Math.min(lastText.length, idx + term.length + 80);
+            log.warn({
+              event: "stub language match",
+              metadata: {
+                attempt: i + 1,
+                term,
+                offset: idx,
+                window: lastText.slice(start, end),
+              },
+            });
+            break;
+          }
+        }
         await execDeps.eventSink.emit({
           type: "executor.escalated" as const,
           attempt: i + 1,
@@ -308,6 +351,17 @@ export const codeAgentFunction = inngest.createFunction(
       const lastErrorMessage = runtimeError
         ? agentErrorMessage(runtimeError.cause)
         : null;
+
+      if (!runState.finalOutput && !error && escalations.length > 0) {
+        log.warn({
+          event: "executor ladder exhausted via escalation",
+          metadata: {
+            ladderSize: ladder.length,
+            escalations,
+            stepsCount,
+          },
+        });
+      }
 
       await execDeps.eventSink.emit({
         type: "agent.finished" as const,
@@ -324,6 +378,7 @@ export const codeAgentFunction = inngest.createFunction(
         usage: cumulativeUsage,
         error,
         lastErrorMessage,
+        escalations,
       };
     });
 
@@ -368,6 +423,7 @@ export const codeAgentFunction = inngest.createFunction(
           terminalErrorCode: terminalError?.code,
           terminalErrorMessage: terminalError?.message,
           lastErrorMessage: executeOutcome.lastErrorMessage,
+          escalations: executeOutcome.escalations,
         },
       });
     }
