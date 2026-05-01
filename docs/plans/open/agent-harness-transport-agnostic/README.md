@@ -101,14 +101,10 @@ Three phases, ordered. Phase A is additive (no breaking changes). Phase B is int
 
 **Per `docs/plans/AGENTS.md`, only the next two chunks have files. Later chunks are one-line stubs and get promoted to full files when they become the next-to-implement.**
 
-**Phase A — additive, no breaking changes**
-
-3. [`03-richer-events.md`](03-richer-events.md) — Add `tool.call.requested` / `tool.call.completed` with structured args + results. Make `executor.step.finished` authoritative via `toolCallIds`. _(current chunk, full detail)_
-
 **Phase B — interface cleanup**
 
-4. `04-extract-execute-with-ladder` — Pull the ladder into `execute-with-ladder.ts` with hook callbacks. `runAgent` becomes a thin wrapper. Inngest deletes its fork. _(N+1, lighter detail)_
-5. `05-narrow-deps` — Remove `MessageStore` from `AgentRuntimeDeps`. Move `TelemetryStore` into `persistence?: { ... }`. Drop `projectId` / `messageId` from core ports; replace with opaque `turnKey` / `conversationKey`. Removes deprecated `lastErrorMessage`.
+4. [`04-extract-execute-with-ladder.md`](04-extract-execute-with-ladder.md) — Pull the ladder into `execute-with-ladder.ts` with hook callbacks. `runAgent` becomes a thin wrapper. Inngest deletes its fork. _(current chunk, full detail)_
+5. [`05-narrow-deps.md`](05-narrow-deps.md) — Remove `MessageStore` from `AgentRuntimeDeps`. Move `TelemetryStore` into `persistence?: { ... }`. Drop `projectId` / `messageId` from core ports; replace with opaque `turnKey` / `conversationKey`. Removes deprecated `lastErrorMessage`. _(N+1, lighter detail)_
 
 **Phase C — new capabilities for non-web transports**
 
