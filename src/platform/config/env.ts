@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { MODEL_KEYS } from "@/shared/config/models";
+import { PROVIDERS, PROVIDER_VALUES } from "@/platform/providers/types";
 
 const ModelIdSchema = z.enum(MODEL_KEYS);
 
@@ -12,10 +13,17 @@ const LogLevelSchema = z
   .enum(["debug", "info", "warn", "error"])
   .default("info");
 
+const ModelProviderSchema = z.enum(PROVIDER_VALUES);
+
 export const EnvSchema = z.object({
   NODE_ENV: NodeEnvSchema,
 
   OPENROUTER_API_KEY: z.string().min(1).optional(),
+  LM_STUDIO_BASE_URL: z.string().url().default("http://127.0.0.1:1234/v1"),
+  LM_STUDIO_API_KEY: z.string().min(1).optional(),
+  LM_STUDIO_MODEL: z.string().min(1).default("qwen/qwen3-coder-next"),
+
+  MODEL_PROVIDER: ModelProviderSchema.default(PROVIDERS.OPENROUTER),
 
   MODEL_PLANNER: ModelIdSchema.default(MODEL_KEYS.GEMINI_3_1_FLASH_LITE),
   MODEL_EXECUTOR_DEFAULT: ModelIdSchema.default(MODEL_KEYS.CLAUDE_SONNET_4_6),
@@ -41,6 +49,10 @@ function readRaw() {
   return {
     NODE_ENV: process.env.NODE_ENV,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || undefined,
+    LM_STUDIO_BASE_URL: process.env.LM_STUDIO_BASE_URL || undefined,
+    LM_STUDIO_API_KEY: process.env.LM_STUDIO_API_KEY || undefined,
+    LM_STUDIO_MODEL: process.env.LM_STUDIO_MODEL || undefined,
+    MODEL_PROVIDER: process.env.MODEL_PROVIDER || undefined,
     MODEL_PLANNER: process.env.MODEL_PLANNER || undefined,
     MODEL_EXECUTOR_DEFAULT: process.env.MODEL_EXECUTOR_DEFAULT || undefined,
     MODEL_EXECUTOR_FALLBACK_1:

@@ -24,6 +24,7 @@
     "*.{json,md,css,yml,yaml}": "prettier --write"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "^2.0.42",
     "@anthropic-ai/claude-code": "^1.0.55",
     "@e2b/code-interpreter": "^1.5.1",
     "@hookform/resolvers": "^5.1.1",
