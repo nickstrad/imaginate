@@ -136,6 +136,7 @@ export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
           error,
           category: error.category,
           retryable: error.retryable,
+          errorMessage: agentErrorMessage(outcome.error),
         });
         if (!error.retryable) {
           break;

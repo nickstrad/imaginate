@@ -7,6 +7,7 @@ import {
   resolveSpec,
   type ModelSpec,
 } from "@/platform/models";
+import { isProvider, PROVIDERS } from "@/platform/providers/types";
 import type {
   GenerateTextRequest,
   GenerateTextResult,
@@ -27,10 +28,24 @@ function parseSpec(modelId: string): ModelSpec {
   if (idx < 0) {
     throw new Error(`invalid model id (expected provider:model): ${modelId}`);
   }
-  return {
-    provider: modelId.slice(0, idx) as ModelSpec["provider"],
-    model: modelId.slice(idx + 1) as ModelSpec["model"],
-  };
+  const provider = modelId.slice(0, idx);
+  const model = modelId.slice(idx + 1);
+  if (!isProvider(provider)) {
+    throw new Error(`invalid model id (unknown provider): ${modelId}`);
+  }
+
+  switch (provider) {
+    case PROVIDERS.LM_STUDIO:
+      return { provider, model };
+    case PROVIDERS.OPENROUTER:
+      return {
+        provider,
+        model: model as Extract<
+          ModelSpec,
+          { provider: typeof PROVIDERS.OPENROUTER }
+        >["model"],
+      };
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
