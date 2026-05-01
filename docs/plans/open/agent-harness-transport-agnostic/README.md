@@ -140,7 +140,7 @@ Phases gate each other: Phase A must land before Phase B (the ladder extraction 
 
 - **Blocks `cli-ink-app/`** — that plan's chunks 3, 4, 5, and 7 compose primitives this plan introduces (`Workspace`, narrowed deps, `createAgentSession`, `AbortSignal`, `tool.call.*` events). Ink should not start until at least Phase B is shipped.
 - **Blocks `cli-git-tools.md`** — that plan composes `toolCallGate` (chunk 06) and `AbortSignal` plumbing through `Workspace.commands.run` to gate and interrupt git operations. It cannot start until Phase C ships those primitives.
-- **Blocks `agent-telemetry-refactor/`** — that plan's `summarizeRun`, `turnKey` keying, single end-of-run write, and reuse of `AgentError` / `EscalationReason` all assume this plan's harness surface.
+- **Blocks `observability-data-planes/`** — that plan's `EventStore` emitter wires into the ladder hooks (`onAttemptStart`, `onAttemptFinish`, `onEscalate`, `onStepFinish`) introduced by chunk 4 of this plan, and its `attempt.failed` event payloads use the structured `AgentError { code, category, retryable }` introduced by chunk 2. (`agent-telemetry-refactor` was superseded by `observability-data-planes` and removed.)
 - **Coordinates with `cli-local-sandbox.md`** — that plan owns the local-workspace adapter; this plan's chunk 9 (stub) only renames the port to `Workspace` and adds `kind` + `acquireSession`. The two plans must agree on the adapter signature when chunk 9 lands.
 - `openrouter-model-route-fallbacks.md` is archived. Treat it as historical route-fallback context only, not an active dependency or conflict for this plan.
 - `docs/plans/drift/` contains only its README.
