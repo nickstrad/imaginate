@@ -303,6 +303,18 @@ Project conventions live under `docs/` and are read by both humans and coding ag
 
 Read `AGENTS.md` before contributing — it tells you which doc to consult for the task at hand.
 
+## Coding workflow
+
+The feature-development flow is based on Matt Pocock's [Full Walkthrough: Workflow for AI Coding](https://www.youtube.com/watch?v=-QFHIoCo-Ko). Day-shift planning, night-shift autonomous TDD. Five steps, each backed by a skill (Claude Code) and a matching codex prompt:
+
+1. **Grill the idea** — `imaginate-workflow-1-grill-me` interviews you one question at a time until the design is shared.
+2. **Write the PRD** — `imaginate-workflow-2-write-prd` synthesizes the Q&A into `docs/plans/<feature>.md`.
+3. **Slice into tracer bullets** — `imaginate-workflow-3-tracer-bullets` breaks the PRD into vertical-slice tickets with `blocked_by` deps.
+4. **Ralph loop** — `imaginate-workflow-4-ralph-loop` picks the next unblocked ticket and completes it under strict TDD.
+5. **Improve architecture (as needed)** — `imaginate-workflow-5-improve-architecture` proposes deep-module refactors when the loop reports tangled code.
+
+Skills live in `.claude/skills/`; codex equivalents in `~/.codex/prompts/`. Each step is invoked explicitly so you stay in control of the batching.
+
 ## Manual validation
 
 See [`manual_validation.md`](./manual_validation.md) for end-to-end
