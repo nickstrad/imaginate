@@ -4,7 +4,6 @@
 
 Use this folder when the result is useful context, but none of these are true:
 
-- The team has committed to implementation work. Use `docs/plans/open/` instead.
 - The content changes a current repo contract. Update the relevant source-of-truth doc instead.
 - The content is a durable how-to/reference that future coding work should routinely load. Use `docs/documentation/` instead.
 

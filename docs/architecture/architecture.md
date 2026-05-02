@@ -2,7 +2,7 @@
 
 This document is the contract for `src/`. It names the layers, fixes the direction of imports between them, and tells contributors where new code goes. It is enforced where possible by `eslint-plugin-boundaries` in `eslint.config.mjs`.
 
-This file is a contract, not a changelog. Normal feature PRs conform to it. Architecture-changing PRs must be planned first (see `docs/plans/AGENTS.md`) and update this document and the lint rules in the same change set.
+This file is a contract, not a changelog. Normal feature PRs conform to it. Architecture-changing PRs update this document and the lint rules in the same change set.
 
 ## Top-level layout
 
@@ -171,7 +171,7 @@ export function ProjectList() {
 | A Next.js route, layout, or route handler                  | `src/app/`                                           |
 | Generated code (Prisma, OpenAPI clients, …)                | `src/generated/` (never hand-edited)                 |
 
-If a new responsibility doesn't fit, propose an addition through a plan in `docs/plans/open/`. Do not invent a new top-level folder unilaterally.
+If a new responsibility doesn't fit, raise it before adding code. Do not invent a new top-level folder unilaterally.
 
 ## CLI as a first-class interface
 

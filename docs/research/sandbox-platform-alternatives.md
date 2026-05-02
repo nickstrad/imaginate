@@ -17,7 +17,7 @@ Imaginate currently uses E2B for generated-code execution and live previews:
 - `sandbox-templates/nextjs/` defines the current E2B template around a Node/Next/shadcn environment.
 - `src/agent/ports/sandbox-gateway.ts` already sketches the right abstraction boundary: acquire a sandbox handle with `sandboxId`, `commands.run`, `files.read/write`, `setTimeout`, and `getHost`.
 
-The main E2B pain surfaced in existing docs is not basic capability. It is lifecycle: `docs/plans/open/sandbox-auto-revive.md` notes that only `sandboxUrl` is persisted today, expired sandboxes break old previews, and revival requires recreating project state from durable app data.
+The main E2B pain is not basic capability. It is lifecycle: only `sandboxUrl` is persisted today, expired sandboxes break old previews, and revival requires recreating project state from durable app data.
 
 ## Current Baseline: E2B
 
@@ -181,5 +181,4 @@ Suggested order:
 
 - Treat vendor prices and limits as stale by default. Re-check official docs before planning or coding against them.
 - The existing `SandboxGateway` port is the right seam for experiments; avoid adding provider calls directly to application code.
-- If an experiment becomes committed work, create a plan in `docs/plans/open/` and link back to this file.
 - If a provider is selected, update source-of-truth architecture docs only for durable repo structure or dependency-direction changes, not for vendor research findings.

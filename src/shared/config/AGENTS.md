@@ -11,11 +11,11 @@ Two files participate. Always edit them together — adding a slug without using
 1. **`src/shared/config/models.ts`** — `MODEL_IDS`, the keyed map of every OpenRouter slug the codebase knows about. New fallbacks must be registered here first.
 2. **`src/platform/models/constants.ts`** — `MODEL_ROUTES`, the per-layer registry of `{ primary, fallbacks }`. This is where capability/diversity decisions are encoded.
 
-The plan that motivated the current shape is `docs/plans/open/openrouter-model-route-fallbacks.md`. Read it once for context; come back here for ongoing refresh work.
+The original motivating plan is preserved at `docs/archive/plans/archive/openrouter-model-route-fallbacks.md` for reference; come back here for ongoing refresh work.
 
 ## What an agent should do when refreshing
 
-Run these steps in order. The output is a PR that updates `MODEL_IDS`, `MODEL_ROUTES`, and the per-layer table in the plan file (or this file if the plan has been retired).
+Run these steps in order. The output is a PR that updates `MODEL_IDS`, `MODEL_ROUTES`, and the per-layer table in this file.
 
 ### 1. Survey OpenRouter
 
@@ -53,10 +53,9 @@ Carry these into the trade-off when ranking candidates within a layer.
 src/shared/config/models.ts          # add new slugs to MODEL_IDS
 src/platform/models/constants.ts     # update MODEL_ROUTES.<layer>.fallbacks
 src/platform/models/factory.test.ts  # extend if you added a new invariant
-docs/plans/open/openrouter-model-route-fallbacks.md  # if still in open/
 ```
 
-If the plan has been retired and folded into archive/, refresh the per-layer table inside this file instead — keep the freshness loop in one place.
+Refresh the per-layer table inside this file as part of the same change — keep the freshness loop in one place.
 
 ### 5. Verify
 

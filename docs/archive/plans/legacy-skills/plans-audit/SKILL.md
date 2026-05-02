@@ -62,17 +62,17 @@ Run in order. Parallelize independent reads.
 
 ## Decisions
 
-| Decision | When to choose it |
-| --- | --- |
-| **keep** | Plan remains accurate, useful, and not meaningfully overlapped. Default when evidence is ambiguous. |
-| **keep + flag** | Plan remains useful, but overlap, unclear evidence, or a possible conflict should be resolved next time the plan is edited. |
-| **shrink** | Part of the plan is done or stale, but meaningful work remains. Rewrite the plan to the remaining work only; do not append a changelog. |
-| **salvage-and-merge** | The plan is mostly stale, but 1-3 durable or actionable pieces belong in another open plan. Name the target plan and section, show exact text, then delete the source after approval. |
-| **supersede** | Another open plan has absorbed this plan's scope. Add a concise supersession note to the target plan's "Conflicts checked" or equivalent section, then delete the source after approval. |
-| **carve remainder** | The plan is mostly complete, but a small unfinished piece remains. Create a new, smaller `open/` plan for the remainder before retiring the parent. |
-| **fold-then-retire** | The plan is complete, but durable facts must move into a source-of-truth doc before archive/delete. Name the target doc and snippet. |
-| **archive** | The plan is complete and preserves lasting decision context: non-obvious architecture choice, migration rationale, durable tradeoff, or multi-step migration record. |
-| **delete** | The plan is completed sequencing-only, abandoned, misleading, stale with no salvageable content, or durable facts already live in source-of-truth docs or code. |
+| Decision              | When to choose it                                                                                                                                                                        |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **keep**              | Plan remains accurate, useful, and not meaningfully overlapped. Default when evidence is ambiguous.                                                                                      |
+| **keep + flag**       | Plan remains useful, but overlap, unclear evidence, or a possible conflict should be resolved next time the plan is edited.                                                              |
+| **shrink**            | Part of the plan is done or stale, but meaningful work remains. Rewrite the plan to the remaining work only; do not append a changelog.                                                  |
+| **salvage-and-merge** | The plan is mostly stale, but 1-3 durable or actionable pieces belong in another open plan. Name the target plan and section, show exact text, then delete the source after approval.    |
+| **supersede**         | Another open plan has absorbed this plan's scope. Add a concise supersession note to the target plan's "Conflicts checked" or equivalent section, then delete the source after approval. |
+| **carve remainder**   | The plan is mostly complete, but a small unfinished piece remains. Create a new, smaller `open/` plan for the remainder before retiring the parent.                                      |
+| **fold-then-retire**  | The plan is complete, but durable facts must move into a source-of-truth doc before archive/delete. Name the target doc and snippet.                                                     |
+| **archive**           | The plan is complete and preserves lasting decision context: non-obvious architecture choice, migration rationale, durable tradeoff, or multi-step migration record.                     |
+| **delete**            | The plan is completed sequencing-only, abandoned, misleading, stale with no salvageable content, or durable facts already live in source-of-truth docs or code.                          |
 
 ## Approved action rules
 
@@ -96,11 +96,11 @@ Flag any drift plan that is completed, contradicted, or superseded by an open pl
 Default to one table:
 
 ```markdown
-| Plan | State | Decision | Evidence | Proposed action |
-| --- | --- | --- | --- | --- |
-| open/sandbox-auto-revive.md | incomplete, premise true | keep | `src/lib/sandbox/...` still lacks revive flow named in Definition of done | none |
-| open/agent-telemetry-refactor/ | partially stale | shrink | chunks 01-02 landed; chunks 03-04 still match current telemetry shape | rewrite to remaining chunks |
-| open/openrouter-model-route-fallbacks.md | shipped | archive | captures fallback-policy tradeoff not present in architecture docs | `git mv ...` |
+| Plan                                     | State                    | Decision | Evidence                                                                  | Proposed action             |
+| ---------------------------------------- | ------------------------ | -------- | ------------------------------------------------------------------------- | --------------------------- |
+| open/sandbox-auto-revive.md              | incomplete, premise true | keep     | `src/lib/sandbox/...` still lacks revive flow named in Definition of done | none                        |
+| open/agent-telemetry-refactor/           | partially stale          | shrink   | chunks 01-02 landed; chunks 03-04 still match current telemetry shape     | rewrite to remaining chunks |
+| open/openrouter-model-route-fallbacks.md | shipped                  | archive  | captures fallback-policy tradeoff not present in architecture docs        | `git mv ...`                |
 ```
 
 Follow with **Proposed actions**:

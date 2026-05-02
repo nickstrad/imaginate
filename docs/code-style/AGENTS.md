@@ -55,5 +55,4 @@ The disable comment must name the rule and include a `-- <reason>` clause. File-
 
 - Architecture and folder structure → `docs/architecture/architecture.md`.
 - Testing criteria and verification expectations → `docs/testing/AGENTS.md`.
-- Plan authoring conventions → `docs/plans/AGENTS.md`.
 - Tooling-enforced formatting (Prettier, ESLint) → respective config files.
