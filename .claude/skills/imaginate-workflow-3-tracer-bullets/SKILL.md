@@ -1,6 +1,6 @@
 ---
 name: imaginate-workflow-3-tracer-bullets
-description: ONLY invoke when the user types `/imaginate-workflow-3-tracer-bullets` or explicitly names this skill. Do NOT auto-trigger on phrases like "break into tickets" or "slice this work" — the user controls when this step runs so they can batch the workflow. Converts an existing PRD in `docs/plans/` into vertical-slice ticket files with `blocked_by` dependencies.
+description: ONLY invoke when the user types `/imaginate-workflow-3-tracer-bullets` or explicitly names this skill. Do NOT auto-trigger on phrases like "break into tickets" or "slice this work" — the user controls when this step runs so they can batch the workflow. Converts an existing PRD at `docs/plans/<feature>/prd.md` into vertical-slice ticket files with `blocked_by` dependencies, written into the same feature folder.
 ---
 
 # Tracer Bullets — Vertical Slices
@@ -9,9 +9,9 @@ Break the PRD into independently-grabbable issues using vertical slices. Each sl
 
 ## Procedure
 
-1. **Locate the PRD.** Default to the most recent file in `docs/plans/`. If the user named one, use that.
+1. **Locate the PRD.** PRDs live at `docs/plans/<feature-slug>/prd.md`. Default to the most recently modified `prd.md` under `docs/plans/`. If the user named a feature slug, use `docs/plans/<slug>/prd.md`.
 2. **Identify the vertical slices.** A slice is the thinnest possible end-to-end path that delivers user-visible behavior. Examples: "user can save one field", "user can see a single read-only row." Three to seven slices is typical; if you have more than ten, you're slicing too thin.
-3. **For each slice, write a ticket file** at `docs/plans/<feature-slug>/NN-<slice-slug>.md` with this shape:
+3. **For each slice, write a ticket file** at `docs/plans/<feature-slug>/NN-<slice-slug>.md` (alongside the existing `prd.md`) with this shape:
 
    ```markdown
    ---

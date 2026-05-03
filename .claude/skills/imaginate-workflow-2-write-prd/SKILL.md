@@ -1,11 +1,11 @@
 ---
 name: imaginate-workflow-2-write-prd
-description: ONLY invoke when the user types `/imaginate-workflow-2-write-prd` or explicitly names this skill. Do NOT auto-trigger on phrases like "write a PRD" or "write the spec" — the user controls when this step runs so they can batch the workflow. Synthesizes a prior `imaginate-workflow-1-grill-me` Q&A into a Product Requirements Document at `docs/plans/<feature>.md`.
+description: ONLY invoke when the user types `/imaginate-workflow-2-write-prd` or explicitly names this skill. Do NOT auto-trigger on phrases like "write a PRD" or "write the spec" — the user controls when this step runs so they can batch the workflow. Synthesizes a prior `imaginate-workflow-1-grill-me` Q&A into a Product Requirements Document at `docs/plans/<feature>/prd.md`.
 ---
 
 # Write a PRD
 
-Synthesize the prior design conversation and a quick exploration of the codebase into a Product Requirements Document. Save it to `docs/plans/<feature-slug>.md` and report the path back to the user.
+Synthesize the prior design conversation and a quick exploration of the codebase into a Product Requirements Document. Save it to `docs/plans/<feature-slug>/prd.md` (creating the feature folder if it doesn't exist) and report the path back to the user. The folder is the home for everything related to this feature — the PRD lives inside it, and `imaginate-workflow-3-tracer-bullets` will later add ticket files and a `README.md` index alongside.
 
 ## Procedure
 
@@ -19,7 +19,7 @@ Synthesize the prior design conversation and a quick exploration of the codebase
    - **Implementation decisions** — every concrete decision from the grill. Quote the decision; do not re-derive it.
    - **Out of scope** — explicit list of things the user said no to or deferred. This is load-bearing; future sessions read this section to avoid scope creep.
    - **Open questions** — anything not resolved in the grill. If empty, say "None."
-4. **Filename.** kebab-case based on the feature, e.g. `docs/plans/inline-image-editor.md`. If the file exists, append a date suffix rather than overwriting.
+4. **Path.** Feature folder is kebab-case based on the feature, PRD is always named `prd.md` inside it: e.g. `docs/plans/inline-image-editor/prd.md`. If `prd.md` already exists in the folder, append a date suffix to the new file rather than overwriting (`prd-2026-05-03.md`).
 5. **Report back.** Print the path and a one-line summary. Do not paste the full PRD into chat.
 
 ## Anti-patterns

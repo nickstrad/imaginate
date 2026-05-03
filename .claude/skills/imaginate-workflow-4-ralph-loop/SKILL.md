@@ -9,8 +9,8 @@ You are an away-from-keyboard coding agent working a backlog of ticket files. Yo
 
 ## Procedure
 
-1. **Locate the backlog.** Default to the most recently modified `docs/plans/<feature>/` directory. If the user named one, use that. Read the `README.md` index.
-2. **Pick the next task.** Priority order:
+1. **Locate the backlog.** Default to the most recently modified `docs/plans/<feature>/` directory. If the user named one, use that. Read the `README.md` index. The `prd.md` in the same folder is the canonical spec — read it for context but do not treat it as a ticket.
+2. **Pick the next task.** Tickets are files matching `NN-*.md` in the feature folder; `prd.md` and `README.md` are not tickets. Priority order:
    1. Any ticket marked as a critical bug fix (frontmatter `priority: critical`).
    2. The lowest-numbered ticket whose `status: ready` and whose `blocked_by` list is empty or fully completed.
 3. **Mark it `status: in_progress`** in the ticket's frontmatter and update the `README.md` index. Commit nothing yet.
