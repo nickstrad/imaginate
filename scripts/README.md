@@ -55,3 +55,20 @@ npm run agent:local -- --sandbox-id sbx_abc123 --prompt "explain what changed"
 
 The sandbox stays alive according to the E2B timeout configured by the runtime,
 so follow-up turns work while that sandbox is still available.
+
+### Local directory mode
+
+Use `--local <dir>` to run against a directory on your machine instead of an
+E2B sandbox. Reads, writes, and shell commands all execute against `<dir>`
+(absolute or `~`-relative). Mutually exclusive with `--sandbox-id`;
+`--sandbox-template` is ignored. Sandbox URL / preview / follow-up output is
+skipped.
+
+```bash
+mkdir -p ~/Desktop/test-sandbox
+npm run agent:local -- --local ~/Desktop/test-sandbox "add a README"
+```
+
+The per-run debug log (`logs/local-<unixMs>.jsonl`) is written under the
+current working directory, so `cd` into the project root (or wherever you want
+the logs to land) before invoking.

@@ -1,7 +1,6 @@
 // Local-workspace SandboxGateway. Wires SandboxHandle methods to
 // `node:fs/promises` and `node:child_process` against a configurable root.
-// Created in chunk 03; not yet selected by callers — chunk 05 will route
-// `npm run agent:local --local` through this gateway.
+// Selected by `npm run agent:local -- --local <dir>`.
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
