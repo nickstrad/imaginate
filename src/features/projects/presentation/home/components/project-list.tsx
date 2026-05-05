@@ -108,12 +108,12 @@ export const ProjectList = ({
             onClick={() => onProjectClick(project.id)}
           >
             <CardContent className="px-3 py-2">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center justify-center shrink-0">
                   <BotIcon className="h-5 w-5 text-muted-foreground" />
                 </div>
-                <div className="flex flex-col">
-                  <span className="font-medium text-foreground text-sm whitespace-nowrap">
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="font-medium text-foreground text-sm break-words">
                     {project.name}
                   </span>
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
