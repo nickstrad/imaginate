@@ -30,6 +30,9 @@
 # scratch pad
 /scratch_pad/
 
+# per-run agent logs
+/logs/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

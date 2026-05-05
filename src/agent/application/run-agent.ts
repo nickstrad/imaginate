@@ -32,6 +32,13 @@ export interface RunAgentArgs {
     providerCacheOptions?: Record<string, unknown>;
   };
   persistTelemetryFor?: { messageId: string };
+  /**
+   * Identifier used to scope the run's logger. When present, every log entry
+   * emitted under the runtime tree carries `{ runId }` — entrypoints can use
+   * this binding to mirror the trail to a per-run file sink (see
+   * `src/platform/log/file-sink.ts`).
+   */
+  runId?: string;
 }
 
 type RuntimeErrorState = {
@@ -40,7 +47,12 @@ type RuntimeErrorState = {
 };
 
 export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
-  const { input, deps, config, persistTelemetryFor } = args;
+  const { input, config, persistTelemetryFor } = args;
+  const runId = args.runId ?? `${input.projectId}-${Date.now()}`;
+  const deps: AgentRuntimeDeps = {
+    ...args.deps,
+    logger: args.deps.logger.child({ scope: "run", bindings: { runId } }),
+  };
 
   const runState = createRunState();
   const thoughts: Thought[] = [];

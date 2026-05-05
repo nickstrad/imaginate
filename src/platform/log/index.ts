@@ -7,6 +7,7 @@ import {
   type LogMetadata,
 } from "./schema";
 import { normalizeMetadata } from "./normalize";
+import { getRunFileSinkWriter } from "./file-sink";
 import { env, isProduction } from "@/platform/config/env";
 
 const LEVEL_RANK: Record<LogLevel, number> = {
@@ -81,7 +82,13 @@ function emit(params: {
   metadata?: Record<string, unknown>;
   bindings?: LogMetadata;
 }) {
-  if (LEVEL_RANK[params.level] < THRESHOLD) return;
+  const passesThreshold = LEVEL_RANK[params.level] >= THRESHOLD;
+  const runId = params.bindings?.runId;
+  const fileWriter =
+    typeof runId === "string" ? getRunFileSinkWriter(runId) : undefined;
+  if (!passesThreshold && !fileWriter) {
+    return;
+  }
 
   const entry: LogEntry = {
     timestamp: new Date().toISOString(),
@@ -113,7 +120,12 @@ function emit(params: {
     }
   }
 
-  writeLine(entry);
+  if (fileWriter) {
+    fileWriter(entry);
+  }
+  if (passesThreshold) {
+    writeLine(entry);
+  }
 }
 
 function mergeMetadata(
@@ -189,3 +201,4 @@ export async function timed<T>(params: {
 }
 
 export type { LogLevel, LogEntry, LogInput, LogMetadata } from "./schema";
+export { openRunFileSink, type RunFileSink } from "./file-sink";

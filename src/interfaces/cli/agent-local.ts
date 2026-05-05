@@ -1,4 +1,7 @@
 import "dotenv/config";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { Sandbox } from "@e2b/code-interpreter";
 import { cac } from "cac";
 import chalk from "chalk";
@@ -9,6 +12,7 @@ import {
   createAiSdkToolFactory,
   createE2bSandboxGateway,
   createInMemoryMessageStore,
+  createLocalWorkspaceGateway,
   createNoopTelemetryStore,
   createTerminalEventSink,
   runAgent,
@@ -16,9 +20,11 @@ import {
   type AgentRunResult,
   type AgentRuntimeEvent,
   type PlanOutput,
+  type SandboxGateway,
 } from "@/agent";
 import {
   createLogger,
+  openRunFileSink,
   type Logger,
   type LogInput,
   type LogMetadata,
@@ -51,6 +57,7 @@ type CliArgs = {
   prompt: string;
   sandboxTemplate: string;
   sandboxId?: string;
+  localDir?: string;
   json: boolean;
 };
 
@@ -98,6 +105,7 @@ const ALLOWED_OPTIONS = new Set([
   "prompt",
   "sandboxTemplate",
   "sandboxId",
+  "local",
   "json",
   "help",
   "h",
@@ -114,6 +122,10 @@ function createCli() {
       "--sandbox-id <id>",
       "Connect to an existing E2B sandbox instead of creating one."
     )
+    .option(
+      "--local <dir>",
+      "Run against a local directory instead of E2B. Mutually exclusive with --sandbox-id; --sandbox-template is ignored."
+    )
     .option("--json", "Emit JSONL records.")
     .example('npm run agent:local -- "add a dark mode toggle"')
     .example('npm run agent:local -- --prompt "add a dark mode toggle"')
@@ -122,6 +134,9 @@ function createCli() {
     )
     .example(
       'npm run agent:local -- --sandbox-id sbx_existing "continue the previous fix"'
+    )
+    .example(
+      'npm run agent:local -- --local ~/Desktop/test-sandbox "add a README"'
     )
     .example('npm run agent:local -- --json --prompt "add a dark mode toggle"')
     .help();
@@ -143,6 +158,11 @@ function parseArgv(argv: string[]): ParsedCli {
     readStringOption(options.sandboxTemplate, "--sandbox-template") ??
     DEFAULT_SANDBOX_TEMPLATE;
   const sandboxId = readStringOption(options.sandboxId, "--sandbox-id");
+  const localInput = readStringOption(options.local, "--local");
+  if (localInput && sandboxId) {
+    throw new CliError("--local cannot be combined with --sandbox-id");
+  }
+  const localDir = localInput ? resolveLocalDir(localInput) : undefined;
   const resolvedPrompt = resolvePrompt(prompt, parsed.args.map(String));
 
   return {
@@ -151,9 +171,25 @@ function parseArgv(argv: string[]): ParsedCli {
       prompt: resolvedPrompt,
       sandboxTemplate,
       sandboxId,
+      localDir,
       json: Boolean(options.json),
     },
   };
+}
+
+function resolveLocalDir(input: string): string {
+  const expanded = input.startsWith("~/")
+    ? path.join(os.homedir(), input.slice(2))
+    : input;
+  const absolute = path.resolve(expanded);
+  const stat = fs.statSync(absolute, { throwIfNoEntry: false });
+  if (!stat) {
+    throw new CliError(`--local directory does not exist: ${absolute}`);
+  }
+  if (!stat.isDirectory()) {
+    throw new CliError(`--local path is not a directory: ${absolute}`);
+  }
+  return absolute;
 }
 
 function rejectUnknownOptions(options: Record<string, unknown>): void {
@@ -540,25 +576,40 @@ async function ensureSandbox(
 async function runAgentCli(args: CliArgs): Promise<number> {
   printLocalLog("run.started", args.json, {
     promptChars: args.prompt.length,
-    sandboxMode: args.sandboxId ? "connect" : "create",
+    sandboxMode: args.localDir
+      ? "local"
+      : args.sandboxId
+        ? "connect"
+        : "create",
     sandboxId: args.sandboxId,
-    sandboxTemplate: args.sandboxId ? undefined : args.sandboxTemplate,
+    sandboxTemplate:
+      args.localDir || args.sandboxId ? undefined : args.sandboxTemplate,
+    localDir: args.localDir,
   });
 
   const log = makeLogger(args.json);
 
-  // Provision the sandbox eagerly so we can reuse the same id for both the
-  // gateway and the post-run sandbox-summary call.
-  const sandbox = await ensureSandbox(args, args.json);
-  const sandboxId = sandbox.sandboxId;
-  let sandboxSummary: SandboxSummary = summarizeSandbox(sandbox);
-  printSandboxAccess(
-    sandboxSummary as Extract<SandboxSummary, { sandboxId: string }>,
-    args.json
-  );
-  await ensureSandboxPreview(sandbox, args.json);
+  let sandbox: SandboxLike | undefined;
+  let sandboxGateway: SandboxGateway;
+  let sandboxSummary: SandboxSummary;
 
-  const sandboxGateway = createE2bSandboxGateway({ sandboxId });
+  if (args.localDir) {
+    sandboxGateway = createLocalWorkspaceGateway({ root: args.localDir });
+    sandboxSummary = {};
+  } else {
+    // Provision the sandbox eagerly so we can reuse the same id for both the
+    // gateway and the post-run sandbox-summary call.
+    sandbox = await ensureSandbox(args, args.json);
+    const sandboxId = sandbox.sandboxId;
+    sandboxSummary = summarizeSandbox(sandbox);
+    printSandboxAccess(
+      sandboxSummary as Extract<SandboxSummary, { sandboxId: string }>,
+      args.json
+    );
+    await ensureSandboxPreview(sandbox, args.json);
+    sandboxGateway = createE2bSandboxGateway({ sandboxId });
+  }
+
   const eventSink = {
     emit: (event: AgentRuntimeEvent) => {
       printEvent(event, args.json);
@@ -578,15 +629,24 @@ async function runAgentCli(args: CliArgs): Promise<number> {
     logger: loggerToAgentLogger(log),
   };
 
-  const result = await runAgent({
-    input: { prompt: args.prompt, projectId: "local" },
-    deps,
-    config: {
-      plannerSystemPrompt: PLANNER_PROMPT,
-      buildExecutorSystemPrompt,
-      providerCacheOptions: CACHE_PROVIDER_OPTIONS,
-    },
-  });
+  const projectId = "local";
+  const runId = `${projectId}-${Date.now()}`;
+  const fileSink = openRunFileSink({ runId });
+  let result: AgentRunResult;
+  try {
+    result = await runAgent({
+      input: { prompt: args.prompt, projectId },
+      deps,
+      config: {
+        plannerSystemPrompt: PLANNER_PROMPT,
+        buildExecutorSystemPrompt,
+        providerCacheOptions: CACHE_PROVIDER_OPTIONS,
+      },
+      runId,
+    });
+  } finally {
+    await fileSink.close();
+  }
 
   if (result.runState.plan && !result.runState.plan.requiresCoding) {
     printLocalLog("run.no_coding_required", args.json);
@@ -602,7 +662,7 @@ async function runAgentCli(args: CliArgs): Promise<number> {
     exitCode,
   });
 
-  if (exitCode === 0) {
+  if (exitCode === 0 && sandbox) {
     sandboxSummary = await resolveSandboxSummary(sandbox, args.json);
   }
 
