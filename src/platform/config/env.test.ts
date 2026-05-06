@@ -13,6 +13,7 @@ describe("EnvSchema model fields", () => {
     expect(parsed.MODEL_EXECUTOR_DEFAULT).toBe(MODEL_KEYS.CLAUDE_SONNET_4_6);
     expect(parsed.MODEL_EXECUTOR_FALLBACK_1).toBe(MODEL_KEYS.CLAUDE_HAIKU_4_5);
     expect(parsed.MODEL_EXECUTOR_FALLBACK_2).toBe(MODEL_KEYS.CLAUDE_OPUS_4_7);
+    expect(parsed.LOG_LLM_PAYLOADS).toBe(false);
   });
 
   it("accepts LM Studio as the local model provider", () => {
@@ -43,5 +44,14 @@ describe("EnvSchema model fields", () => {
 
   it("rejects an unknown model provider", () => {
     expect(() => EnvSchema.parse({ MODEL_PROVIDER: "ollama" })).toThrow();
+  });
+
+  it("parses LOG_LLM_PAYLOADS as a boolean", () => {
+    expect(EnvSchema.parse({ LOG_LLM_PAYLOADS: "true" })).toMatchObject({
+      LOG_LLM_PAYLOADS: true,
+    });
+    expect(EnvSchema.parse({ LOG_LLM_PAYLOADS: "false" })).toMatchObject({
+      LOG_LLM_PAYLOADS: false,
+    });
   });
 });

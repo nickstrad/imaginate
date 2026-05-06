@@ -10,6 +10,7 @@ export interface TestLogEntry {
   event: string;
   bindings?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+  fileMetadata?: Record<string, unknown>;
 }
 
 export interface TestLogger extends AgentLogger {
@@ -43,6 +44,7 @@ function makeTestLogger(params: {
       event: input.event,
       bindings,
       metadata: input.metadata,
+      fileMetadata: input.fileMetadata,
     });
   };
   const log = (level: TestLogLevel) => (input: AgentLogInput) => {

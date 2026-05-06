@@ -91,21 +91,25 @@ export const codeAgentFunction = inngest.createFunction(
   { event: "codeAgent/run" },
   async ({ event, step }) => {
     const projectId = event.data.projectId as string;
-    // Stable across Inngest replays — `Date.now()` would mint a new file per
-    // retry. `event.id` is unique per logical run.
-    const runId = `${projectId}-${event.id}`;
-    const fileSink = openRunFileSink({ runId });
-    const log = createLogger({
+    const boundaryLog = createLogger({
       scope: "inngest:codeAgent",
       bindings: {
         projectId,
         eventId: event.id,
-        runId,
       },
     });
 
     await step.run("log-run-start", async () => {
-      log.info({ event: "run start" });
+      boundaryLog.info({ event: "run start" });
+    });
+
+    // Stable across Inngest replays — `Date.now()` would mint a new file per
+    // retry. `event.id` is unique per logical run.
+    const runId = `${projectId}-${event.id}`;
+    const fileSink = openRunFileSink({ runId });
+    const log = boundaryLog.child({
+      scope: "run",
+      bindings: { runId },
     });
 
     try {

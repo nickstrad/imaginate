@@ -39,6 +39,7 @@ import {
   CACHE_PROVIDER_OPTIONS,
   PLANNER_PROMPT,
 } from "@/shared/prompts";
+import { logRunStart } from "./run-start-log";
 
 type SandboxLike = Awaited<ReturnType<typeof Sandbox.create>>;
 
@@ -574,13 +575,15 @@ async function ensureSandbox(
 }
 
 async function runAgentCli(args: CliArgs): Promise<number> {
+  const projectId = "local";
+  const sandboxMode = args.localDir
+    ? "local"
+    : args.sandboxId
+      ? "connect"
+      : "create";
   printLocalLog("run.started", args.json, {
     promptChars: args.prompt.length,
-    sandboxMode: args.localDir
-      ? "local"
-      : args.sandboxId
-        ? "connect"
-        : "create",
+    sandboxMode,
     sandboxId: args.sandboxId,
     sandboxTemplate:
       args.localDir || args.sandboxId ? undefined : args.sandboxTemplate,
@@ -588,6 +591,7 @@ async function runAgentCli(args: CliArgs): Promise<number> {
   });
 
   const log = makeLogger(args.json);
+  logRunStart({ logger: log, projectId, sandboxMode });
 
   let sandbox: SandboxLike | undefined;
   let sandboxGateway: SandboxGateway;
@@ -629,7 +633,6 @@ async function runAgentCli(args: CliArgs): Promise<number> {
     logger: loggerToAgentLogger(log),
   };
 
-  const projectId = "local";
   const runId = `${projectId}-${Date.now()}`;
   const fileSink = openRunFileSink({ runId });
   let result: AgentRunResult;

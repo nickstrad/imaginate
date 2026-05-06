@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createLogger } from "./index";
 import { openRunFileSink, getRunFileSinkWriter } from "./file-sink";
 import type { LogEntry } from "./schema";
 
@@ -61,5 +62,30 @@ describe("openRunFileSink", () => {
     await sink.close();
 
     expect(getRunFileSinkWriter(runId)).toBeUndefined();
+  });
+
+  it("writes file-only metadata through run-scoped loggers", async () => {
+    const dir = makeTempDir();
+    const runId = "proj-file-metadata";
+    const sink = openRunFileSink({ runId, dir });
+    const logger = createLogger({ scope: "test", bindings: { runId } });
+
+    logger.debug({
+      event: "llm call",
+      metadata: { messageCount: 1 },
+      fileMetadata: { prompt: "full prompt" },
+    });
+
+    await sink.close();
+
+    const contents = fs.readFileSync(sink.filePath!, "utf8");
+    expect(JSON.parse(contents)).toMatchObject({
+      event: "llm call",
+      metadata: {
+        runId,
+        messageCount: 1,
+        prompt: "full prompt",
+      },
+    });
   });
 });

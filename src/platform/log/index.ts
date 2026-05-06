@@ -50,8 +50,9 @@ function formatPretty(entry: LogEntry): string {
   const scope = `${ANSI.magenta}${entry.scope}${ANSI.reset}`;
   const event = `${ANSI.bold}${entry.event}${ANSI.reset}`;
   const header = `${time} ${levelTag} ${scope} ${event}`;
-  if (!entry.metadata || Object.keys(entry.metadata).length === 0)
+  if (!entry.metadata || Object.keys(entry.metadata).length === 0) {
     return header;
+  }
   const meta = JSON.stringify(entry.metadata, null, 2)
     .split("\n")
     .map((l) => `  ${l}`)
@@ -66,9 +67,13 @@ function formatCompact(entry: LogEntry): string {
 
 function writeLine(entry: LogEntry) {
   const line = PRETTY ? formatPretty(entry) : formatCompact(entry);
-  if (entry.level === "error") console.error(line);
-  else if (entry.level === "warn") console.warn(line);
-  else console.log(line);
+  if (entry.level === "error") {
+    console.error(line);
+  } else if (entry.level === "warn") {
+    console.warn(line);
+  } else {
+    console.log(line);
+  }
 }
 
 // In prod the typed Logger API guarantees shape; zod validation only runs in
@@ -80,6 +85,7 @@ function emit(params: {
   scope: string;
   event: string;
   metadata?: Record<string, unknown>;
+  fileMetadata?: Record<string, unknown>;
   bindings?: LogMetadata;
 }) {
   const passesThreshold = LEVEL_RANK[params.level] >= THRESHOLD;
@@ -90,42 +96,75 @@ function emit(params: {
     return;
   }
 
-  const entry: LogEntry = {
-    timestamp: new Date().toISOString(),
-    level: params.level,
-    scope: params.scope,
-    event: params.event,
-    metadata: mergeMetadata(params.bindings, params.metadata),
-  };
+  const entry = buildEntry(params, params.metadata);
+  const fileEntry = buildEntry(
+    params,
+    mergeRawMetadata(params.metadata, params.fileMetadata)
+  );
 
   if (VALIDATE) {
-    const parsed = LogEntrySchema.safeParse(entry);
-    if (!parsed.success) {
-      writeLine({
-        timestamp: new Date().toISOString(),
-        level: "error",
-        scope: "logger",
-        event: "invalid-log-entry",
-        metadata: {
-          originalScope: params.scope,
-          originalEvent: params.event,
-          issues: parsed.error.issues.map((i) => ({
-            path: i.path.map(String).join("."),
-            code: i.code,
-            message: i.message,
-          })),
-        },
-      });
+    const issues = validationIssues([
+      entry,
+      ...(fileWriter ? [fileEntry] : []),
+    ]);
+    if (issues.length > 0) {
+      writeInvalidLogEntry(params, issues);
       return;
     }
   }
 
   if (fileWriter) {
-    fileWriter(entry);
+    fileWriter(fileEntry);
   }
   if (passesThreshold) {
     writeLine(entry);
   }
+}
+
+function buildEntry(
+  params: {
+    level: LogLevel;
+    scope: string;
+    event: string;
+    bindings?: LogMetadata;
+  },
+  metadata: Record<string, unknown> | undefined
+): LogEntry {
+  return {
+    timestamp: new Date().toISOString(),
+    level: params.level,
+    scope: params.scope,
+    event: params.event,
+    metadata: mergeMetadata(params.bindings, metadata),
+  };
+}
+
+function validationIssues(entries: LogEntry[]) {
+  return entries.flatMap((entry) => {
+    const parsed = LogEntrySchema.safeParse(entry);
+    return parsed.success ? [] : parsed.error.issues;
+  });
+}
+
+function writeInvalidLogEntry(
+  params: { scope: string; event: string },
+  issues: ReturnType<typeof validationIssues>
+) {
+  writeLine({
+    timestamp: new Date().toISOString(),
+    level: "error",
+    scope: "logger",
+    event: "invalid-log-entry",
+    metadata: {
+      originalScope: params.scope,
+      originalEvent: params.event,
+      issues: issues.map((i) => ({
+        path: i.path.map(String).join("."),
+        code: i.code,
+        message: i.message,
+      })),
+    },
+  });
 }
 
 function mergeMetadata(
@@ -133,8 +172,20 @@ function mergeMetadata(
   extra: Record<string, unknown> | undefined
 ): LogMetadata | undefined {
   const normalizedExtra = normalizeMetadata(extra);
-  if (!bindings && !normalizedExtra) return undefined;
+  if (!bindings && !normalizedExtra) {
+    return undefined;
+  }
   return { ...(bindings ?? {}), ...(normalizedExtra ?? {}) };
+}
+
+function mergeRawMetadata(
+  first: Record<string, unknown> | undefined,
+  second: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined {
+  if (!first && !second) {
+    return undefined;
+  }
+  return { ...(first ?? {}), ...(second ?? {}) };
 }
 
 export interface Logger {
@@ -157,6 +208,7 @@ export function createLogger(params: {
       scope,
       event: input.event,
       metadata: input.metadata,
+      fileMetadata: input.fileMetadata,
       bindings,
     });
   return {

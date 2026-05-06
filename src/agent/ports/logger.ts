@@ -6,6 +6,7 @@
 export interface AgentLogInput {
   event: string;
   metadata?: Record<string, unknown>;
+  fileMetadata?: Record<string, unknown>;
 }
 
 export interface AgentLogger {

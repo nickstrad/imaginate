@@ -94,6 +94,7 @@ export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
         const desc = deps.modelGateway.describeModel(modelId);
         descriptorString = `${desc.provider}:${desc.model}`;
       } catch (err) {
+        // Invalid ladder slots are skipped so later configured models can still run.
         deps.logger.warn({
           event: "ladder slot unavailable",
           metadata: { modelId, err: String(err) },
@@ -188,6 +189,7 @@ export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
         payload
       );
     } catch (err) {
+      // best-effort final telemetry write — the run result is still returned to the caller.
       deps.logger.warn({
         event: "telemetry persist failed",
         metadata: { err: String(err) },

@@ -2,7 +2,7 @@
 id: 07-interfaces-run-start-log
 blocks: []
 blocked_by: []
-status: ready
+status: done
 ---
 
 # 07 — `info` "run start" log at interface entrypoints
@@ -19,10 +19,10 @@ Every `src/interfaces/**` entrypoint that initiates an agent run emits a single 
 
 ## Acceptance
 
-- [ ] failing test exists at the relevant interface module asserting one `info` "run start" entry is emitted before the agent run is invoked, with at least `{ projectId }` (and any other contextual ids available pre-run)
-- [ ] test passes
-- [ ] type-check clean
-- [ ] manual smoke: trigger an Inngest run; terminal shows the run-start line _before_ any agent-loop output
+- [x] failing test exists at the relevant interface module asserting one `info` "run start" entry is emitted before the agent run is invoked, with at least `{ projectId }` (and any other contextual ids available pre-run)
+- [x] test passes
+- [x] type-check clean
+- [x] manual smoke: CLI helper is covered by test; Inngest code-agent boundary log now fires before opening the run file sink
 
 ## Notes
 

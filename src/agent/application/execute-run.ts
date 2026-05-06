@@ -34,6 +34,9 @@ import type {
   ToolFactory,
 } from "../ports";
 import { planSnippet } from "./plan-run";
+import { logContextMutation } from "./context-logging";
+
+const TOOL_RESULT_LOG_CHARS = 2000;
 
 export interface ExecuteRunInput {
   userPrompt: string;
@@ -156,6 +159,52 @@ function logIterationBoundary(params: {
   });
 }
 
+function stringifyToolResult(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function cappedToolPayload(value: unknown): {
+  value: unknown;
+  length: number;
+  truncated: boolean;
+} {
+  const serialized = stringifyToolResult(value);
+  const truncated = serialized.length > TOOL_RESULT_LOG_CHARS;
+  return {
+    value: truncated ? serialized.slice(0, TOOL_RESULT_LOG_CHARS) : value,
+    length: serialized.length,
+    truncated,
+  };
+}
+
+function logToolCall(params: {
+  logger: AgentLogger;
+  event: ToolCallFinishEvent;
+}): void {
+  const { logger, event } = params;
+  logger.child({ scope: "tool" }).debug({
+    event: "tool call",
+    metadata: {
+      callId: event.callId,
+      stepIndex: event.stepIndex,
+      toolName: event.toolName,
+      durationMs: event.durationMs,
+      args: event.args,
+      ok: event.ok,
+      result: event.ok
+        ? cappedToolPayload(event.result)
+        : cappedToolPayload(event.error),
+    },
+  });
+}
+
 export async function executeRun(args: {
   input: ExecuteRunInput;
   deps: ExecuteRunDeps;
@@ -191,6 +240,7 @@ export async function executeRun(args: {
   };
 
   const onToolCallFinish = async (event: ToolCallFinishEvent) => {
+    logToolCall({ logger: deps.logger, event });
     recordCompletedToolCallId(
       completedToolCallIdsByStep,
       event.stepIndex,
@@ -222,6 +272,7 @@ export async function executeRun(args: {
       modelId,
       system: systemPrompt,
       messages: [...previousMessages, { role: "user", content: userPrompt }],
+      logger: deps.logger,
       tools,
       maxOutputTokens: AGENT_CONFIG.maxOutputTokens,
       providerOptions: input.providerCacheOptions,
@@ -260,7 +311,15 @@ export async function executeRun(args: {
           },
         });
 
+        const contextBefore = thoughts.length;
         thoughts.push(snapshot.thought);
+        logContextMutation({
+          logger: iterationLogger,
+          op: "append",
+          before: contextBefore,
+          after: thoughts.length,
+          reason: "executor step finished",
+        });
         addUsage(cumulativeUsage, readUsage(stepResult.usage));
 
         const telemetryPromise = deps.persistTelemetrySnapshot
@@ -272,6 +331,7 @@ export async function executeRun(args: {
                   cumulativeUsage
                 )
               )
+              // best-effort telemetry snapshot — run progress still emits through the event sink.
             ).catch((e) =>
               iterationLogger.warn({
                 event: "telemetry snapshot failed",
@@ -319,6 +379,11 @@ export async function executeRun(args: {
       reason: decision.reason,
     };
   } catch (err) {
+    deps.logger.error({
+      event: "executor failed",
+      metadata: { err },
+    });
+    // Executor failures are returned to runAgent so model-ladder retry policy stays centralized.
     return {
       result: null,
       stepsCount: 0,

@@ -1,6 +1,5 @@
 import type { JsonValue, LogMetadata } from "./schema";
 
-const MAX_STRING_CHARS = 2000;
 const REDACTED = "[REDACTED]";
 
 const SECRET_SUBSTRINGS = [
@@ -31,10 +30,7 @@ export function normalizeValue(v: unknown): JsonValue {
   }
   const t = typeof v;
   if (t === "string") {
-    const s = v as string;
-    return s.length > MAX_STRING_CHARS
-      ? `${s.slice(0, MAX_STRING_CHARS)}…[truncated ${s.length - MAX_STRING_CHARS}c]`
-      : s;
+    return v as string;
   }
   if (t === "number") {
     return Number.isFinite(v as number) ? (v as number) : null;

@@ -7,6 +7,7 @@ import {
   resolveSpec,
   type ModelSpec,
 } from "@/platform/models";
+import { env } from "@/platform/config/env";
 import { isProvider, PROVIDERS } from "@/platform/providers/types";
 import type {
   GenerateTextRequest,
@@ -87,6 +88,55 @@ function translateUsage(usage: unknown): {
       0,
     totalTokens: readNumber(raw, "totalTokens") ?? 0,
   };
+}
+
+function contentChars(
+  content: GenerateTextRequest["messages"][number]["content"]
+) {
+  return typeof content === "string"
+    ? content.length
+    : JSON.stringify(content).length;
+}
+
+function totalPromptChars(req: GenerateTextRequest): number {
+  return (
+    (req.system?.length ?? 0) +
+    req.messages.reduce(
+      (total, message) => total + contentChars(message.content),
+      0
+    )
+  );
+}
+
+function logLlmCall(params: {
+  req: GenerateTextRequest;
+  result: unknown;
+  usage: GenerateTextResult["usage"];
+  finishReason: string | undefined;
+  provider: string;
+  model: string;
+}): void {
+  const { req, result, usage, finishReason, provider, model } = params;
+  req.logger?.child({ scope: "llm" }).debug({
+    event: "llm call",
+    metadata: {
+      messageCount: req.messages.length,
+      totalChars: totalPromptChars(req),
+      provider,
+      model,
+      finishReason,
+      usage,
+    },
+    fileMetadata: env.LOG_LLM_PAYLOADS
+      ? {
+          prompt: {
+            system: req.system,
+            messages: req.messages,
+          },
+          response: result,
+        }
+      : undefined,
+  });
 }
 
 function translateToolCall(
@@ -276,12 +326,21 @@ export function createAiSdkModelGateway(): ModelGateway {
       const raw = asRecord(result);
       const steps = Array.isArray(raw.steps) ? raw.steps : [];
 
-      return {
+      const response: GenerateTextResult = {
         text: readString(raw, "text"),
         steps: steps.map(translateStep),
         usage: translateUsage(raw.usage),
         finishReason: readString(raw, "finishReason"),
       };
+      logLlmCall({
+        req,
+        result,
+        usage: response.usage,
+        finishReason: response.finishReason,
+        provider: resolved.provider,
+        model: resolved.model,
+      });
+      return response;
     },
     resolvePlannerModelId(): string {
       return specToString(resolvePlannerModel());

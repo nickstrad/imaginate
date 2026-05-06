@@ -39,7 +39,11 @@ function formatEvent(event: AgentRuntimeEvent): string {
 export function createTerminalEventSink(
   options: TerminalEventSinkOptions = {}
 ): AgentEventSink {
-  const write = options.write ?? ((line: string) => console.log(line));
+  const write =
+    options.write ??
+    ((line: string) => {
+      process.stdout.write(`${line}\n`);
+    });
   return {
     emit(event: AgentRuntimeEvent) {
       if (options.json) {

@@ -36,4 +36,5 @@ export type LogEntry = z.infer<typeof LogEntrySchema>;
 export interface LogInput {
   event: string;
   metadata?: Record<string, unknown>;
+  fileMetadata?: Record<string, unknown>;
 }

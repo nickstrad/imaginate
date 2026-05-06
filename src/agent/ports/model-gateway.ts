@@ -4,6 +4,7 @@
 // free of concrete SDK imports.
 
 import type { AgentError } from "../domain/errors";
+import type { AgentLogger } from "./logger";
 
 export interface ModelMessageContentPart {
   type: string;
@@ -62,6 +63,7 @@ export interface GenerateTextRequest {
   modelId: string;
   system?: string;
   messages: ModelMessage[];
+  logger?: AgentLogger;
   tools?: ToolSet;
   maxOutputTokens?: number;
   providerOptions?: Record<string, unknown>;

@@ -13,6 +13,7 @@ import {
   createInMemoryTelemetryStore,
   createNoopAgentLogger,
 } from "./in-memory-stores";
+import { createTestLogger } from "./test-logger";
 import type { GenerateTextRequest, GenerateTextResult } from "../ports";
 import type { FinalOutput, PlanOutput, RunState } from "../domain/types";
 import type { AgentError, AgentErrorCategory } from "../domain/errors";
@@ -150,7 +151,11 @@ function classifiedError(
 type TestModelGateway = ReturnType<typeof createFakeModelGateway>;
 type TestEventSink = ReturnType<typeof createInMemoryEventSink>;
 
-function createRunDeps(gateway: TestModelGateway, sink: TestEventSink) {
+function createRunDeps(
+  gateway: TestModelGateway,
+  sink: TestEventSink,
+  logger = createNoopAgentLogger()
+) {
   return {
     modelGateway: gateway,
     sandboxGateway: createFakeSandboxGateway(),
@@ -158,7 +163,7 @@ function createRunDeps(gateway: TestModelGateway, sink: TestEventSink) {
     messageStore: createInMemoryMessageStore(),
     telemetryStore: createInMemoryTelemetryStore(),
     eventSink: sink,
-    logger: createNoopAgentLogger(),
+    logger,
   };
 }
 
@@ -411,34 +416,39 @@ describe("runAgent", () => {
     expect(accepted).toMatchObject({ attempt: 2 });
   });
 
-  it("planner fallback when LLM throws", async () => {
+  it("logs and propagates planner failures", async () => {
     const sink = createInMemoryEventSink();
+    const logger = createTestLogger({ record: true, scope: "agent" });
     const plannerErr = new Error("planner down");
     const gateway = createFakeModelGateway({
       executorModelIds: ["fake:a"],
       responses: [plannerErr, executorFinalize(successFinal)],
     });
 
-    await runTestAgent(gateway, sink);
+    await expect(
+      runAgent({
+        input: { prompt: "hi", projectId: "p1" },
+        deps: createRunDeps(gateway, sink, logger),
+        config: baseConfig(),
+      })
+    ).rejects.toThrow("planner down");
 
     const types = sink.events.map((e) => e.type);
     const plannerStartedIdx = types.indexOf(
       AgentRuntimeEventType.PlannerStarted
     );
     const plannerFailedIdx = types.indexOf(AgentRuntimeEventType.PlannerFailed);
-    const plannerFinishedIdx = types.indexOf(
-      AgentRuntimeEventType.PlannerFinished
-    );
     expect(plannerStartedIdx).toBeGreaterThanOrEqual(0);
     expect(plannerFailedIdx).toBeGreaterThan(plannerStartedIdx);
-    expect(plannerFinishedIdx).toBeGreaterThan(plannerFailedIdx);
-    const finished = sink.events.find(
-      (e) => e.type === AgentRuntimeEventType.PlannerFinished
+    expect(types).not.toContain(AgentRuntimeEventType.PlannerFinished);
+    expect(types).not.toContain(AgentRuntimeEventType.ExecutorAttemptStarted);
+    expect(logger.entries).toContainEqual(
+      expect.objectContaining({
+        level: "error",
+        scope: "agent:run",
+        event: "planner failed",
+        metadata: { err: plannerErr },
+      })
     );
-    expect(finished).toMatchObject({
-      type: AgentRuntimeEventType.PlannerFinished,
-    });
-    // Default plan must still drive the executor.
-    expect(types).toContain(AgentRuntimeEventType.ExecutorAttemptStarted);
   });
 });

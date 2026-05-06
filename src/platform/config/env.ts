@@ -13,6 +13,13 @@ const LogLevelSchema = z
   .enum(["debug", "info", "warn", "error"])
   .default("info");
 
+const BooleanEnvSchema = z
+  .preprocess(
+    (v) => (typeof v === "string" ? v.toLowerCase() : v),
+    z.enum(["true", "false"]).transform((v) => v === "true")
+  )
+  .default(false);
+
 const ModelProviderSchema = z.enum(PROVIDER_VALUES);
 
 export const EnvSchema = z.object({
@@ -34,6 +41,7 @@ export const EnvSchema = z.object({
     (v) => (typeof v === "string" ? v.toLowerCase() : v),
     LogLevelSchema
   ),
+  LOG_LLM_PAYLOADS: BooleanEnvSchema,
 
   RATE_LIMIT_PER_HOUR: z.coerce.number().int().positive().optional(),
 
@@ -60,6 +68,7 @@ function readRaw() {
     MODEL_EXECUTOR_FALLBACK_2:
       process.env.MODEL_EXECUTOR_FALLBACK_2 || undefined,
     LOG_LEVEL: process.env.LOG_LEVEL,
+    LOG_LLM_PAYLOADS: process.env.LOG_LLM_PAYLOADS,
     RATE_LIMIT_PER_HOUR: process.env.RATE_LIMIT_PER_HOUR || undefined,
     LOG_PRETTY: process.env.LOG_PRETTY || undefined,
   };

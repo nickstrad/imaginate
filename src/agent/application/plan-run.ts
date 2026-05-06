@@ -61,7 +61,6 @@ export async function planRun(args: {
 
   const modelId = deps.modelGateway.resolvePlannerModelId();
 
-  let threw = false;
   try {
     await deps.modelGateway.generateText({
       modelId,
@@ -70,24 +69,25 @@ export async function planRun(args: {
         ...input.previousMessages,
         { role: "user", content: input.userPrompt },
       ],
+      logger: deps.logger,
       tools,
       maxOutputTokens: 1024,
       providerOptions: input.providerCacheOptions,
       stopWhen: [() => captured !== null],
     });
   } catch (err) {
-    threw = true;
-    deps.logger.warn({
+    deps.logger.error({
       event: "planner failed",
-      metadata: { err: String(err) },
+      metadata: { err },
     });
     await deps.eventSink.emit({
       type: AgentRuntimeEventType.PlannerFailed,
       error: String(err),
     });
+    throw err;
   }
 
-  if (!captured && !threw) {
+  if (!captured) {
     deps.logger.warn({ event: "planner no output, using fallback" });
   }
 

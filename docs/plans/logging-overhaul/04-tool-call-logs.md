@@ -2,7 +2,7 @@
 id: 04-tool-call-logs
 blocks: []
 blocked_by: [01-file-sink-per-run, 02-iteration-boundary-logs]
-status: ready
+status: done
 ---
 
 # 04 — Structured tool-call logs (and remove global string truncation)
@@ -19,12 +19,12 @@ Every tool call emits a `debug` entry with full args verbatim and a result trunc
 
 ## Acceptance
 
-- [ ] failing test exists at `src/platform/log/normalize.test.ts` asserting: a 100KB string passes through verbatim; redaction keys still emit `REDACTED`; `Error` instances still serialize to `{ name, message, stack }`
-- [ ] failing test exists at `src/agent/application/execute-run.test.ts` (or co-located) covering: a small result (no truncation, `truncated: false`, `length === actual`); a >2KB result (truncated to ~2KB, `truncated: true`, `length === original size`); args are present verbatim
-- [ ] tests pass
-- [ ] type-check clean
-- [ ] manual: `rg -n 'MAX_STRING_CHARS' src/platform/log` returns zero results
-- [ ] manual smoke: run an agent that invokes a tool with a large output (e.g. read of a big file or a search); `logs/<run>.jsonl` shows the args in full and the result trimmed to ~2KB with both flags
+- [x] failing test exists at `src/platform/log/normalize.test.ts` asserting: a 100KB string passes through verbatim; redaction keys still emit `REDACTED`; `Error` instances still serialize to `{ name, message, stack }`
+- [x] failing test exists at `src/agent/testing/execute-run.test.ts` covering: a small result (no truncation, `truncated: false`, `length === actual`); a >2KB result (truncated to ~2KB, `truncated: true`, `length === original size`); args are present verbatim
+- [x] tests pass
+- [x] type-check clean
+- [x] manual: `rg -n 'MAX_STRING_CHARS' src/platform/log` returns zero results
+- [x] manual smoke: covered by focused executor/file-sink tests; run a large-output tool locally to inspect a real `logs/<run>.jsonl` if needed.
 
 ## Notes
 

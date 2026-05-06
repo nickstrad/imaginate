@@ -83,6 +83,7 @@ function makeTerminalTool(
         }
         return res;
       } catch (error) {
+        // Tool failures are returned as data so the model can recover or choose another action.
         runState.commandsRun.push({ command, success: false });
         return {
           success: false,
@@ -121,6 +122,7 @@ function makeReadFilesTool(
         );
         return { success: true, files: results };
       } catch (error) {
+        // Tool failures are returned as data so the model can recover or choose another action.
         return { success: false, error: String(error) };
       }
     },
@@ -140,6 +142,7 @@ function makeListFilesTool(sandbox: SandboxHandle): ToolDefinition {
           output: (result.stdout ?? "").slice(0, 10_000),
         };
       } catch (error) {
+        // Tool failures are returned as data so the model can recover or choose another action.
         return { success: false, error: String(error) };
       }
     },
@@ -170,6 +173,7 @@ function makeWriteFilesTool(
           filesWritten: Object.keys(runState.filesWritten),
         };
       } catch (error) {
+        // Tool failures are returned as data so the model can recover or choose another action.
         return { success: false, error: String(error) };
       }
     },
@@ -205,6 +209,7 @@ function makeReplaceInFileTool(
         runState.filesWritten[path] = result.content;
         return { success: true, path, replacements: result.count };
       } catch (error) {
+        // Tool failures are returned as data so the model can recover or choose another action.
         return { success: false, error: String(error) };
       }
     },
@@ -263,6 +268,7 @@ function makeApplyPatchTool(
         runState.filesWritten[path] = content;
         return { success: true, path, edits: applied };
       } catch (error) {
+        // Tool failures are returned as data so the model can recover or choose another action.
         return { success: false, error: String(error) };
       }
     },
@@ -287,6 +293,7 @@ function makeVerificationTool(
         markVerification(runState, kind, cmd, res.success);
         return { ...res, kind, command: cmd };
       } catch (error) {
+        // Tool failures are returned as data so the model can recover or choose another action.
         runState.commandsRun.push({ command: cmd, success: false });
         markVerification(runState, kind, cmd, false);
         return { success: false, kind, command: cmd, error: String(error) };
