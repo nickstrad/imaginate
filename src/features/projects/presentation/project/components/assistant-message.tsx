@@ -65,7 +65,9 @@ const AssistantMessageComponent = ({
     message.fragment && activeFragment?.id === message.fragment.id;
 
   const handleFragmentClick = () => {
-    if (!message.fragment) return;
+    if (!message.fragment) {
+      return;
+    }
     if (activeFragment?.id === message.fragment.id) {
       setActiveFragment(null);
     } else {
@@ -115,7 +117,7 @@ const AssistantMessageComponent = ({
             <Card
               onClick={message.fragment ? handleFragmentClick : undefined}
               className={cn(
-                "max-w-2xl w-fit",
+                "w-fit max-w-2xl border-chrome-border bg-surface-elevated shadow-xs",
                 message.fragment ? "cursor-pointer" : ""
               )}
             >
@@ -127,9 +129,9 @@ const AssistantMessageComponent = ({
                     className={cn(
                       "w-full mt-3 p-3 rounded-lg border transition-all duration-200 group hover:shadow-md",
                       {
-                        "bg-primary/10 border-primary/30 shadow-sm ring-1 ring-primary/20":
+                        "border-ring/40 bg-surface-strong shadow-sm ring-1 ring-ring/20":
                           isFragmentActive,
-                        "bg-muted/40 border-muted-foreground/20 hover:bg-muted/60 hover:border-muted-foreground/30":
+                        "border-chrome-border bg-surface-subtle hover:border-ring/30 hover:bg-surface":
                           !isFragmentActive,
                       }
                     )}

@@ -46,7 +46,7 @@ export const ProjectForm = ({ isPending, onCreate }: ProjectFormProps) => {
     <div className="w-full max-w-3xl mx-auto">
       <form
         onSubmit={handleSubmit}
-        className="border-2 border-border rounded-xl p-6 space-y-4 bg-card shadow-sm"
+        className="space-y-4 rounded-lg border border-chrome-border bg-surface-elevated p-5 shadow-md sm:p-6"
       >
         <div className="mb-4">
           <ModeSelector
@@ -60,7 +60,7 @@ export const ProjectForm = ({ isPending, onCreate }: ProjectFormProps) => {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="Describe the web application you want to build..."
-          className="min-h-[120px] resize-none text-base border-0 focus:ring-0 focus:outline-none p-4 text-foreground"
+          className="min-h-[120px] resize-none border-0 bg-surface-subtle p-4 text-base text-foreground shadow-none focus-visible:ring-1"
           disabled={isPending}
           onKeyDown={handleKeyDown}
         />
@@ -68,7 +68,9 @@ export const ProjectForm = ({ isPending, onCreate }: ProjectFormProps) => {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>↵</span>
-            <code className="bg-muted px-2 py-1 rounded text-xs">Enter</code>
+            <code className="rounded-sm bg-muted px-2 py-1 font-mono text-xs text-muted-foreground">
+              Enter
+            </code>
             <span>to submit</span>
           </div>
 

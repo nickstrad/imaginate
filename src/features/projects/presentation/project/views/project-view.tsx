@@ -34,10 +34,10 @@ export default function ProjectView({ renderMessages }: Props) {
   );
 
   return (
-    <div className="h-screen overflow-hidden">
+    <div className="h-screen overflow-hidden bg-background">
       <ResizablePanelGroup direction="horizontal" className="h-full">
         <ResizablePanel defaultSize={25} minSize={20} className="h-full">
-          <Card className="h-full rounded-none border-r border-t-0 border-b-0 border-l-0">
+          <Card className="h-full rounded-none border-y-0 border-l-0 border-r-chrome-border bg-surface">
             <CardContent className="p-0 h-full">
               <ScrollArea className="h-full">
                 <ErrorBoundary fallback={<div>Something went wrong</div>}>
@@ -55,7 +55,7 @@ export default function ProjectView({ renderMessages }: Props) {
         <ResizablePanel defaultSize={75} minSize={50} className="h-full">
           {!!activeFragment ? (
             <Tabs defaultValue="demo" className="h-full flex flex-col">
-              <div className="flex-shrink-0 p-2 border-b flex flex-row">
+              <div className="flex flex-shrink-0 flex-row border-b border-chrome-border bg-chrome p-2 backdrop-blur">
                 <TabsList>
                   <TabsTrigger value="demo">
                     <EyeIcon className="w-4 h-4 mr-2" />
@@ -79,7 +79,7 @@ export default function ProjectView({ renderMessages }: Props) {
               </TabsContent>
             </Tabs>
           ) : (
-            <Card className="h-full rounded-none border-0">
+            <Card className="h-full rounded-none border-0 bg-surface">
               <CardContent className="flex items-center justify-center h-full">
                 <p className="text-muted-foreground">
                   Select a fragment to view

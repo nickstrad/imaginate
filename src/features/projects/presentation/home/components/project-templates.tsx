@@ -64,7 +64,7 @@ export const ProjectTemplates = ({
         {PROJECT_TEMPLATES.map((template, index) => (
           <Card
             key={index}
-            className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 border-2 border-border hover:border-primary/50 w-fit py-0"
+            className="w-fit cursor-pointer border-chrome-border bg-surface-elevated py-0 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-ring/50 hover:bg-surface hover:shadow-md"
             onClick={() => onTemplateSelect(template.prompt)}
           >
             <CardContent className="px-3 py-1">

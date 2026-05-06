@@ -39,7 +39,7 @@ export const ProjectList = ({
         <h2 className="text-3xl font-bold text-foreground mb-4 text-left">
           Recent projects
         </h2>
-        <div className="flex items-center justify-center p-8 border-2 border-border rounded-xl bg-card">
+        <div className="flex items-center justify-center rounded-lg border border-chrome-border bg-surface-elevated p-8 shadow-sm">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
             <div className="space-y-2">
@@ -104,7 +104,7 @@ export const ProjectList = ({
         {projects.map((project) => (
           <Card
             key={project.id}
-            className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 border-2 border-border hover:border-primary/50 py-0"
+            className="cursor-pointer border-chrome-border bg-surface-elevated py-0 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-ring/50 hover:bg-surface hover:shadow-md"
             onClick={() => onProjectClick(project.id)}
           >
             <CardContent className="px-3 py-2">

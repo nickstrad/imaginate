@@ -37,7 +37,7 @@ const ToolCallsSection = ({ thought }: { thought: Thought }) => {
   return (
     <div className="ml-6 mt-3">
       <Collapsible open={expanded} onOpenChange={setExpanded}>
-        <CollapsibleTrigger className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-300 transition-colors">
+        <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
           {expanded ? (
             <ChevronDown className="w-3 h-3" />
           ) : (
@@ -52,21 +52,21 @@ const ToolCallsSection = ({ thought }: { thought: Thought }) => {
         <CollapsibleContent className="mt-2 space-y-3">
           {thought.toolCalls?.map((tc) => (
             <div key={tc.callId}>
-              <div className="text-xs text-zinc-400 font-mono mb-1">
+              <div className="mb-1 font-mono text-xs text-muted-foreground">
                 → {tc.toolName}
               </div>
-              <div className="bg-zinc-900 rounded border border-zinc-800 p-2 text-xs">
-                <pre className="text-zinc-300 overflow-x-auto max-h-32 text-xs whitespace-pre-wrap break-all">
+              <div className="rounded-sm border border-chrome-border bg-surface-subtle p-2 text-xs">
+                <pre className="max-h-32 overflow-x-auto whitespace-pre-wrap break-all text-xs text-foreground">
                   {JSON.stringify(tc.args, null, 2)}
                 </pre>
               </div>
               {tc.completion && (
                 <>
-                  <div className="text-xs text-zinc-400 font-mono mt-1 mb-1">
+                  <div className="mb-1 mt-1 font-mono text-xs text-muted-foreground">
                     ← {tc.completion.ok ? "result" : "error"}
                   </div>
-                  <div className="bg-zinc-900 rounded border border-zinc-800 p-2 text-xs">
-                    <pre className="text-zinc-300 overflow-x-auto max-h-32 text-xs whitespace-pre-wrap break-all">
+                  <div className="rounded-sm border border-chrome-border bg-surface-subtle p-2 text-xs">
+                    <pre className="max-h-32 overflow-x-auto whitespace-pre-wrap break-all text-xs text-foreground">
                       {JSON.stringify(
                         tc.completion.ok
                           ? tc.completion.result
@@ -95,10 +95,10 @@ export function ThoughtsModal({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full sm:w-[500px] flex flex-col bg-zinc-950 text-zinc-100"
+        className="flex w-full flex-col border-chrome-border bg-surface text-surface-foreground sm:w-[500px]"
       >
-        <SheetHeader className="border-b border-zinc-800">
-          <SheetTitle className="text-zinc-100">Agent Thoughts</SheetTitle>
+        <SheetHeader className="border-b border-chrome-border">
+          <SheetTitle className="text-foreground">Agent Thoughts</SheetTitle>
           <SheetDescription className="sr-only">
             Step-by-step reasoning and tool calls from the agent.
           </SheetDescription>
@@ -107,7 +107,7 @@ export function ThoughtsModal({
         <ScrollArea className="flex-1 min-w-0">
           <div className="p-6 space-y-4 min-w-0">
             {thoughts.length === 0 ? (
-              <div className="text-center py-8 text-zinc-500">
+              <div className="py-8 text-center text-muted-foreground">
                 No thoughts yet
               </div>
             ) : (
@@ -116,19 +116,19 @@ export function ThoughtsModal({
                   <div className="flex items-center gap-3 text-sm">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-mono text-zinc-500">
+                        <span className="font-mono text-xs text-muted-foreground">
                           Step {thought.stepIndex + 1}
                         </span>
-                        <div className="flex-1 border-t border-zinc-700" />
+                        <div className="flex-1 border-t border-chrome-border" />
                       </div>
-                      <p className="text-zinc-200 text-sm leading-relaxed">
+                      <p className="text-sm leading-relaxed text-foreground">
                         {thought.text}
                       </p>
                     </div>
                   </div>
 
                   {thought.reasoningText && (
-                    <div className="ml-6 mt-2 text-xs text-zinc-400 italic border-l border-zinc-700 pl-3">
+                    <div className="ml-6 mt-2 border-l border-chrome-border pl-3 text-xs italic text-muted-foreground">
                       {thought.reasoningText}
                     </div>
                   )}
@@ -136,7 +136,7 @@ export function ThoughtsModal({
                   <ToolCallsSection thought={thought} />
 
                   {idx < thoughts.length - 1 && (
-                    <Separator className="bg-zinc-800 my-3" />
+                    <Separator className="my-3 bg-chrome-border" />
                   )}
                 </div>
               ))

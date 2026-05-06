@@ -3,17 +3,17 @@ import { ProjectList } from "@/features/projects/presentation/home/containers/pr
 
 export default function Home() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-4">
-      <div className="text-center max-w-4xl mx-auto">
-        <h1 className="text-6xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-16">
+      <div className="mx-auto w-full max-w-4xl text-center">
+        <h1 className="mb-5 text-6xl font-semibold tracking-normal text-foreground sm:text-7xl">
           Imaginate
         </h1>
-        <p className="text-lg text-gray-500 dark:text-gray-400 mb-12 max-w-2xl mx-auto">
+        <p className="mx-auto mb-12 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
           Simply type a prompt and watch your ideas come to life as live,
           interactive web applications. No coding experience required.
         </p>
 
-        <div className="space-y-6">
+        <div className="space-y-7">
           <ProjectForm />
           <ProjectList />
         </div>

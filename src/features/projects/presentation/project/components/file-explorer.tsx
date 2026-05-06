@@ -190,9 +190,12 @@ export function FileExplorer({ files }: Props) {
     : "tsx";
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="rounded-lg border">
+    <ResizablePanelGroup
+      direction="horizontal"
+      className="rounded-lg border border-chrome-border bg-surface"
+    >
       <ResizablePanel defaultSize={25} minSize={15}>
-        <ScrollArea className="h-full p-2">
+        <ScrollArea className="h-full bg-surface-subtle p-2">
           {fileTree.children.map((node) => (
             <FileTreeNodeDisplay
               key={node.path}
@@ -207,7 +210,7 @@ export function FileExplorer({ files }: Props) {
       <ResizableHandle withHandle />
       <ResizablePanel defaultSize={75} className="flex flex-col min-h-0">
         {selectedFile ? (
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto bg-surface">
             <CodeView
               lang={selectedFileLang}
               code={selectedFileContent}
@@ -215,8 +218,8 @@ export function FileExplorer({ files }: Props) {
             />
           </div>
         ) : (
-          <div className="flex h-full items-center justify-center">
-            <p>No file selected</p>
+          <div className="flex h-full items-center justify-center bg-surface">
+            <p className="text-muted-foreground">No file selected</p>
           </div>
         )}
       </ResizablePanel>

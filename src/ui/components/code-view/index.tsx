@@ -34,7 +34,7 @@ const FileBreadcrumb: React.FC<{ filePath: string; onCopy: () => void }> = ({
   };
 
   return (
-    <div className="px-3 py-2 border-b bg-muted/30 backdrop-blur-sm flex items-center justify-between">
+    <div className="flex items-center justify-between border-b border-chrome-border bg-chrome px-3 py-2 backdrop-blur">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -96,10 +96,10 @@ export const CodeView: React.FC<{
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex h-full flex-col bg-surface">
       {filePath && <FileBreadcrumb filePath={filePath} onCopy={handleCopy} />}
       <div className="flex-1 overflow-auto">
-        <pre className="p-3 bg-transparent border-none rounded-none m-0 text-xs">
+        <pre className="m-0 rounded-none border-none bg-transparent p-3 text-xs">
           <code ref={codeRef} className={`language-${lang}`}>
             {code}
           </code>

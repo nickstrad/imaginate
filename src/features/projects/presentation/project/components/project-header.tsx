@@ -41,7 +41,7 @@ export function ProjectHeader({
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className="p-2 border-b bg-background sticky top-0 z-10 flex items-center h-full">
+    <div className="sticky top-0 z-10 flex h-full items-center border-b border-chrome-border bg-chrome p-2 backdrop-blur">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="w-full h-full justify-between">

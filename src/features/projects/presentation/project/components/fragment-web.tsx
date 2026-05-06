@@ -30,8 +30,8 @@ export const FragmentWeb: React.FC<Props> = ({ data }) => {
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-background">
-      <div className="p-2 border-b bg-sidebar flex items-center gap-x-2">
+    <div className="flex h-full w-full flex-col bg-background">
+      <div className="flex items-center gap-x-2 border-b border-chrome-border bg-chrome p-2 backdrop-blur">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -104,7 +104,7 @@ export const FragmentWeb: React.FC<Props> = ({ data }) => {
       ) : (
         <div className="p-4 flex-1 overflow-auto">
           {data.files ? (
-            <pre className="bg-muted text-muted-foreground p-4 rounded-md text-sm">
+            <pre className="rounded-md bg-surface-subtle p-4 text-sm text-muted-foreground">
               {JSON.stringify(data.files, null, 2)}
             </pre>
           ) : (
