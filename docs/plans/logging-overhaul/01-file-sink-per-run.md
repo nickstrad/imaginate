@@ -30,7 +30,7 @@ Every agent run in dev writes its full debug trail to `logs/<projectId>-<unixMs>
 - [x] failing test exists at `src/agent/application/run-agent.test.ts` (or co-located) asserting a run with a stub project id produces a `logs/<projectId>-<ms>.jsonl` and closes the stream on both resolve and throw
 - [x] tests pass
 - [x] type-check clean
-- [ ] manual smoke: run an agent locally; confirm a file `logs/<projectId>-<unixMs>.jsonl` exists, contains JSONL entries at `debug` level regardless of terminal `LOG_LEVEL`, and is closed when the run ends
+- [x] manual smoke: run an agent locally; confirm a file `logs/<projectId>-<unixMs>.jsonl` exists, contains JSONL entries at `debug` level regardless of terminal `LOG_LEVEL`, and is closed when the run ends
 
 ## Notes
 
