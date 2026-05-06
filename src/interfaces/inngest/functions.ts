@@ -37,24 +37,18 @@ import {
   resolvePlannerModel,
 } from "@/platform/models";
 import {
-  ASK_AGENT_PROMPT,
   buildExecutorSystemPrompt,
   CACHE_PROVIDER_OPTIONS,
-  PLANNER_PROMPT,
+  getAgentPrompts,
 } from "@/shared/prompts";
 import {
-  completeCodeAssistantMessage,
-  createAskAssistantMessage,
-  createPendingCodeAssistantMessage,
+  createMessageWorkflow,
   createPrismaMessageRepository,
-  failCodeAssistantMessage,
-  saveAnswerOnlyAssistantMessage,
-  saveProviderErrorAssistantMessage,
 } from "@/features/messages";
 import {
   createAiProjectNameGenerator,
   createPrismaProjectRepository,
-  renameProjectFromPrompt,
+  createProjectWorkflow,
 } from "@/features/projects";
 import { EVENT_NAMES } from "./events";
 
@@ -82,9 +76,14 @@ function loggedStep<T>(
   });
 }
 
-const messageRepository = createPrismaMessageRepository();
-const projectRepository = createPrismaProjectRepository();
-const projectNameGenerator = createAiProjectNameGenerator();
+const messageWorkflow = createMessageWorkflow({
+  repository: createPrismaMessageRepository(),
+});
+const projectWorkflow = createProjectWorkflow({
+  repository: createPrismaProjectRepository(),
+  nameGenerator: createAiProjectNameGenerator(),
+});
+const prompts = getAgentPrompts();
 
 export const codeAgentFunction = inngest.createFunction(
   { id: "codeAgent" },
@@ -117,11 +116,7 @@ export const codeAgentFunction = inngest.createFunction(
         log,
         step,
         "create-message",
-        () =>
-          createPendingCodeAssistantMessage(
-            { projectId },
-            { repository: messageRepository }
-          )
+        () => messageWorkflow.createPendingCodeMessage({ projectId })
       );
 
       const previousMessages = await loggedStep(
@@ -161,7 +156,7 @@ export const codeAgentFunction = inngest.createFunction(
           input: {
             userPrompt,
             previousMessages: portMessages,
-            plannerSystemPrompt: PLANNER_PROMPT,
+            plannerSystemPrompt: prompts.planner,
             providerCacheOptions: CACHE_PROVIDER_OPTIONS,
           },
           deps: plannerDeps,
@@ -178,10 +173,10 @@ export const codeAgentFunction = inngest.createFunction(
           plan.answer?.trim() ||
           "I reviewed your request — no code changes were required.";
         await loggedStep(log, step, "save-answer-only", () =>
-          saveAnswerOnlyAssistantMessage(
-            { messageId: persistedMessage.id, answer },
-            { repository: messageRepository }
-          )
+          messageWorkflow.saveAnswerOnly({
+            messageId: persistedMessage.id,
+            answer,
+          })
         );
         const telemetry = buildTelemetry(runState, 0, cumulativeUsage);
         await loggedStep(
@@ -214,7 +209,7 @@ export const codeAgentFunction = inngest.createFunction(
         log,
         persistedMessageId: persistedMessage.id,
         thoughts,
-        messageRepository,
+        messageWorkflow,
       });
 
       const execDeps = buildAgentDeps({
@@ -421,13 +416,10 @@ export const codeAgentFunction = inngest.createFunction(
           },
         });
         await loggedStep(log, step, "save-provider-error", () =>
-          saveProviderErrorAssistantMessage(
-            {
-              messageId: persistedMessage.id,
-              message: terminalError.message,
-            },
-            { repository: messageRepository }
-          )
+          messageWorkflow.saveProviderError({
+            messageId: persistedMessage.id,
+            message: terminalError.message,
+          })
         );
         return {
           error: terminalError.message,
@@ -470,25 +462,19 @@ export const codeAgentFunction = inngest.createFunction(
         "save-result",
         () =>
           isError
-            ? failCodeAssistantMessage(
-                {
-                  messageId: persistedMessage.id,
-                  summary:
-                    finalOutput?.summary ??
-                    "Something went wrong. Please try again..",
-                },
-                { repository: messageRepository }
-              )
-            : completeCodeAssistantMessage(
-                {
-                  messageId: persistedMessage.id,
-                  summary: finalOutput!.summary,
-                  title: finalOutput!.title,
-                  sandboxUrl,
-                  files: finalRunState.filesWritten,
-                },
-                { repository: messageRepository }
-              ),
+            ? messageWorkflow.failCodeMessage({
+                messageId: persistedMessage.id,
+                summary:
+                  finalOutput?.summary ??
+                  "Something went wrong. Please try again..",
+              })
+            : messageWorkflow.completeCodeMessage({
+                messageId: persistedMessage.id,
+                summary: finalOutput!.summary,
+                title: finalOutput!.title,
+                sandboxUrl,
+                files: finalRunState.filesWritten,
+              }),
         { isError }
       );
 
@@ -573,7 +559,7 @@ export const askAgentFunction = inngest.createFunction(
       try {
         const { text } = await generateText({
           model: createModelProvider(plannerSpec),
-          system: ASK_AGENT_PROMPT,
+          system: prompts.ask,
           messages,
           maxOutputTokens: 4096,
           providerOptions: CACHE_PROVIDER_OPTIONS,
@@ -602,7 +588,7 @@ export const askAgentFunction = inngest.createFunction(
       step,
       "save-result",
       () =>
-        createAskAssistantMessage(
+        messageWorkflow.createAskMessage(
           response.error
             ? {
                 projectId: event.data.projectId,
@@ -615,8 +601,7 @@ export const askAgentFunction = inngest.createFunction(
                   response.text ||
                   "I couldn't generate a response. Please try again.",
                 type: response.text ? "RESULT" : "ERROR",
-              },
-          { repository: messageRepository }
+              }
         ),
       { hasError: !!response.error }
     );
@@ -647,16 +632,10 @@ export const renameProjectFunction = inngest.createFunction(
     });
 
     const result = await loggedStep(log, step, "rename-project", () =>
-      renameProjectFromPrompt(
-        {
-          projectId: event.data.projectId,
-          userPrompt: event.data.userPrompt,
-        },
-        {
-          repository: projectRepository,
-          nameGenerator: projectNameGenerator,
-        }
-      )
+      projectWorkflow.renameFromPrompt({
+        projectId: event.data.projectId,
+        userPrompt: event.data.userPrompt,
+      })
     );
 
     log.info({

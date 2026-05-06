@@ -37,7 +37,7 @@ import {
 import {
   buildExecutorSystemPrompt,
   CACHE_PROVIDER_OPTIONS,
-  PLANNER_PROMPT,
+  getAgentPrompts,
 } from "@/shared/prompts";
 import { logRunStart } from "./run-start-log";
 
@@ -641,7 +641,7 @@ async function runAgentCli(args: CliArgs): Promise<number> {
       input: { prompt: args.prompt, projectId },
       deps,
       config: {
-        plannerSystemPrompt: PLANNER_PROMPT,
+        plannerSystemPrompt: getAgentPrompts().planner,
         buildExecutorSystemPrompt,
         providerCacheOptions: CACHE_PROVIDER_OPTIONS,
       },

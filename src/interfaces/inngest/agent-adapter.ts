@@ -9,10 +9,7 @@ import {
   type AgentRuntimeDeps,
   type AgentRuntimeEvent,
 } from "@/agent";
-import {
-  recordAssistantThoughts,
-  type MessageRepository,
-} from "@/features/messages";
+import type { MessageWorkflow } from "@/features/messages";
 import type { Logger } from "@/platform/log";
 import type { Thought, ThoughtToolCall } from "@/shared/schemas/thought";
 
@@ -215,9 +212,9 @@ export function makePersistedThoughtSink(args: {
   log: Logger;
   persistedMessageId: string;
   thoughts: Thought[];
-  messageRepository: MessageRepository;
+  messageWorkflow: MessageWorkflow;
 }): (event: AgentRuntimeEvent) => Promise<void> {
-  const { log, persistedMessageId, thoughts, messageRepository } = args;
+  const { log, persistedMessageId, thoughts, messageWorkflow } = args;
   const toolCallCompletions = new Map<string, ThoughtToolCallCompletion>();
   return async (event) => {
     logAgentRuntimeEvent(log, event);
@@ -233,15 +230,10 @@ export function makePersistedThoughtSink(args: {
         thoughts,
         toolCallCompletions
       );
-      await recordAssistantThoughts(
-        {
-          messageId: persistedMessageId,
-          thoughts: projectedThoughts,
-        },
-        {
-          repository: messageRepository,
-        }
-      );
+      await messageWorkflow.recordThoughts({
+        messageId: persistedMessageId,
+        thoughts: projectedThoughts,
+      });
     }
   };
 }

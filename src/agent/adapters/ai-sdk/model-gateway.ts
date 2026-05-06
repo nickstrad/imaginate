@@ -1,13 +1,14 @@
 import { generateText, tool, type ModelMessage as AiModelMessage } from "ai";
 import {
-  EXECUTOR_LADDER,
   createModelProvider,
-  fallbackSlugsFor,
+  resolveExecutorModels,
+  resolveFallbackSlugs,
   resolvePlannerModel,
-  resolveSpec,
+  resolveSpecWith,
   type ModelSpec,
 } from "@/platform/models";
 import { env } from "@/platform/config/env";
+import { getProviderKey } from "@/platform/providers";
 import { isProvider, PROVIDERS } from "@/platform/providers/types";
 import type {
   GenerateTextRequest,
@@ -287,8 +288,8 @@ export function createAiSdkModelGateway(): ModelGateway {
   return {
     async generateText(req: GenerateTextRequest): Promise<GenerateTextResult> {
       const spec = parseSpec(req.modelId);
-      const resolved = resolveSpec(spec);
-      const fallbackSlugs = fallbackSlugsFor(spec);
+      const resolved = resolveSpecWith(spec, getProviderKey);
+      const fallbackSlugs = resolveFallbackSlugs(spec);
       const result = await generateText({
         model: createModelProvider(resolved, { fallbackSlugs }),
         system: req.system,
@@ -346,11 +347,11 @@ export function createAiSdkModelGateway(): ModelGateway {
       return specToString(resolvePlannerModel());
     },
     listExecutorModelIds(): string[] {
-      return EXECUTOR_LADDER.map(specToString);
+      return resolveExecutorModels().map(specToString);
     },
     describeModel(modelId: string): ModelDescriptor {
       const spec = parseSpec(modelId);
-      const resolved = resolveSpec(spec);
+      const resolved = resolveSpecWith(spec, getProviderKey);
       return { provider: resolved.provider, model: resolved.model };
     },
     classifyError(err: unknown): ProviderErrorClassification {

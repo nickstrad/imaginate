@@ -1,7 +1,11 @@
 import type { ModelMessage } from "ai";
 import { prisma } from "@/platform/db";
 import { MessageRole, MessageStatus } from "@/generated/prisma";
-import type { MessageRow } from "./types";
+
+interface MessageRow {
+  role: MessageRole;
+  content: string;
+}
 
 export function toModelMessages(rows: readonly MessageRow[]): ModelMessage[] {
   return rows

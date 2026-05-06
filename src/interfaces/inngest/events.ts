@@ -1,12 +1,13 @@
 import { z } from "zod/v3";
+import type { AgentMode } from "@/shared/agent-mode";
+
+export type { AgentMode };
 
 export const EVENT_NAMES = {
   codeAgentRun: "codeAgent/run",
   askAgentRun: "askAgent/run",
   projectRename: "project/rename",
 } as const;
-
-export type AgentMode = "ask" | "code";
 
 export type AgentRunEventName =
   | typeof EVENT_NAMES.codeAgentRun

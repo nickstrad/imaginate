@@ -17,11 +17,15 @@ vi.mock("ai", () => ({
 }));
 
 vi.mock("@/platform/models", () => ({
-  EXECUTOR_LADDER: [{ provider: "openrouter", model: "executor" }],
   createModelProvider: () => ({ provider: "mock" }),
-  fallbackSlugsFor: () => [],
+  resolveExecutorModels: () => [{ provider: "openrouter", model: "executor" }],
+  resolveFallbackSlugs: () => [],
   resolvePlannerModel: () => ({ provider: "openrouter", model: "planner" }),
-  resolveSpec: (spec: { provider: string; model: string }) => spec,
+  resolveSpecWith: (spec: { provider: string; model: string }) => spec,
+}));
+
+vi.mock("@/platform/providers", () => ({
+  getProviderKey: () => "test-key",
 }));
 
 async function loadGatewayWithPayloadGate(enabled: boolean) {
