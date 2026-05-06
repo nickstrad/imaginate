@@ -2,7 +2,7 @@
 id: 02-iteration-boundary-logs
 blocks: []
 blocked_by: [01-file-sink-per-run]
-status: ready
+status: done
 ---
 
 # 02 — Per-iteration boundary logs
@@ -19,16 +19,16 @@ A developer watching the terminal at `info` sees exactly one line per loop itera
 
 ## Acceptance
 
-- [ ] failing test exists at `src/agent/testing/test-logger.test.ts` covering: noop default does nothing observable; `record: true` captures every level + bindings + scope + metadata; child loggers inherit bindings into recorded entries
-- [ ] failing test exists at `src/agent/application/execute-run.test.ts` (using `createTestLogger({ record: true })`) asserting one boundary entry per iteration with `{ iteration, stepKind, toolName?, ms }` bindings/metadata
-- [ ] tests pass
-- [ ] type-check clean
-- [ ] manual smoke: run an agent that performs ≥2 iterations; terminal at `info` shows one boundary line per iteration with monotonically increasing `iteration`, and `ms` is populated
+- [x] failing test exists at `src/agent/testing/test-logger.test.ts` covering: noop default does nothing observable; `record: true` captures every level + bindings + scope + metadata; child loggers inherit bindings into recorded entries
+- [x] failing test exists at `src/agent/testing/execute-run.test.ts` (using `createTestLogger({ record: true })`) asserting one boundary entry per iteration with `{ iteration, stepKind, toolName?, ms }` bindings/metadata
+- [x] tests pass
+- [x] type-check clean
+- [x] manual smoke: run an agent that performs ≥2 iterations; terminal at `info` shows one boundary line per iteration with monotonically increasing `iteration`, and `ms` is populated
 
 ## Notes
 
 - This slice introduces `createTestLogger()` as part of its test substrate (noop default; `record: true` captures entries). Subsequent slices reuse it.
 - Introduce iteration counter inside the loop in `execute-run.ts`.
 - Per-iteration child logger: `runLogger.child({ scope: "iter", bindings: { iteration } })`. Every log inside that iteration body must use this child so `iteration` is automatically attributed.
-- `ms` measured via the existing `timed()` helper.
+- `ms` measured around the iteration body with the same clock semantics as the existing `timed()` helper.
 - Boundary log is `info`. Anything richer (full args, payloads) is `debug` and lands in the per-run file from slice 01.

@@ -1,7 +1,6 @@
 import type {
   AgentEventSink,
   AgentLogger,
-  AgentLogInput,
   AppendedMessage,
   GenerateTextRequest,
   GenerateTextResult,
@@ -20,6 +19,7 @@ import type {
   ToolFactoryContext,
   ToolSet,
 } from "../ports";
+import { createTestLogger } from "./test-logger";
 import { classifyAgentError } from "../domain/errors";
 import type { AgentRuntimeEvent } from "../domain/events";
 import type {
@@ -98,15 +98,7 @@ export function createInMemoryEventSink(): InMemoryEventSink {
 }
 
 export function createNoopAgentLogger(): AgentLogger {
-  const noop = (_input: AgentLogInput) => {};
-  const logger: AgentLogger = {
-    debug: noop,
-    info: noop,
-    warn: noop,
-    error: noop,
-    child: () => logger,
-  };
-  return logger;
+  return createTestLogger();
 }
 
 export type FakeGenerateTextHandler = (

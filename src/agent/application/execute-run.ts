@@ -130,6 +130,32 @@ function extractTaskSummaryFallback(
   return extractTaskSummary(candidates());
 }
 
+function iterationBoundaryMetadata(
+  step: GenerateTextStepResult,
+  ms: number
+): Record<string, unknown> {
+  const toolName = step.toolCalls?.[0]?.toolName;
+  return {
+    stepKind: toolName ? "tool" : "text",
+    ...(toolName ? { toolName } : {}),
+    ms,
+  };
+}
+
+function logIterationBoundary(params: {
+  logger: AgentLogger;
+  step: GenerateTextStepResult;
+  startedAt: number;
+}): void {
+  params.logger.info({
+    event: "agent iteration",
+    metadata: iterationBoundaryMetadata(
+      params.step,
+      Date.now() - params.startedAt
+    ),
+  });
+}
+
 export async function executeRun(args: {
   input: ExecuteRunInput;
   deps: ExecuteRunDeps;
@@ -154,6 +180,7 @@ export async function executeRun(args: {
 
   const systemPrompt = input.buildExecutorSystemPrompt(planSnippet(plan));
   const completedToolCallIdsByStep = new Map<number, string[]>();
+  let iteration = 0;
 
   const onToolCallStart = async (event: ToolCallStartEvent) => {
     await deps.eventSink.emit({
@@ -209,12 +236,18 @@ export async function executeRun(args: {
         },
       ],
       onStepFinish: async (stepResult) => {
+        iteration += 1;
+        const iterationLogger = deps.logger.child({
+          scope: "iter",
+          bindings: { iteration },
+        });
+        const iterationStartedAt = Date.now();
         const snapshot = snapshotFromStep(stepResult);
         const toolCallIds = [
           ...(completedToolCallIdsByStep.get(snapshot.stepIndex) ?? []),
         ];
 
-        deps.logger.info({
+        iterationLogger.debug({
           event: "agent step",
           metadata: {
             stepIndex: snapshot.stepIndex,
@@ -240,7 +273,7 @@ export async function executeRun(args: {
                 )
               )
             ).catch((e) =>
-              deps.logger.warn({
+              iterationLogger.warn({
                 event: "telemetry snapshot failed",
                 metadata: { err: String(e) },
               })
@@ -255,6 +288,12 @@ export async function executeRun(args: {
           }),
           telemetryPromise,
         ]);
+
+        logIterationBoundary({
+          logger: iterationLogger,
+          step: stepResult,
+          startedAt: iterationStartedAt,
+        });
       },
     });
 
