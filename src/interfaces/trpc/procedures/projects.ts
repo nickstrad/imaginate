@@ -1,10 +1,9 @@
 import { TRPCError } from "@trpc/server";
 import z from "zod";
 import {
-  createProject,
+  createAiProjectNameGenerator,
   createPrismaProjectRepository,
-  getProject,
-  listProjects,
+  createProjectWorkflow,
   ProjectNotFoundError,
 } from "@/features/projects";
 import { consumeRateLimit } from "@/platform/rate-limit";
@@ -12,7 +11,10 @@ import { createTRPCRouter, publicProcedure } from "../init";
 import { inngest } from "@/interfaces/inngest/client";
 import { EVENT_NAMES, eventNameForMode } from "@/interfaces/inngest/events";
 
-const projectRepository = createPrismaProjectRepository();
+const projectWorkflow = createProjectWorkflow({
+  repository: createPrismaProjectRepository(),
+  nameGenerator: createAiProjectNameGenerator(),
+});
 
 function toProjectError(err: unknown): never {
   if (err instanceof ProjectNotFoundError) {
@@ -33,13 +35,13 @@ export const projectsRouter = createTRPCRouter({
     )
     .query(async ({ input }) => {
       try {
-        return await getProject(input, { repository: projectRepository });
+        return await projectWorkflow.get(input);
       } catch (err) {
         toProjectError(err);
       }
     }),
   getMany: publicProcedure.query(async () => {
-    return listProjects({ repository: projectRepository });
+    return projectWorkflow.list();
   }),
   create: publicProcedure
     .input(
@@ -56,9 +58,7 @@ export const projectsRouter = createTRPCRouter({
     .mutation(async ({ input, ctx }) => {
       await consumeRateLimit(ctx.ip);
 
-      const result = await createProject(input, {
-        repository: projectRepository,
-      });
+      const result = await projectWorkflow.create(input);
 
       await inngest.send({
         name: eventNameForMode(result.agentRun.mode),

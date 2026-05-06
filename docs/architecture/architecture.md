@@ -173,6 +173,18 @@ export function ProjectList() {
 
 If a new responsibility doesn't fit, raise it before adding code. Do not invent a new top-level folder unilaterally.
 
+## Module shape
+
+The folder rules above say _where_ code lives. This section says how each module should be shaped _inside_ its folder. The goal is **deep modules**: a small public surface that hides substantial behavior, easy to test through one seam.
+
+- **One cohesive `index.ts` per module is the default.** Split into siblings only when files exceed ~300 lines or have genuinely separable internal boundaries.
+- **No barrel-only files.** A file whose only job is `export *` from a sibling adds noise without behavior; inline the exports.
+- **Aim for ≤7 exports on a module's public surface.** If you can't get under that, the boundary is wrong — the module is doing two things.
+- **One test seam per module.** Tests should exercise behavior through the public surface (e.g. `createMessageWorkflow({ repository })`) and not have to mock five sibling modules to reach one function. Mocking-many-siblings is the giveaway that a module is shallow.
+- **The `imaginate-` prefix is a plan-document tag, not a folder/file convention.** `imaginate-workflow-5-improve-architecture` writes refactor plans whose section headings are `imaginate-<purpose>` for grep-ability. Modules in `src/` do not get that prefix; they live at their natural folder path with `index.ts`.
+
+When new code drifts back to one-method-per-file, wide repository wrappers, or barrel-and-siblings, `imaginate-workflow-5-improve-architecture` will flag it. Following the rules above keeps that skill quiet.
+
 ## CLI as a first-class interface
 
 `npm run agent:local` is a supported delivery mechanism, not a dev-only script. It exists so agent changes can be developed, debugged, and iterated without booting the Next dev server, the tRPC route, or the Inngest dev server.

@@ -1,9 +1,8 @@
 import { TRPCError } from "@trpc/server";
 import z from "zod";
 import {
+  createMessageWorkflow,
   createPrismaMessageRepository,
-  createUserMessage,
-  listMessages,
   MessageProjectNotFoundError,
 } from "@/features/messages";
 import { consumeRateLimit } from "@/platform/rate-limit";
@@ -11,7 +10,9 @@ import { createTRPCRouter, publicProcedure } from "../init";
 import { inngest } from "@/interfaces/inngest/client";
 import { eventNameForMode } from "@/interfaces/inngest/events";
 
-const messageRepository = createPrismaMessageRepository();
+const messageWorkflow = createMessageWorkflow({
+  repository: createPrismaMessageRepository(),
+});
 
 function toMessageError(err: unknown): never {
   if (err instanceof MessageProjectNotFoundError) {
@@ -31,7 +32,7 @@ export const messagesRouter = createTRPCRouter({
       })
     )
     .query(async ({ input }) => {
-      return listMessages(input, { repository: messageRepository });
+      return messageWorkflow.listMessages(input);
     }),
   create: publicProcedure
     .input(
@@ -50,9 +51,7 @@ export const messagesRouter = createTRPCRouter({
       await consumeRateLimit(ctx.ip);
 
       try {
-        const result = await createUserMessage(input, {
-          repository: messageRepository,
-        });
+        const result = await messageWorkflow.createUserMessage(input);
 
         await inngest.send({
           name: eventNameForMode(result.agentRun.mode),
