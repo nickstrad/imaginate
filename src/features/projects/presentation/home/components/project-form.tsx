@@ -5,11 +5,7 @@ import { Button } from "@/ui/components/ui/button";
 import { ArrowUp } from "lucide-react";
 import React from "react";
 import { ProjectTemplates } from "./project-templates";
-import {
-  type Mode,
-  ModeSelector,
-  useModeSelector,
-} from "@/ui/components/mode-selector";
+import type { Mode } from "@/ui/components/mode-selector";
 
 interface ProjectFormProps {
   isPending: boolean;
@@ -18,7 +14,6 @@ interface ProjectFormProps {
 
 export const ProjectForm = ({ isPending, onCreate }: ProjectFormProps) => {
   const [prompt, setPrompt] = React.useState("");
-  const modeSelectorState = useModeSelector();
 
   const submit = () => {
     if (!prompt.trim()) {
@@ -26,7 +21,7 @@ export const ProjectForm = ({ isPending, onCreate }: ProjectFormProps) => {
     }
     onCreate({
       userPrompt: prompt,
-      mode: modeSelectorState.mode,
+      mode: "code",
     });
   };
 
@@ -48,14 +43,6 @@ export const ProjectForm = ({ isPending, onCreate }: ProjectFormProps) => {
         onSubmit={handleSubmit}
         className="border-2 border-border rounded-xl p-6 space-y-4 bg-card shadow-sm"
       >
-        <div className="mb-4">
-          <ModeSelector
-            mode={modeSelectorState.mode}
-            setMode={modeSelectorState.setMode}
-            availableModes={modeSelectorState.availableModes}
-            disabledModes={["ask"]}
-          />
-        </div>
         <Textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
