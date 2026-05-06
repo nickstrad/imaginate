@@ -14,10 +14,12 @@ import {
 } from "@/platform/sandbox";
 import {
   agentErrorMessage,
+  buildErrorLogMetadata,
   buildTelemetry,
   classifyAgentError,
   createRunState,
   executeRun,
+  extractErrorContext,
   persistTelemetryWith,
   planRun,
   type AgentError,
@@ -34,6 +36,7 @@ import {
 import {
   createModelProvider,
   getPreviousMessages,
+  mergeOpenRouterProviderOptions,
   resolvePlannerModel,
 } from "@/platform/models";
 import {
@@ -126,7 +129,6 @@ export const codeAgentFunction = inngest.createFunction(
         () => getPreviousMessages(projectId)
       );
 
-      const userPrompt = event.data.userPrompt as string;
       const runState = createRunState();
       const thoughts: Thought[] = [];
       const cumulativeUsage: UsageTotals = {
@@ -151,17 +153,26 @@ export const codeAgentFunction = inngest.createFunction(
           typeof m.content === "string" ? m.content : JSON.stringify(m.content),
       }));
 
-      const plan = await loggedStep(log, step, "plan", () =>
-        planRun({
-          input: {
-            userPrompt,
-            previousMessages: portMessages,
-            plannerSystemPrompt: prompts.planner,
-            providerCacheOptions: CACHE_PROVIDER_OPTIONS,
-          },
-          deps: plannerDeps,
-        })
-      );
+      const plan = await loggedStep(log, step, "plan", async () => {
+        try {
+          return await planRun({
+            input: {
+              previousMessages: portMessages,
+              plannerSystemPrompt: prompts.planner,
+              providerCacheOptions: CACHE_PROVIDER_OPTIONS,
+            },
+            deps: plannerDeps,
+          });
+        } catch (err) {
+          log.error({
+            event: "planner failed",
+            metadata: buildErrorLogMetadata(err, {
+              messageCount: portMessages.length,
+            }),
+          });
+          throw err;
+        }
+      });
       runState.plan = plan;
 
       if (!plan.requiresCoding) {
@@ -241,7 +252,7 @@ export const codeAgentFunction = inngest.createFunction(
             } catch (err) {
               log.warn({
                 event: "ladder slot unavailable",
-                metadata: { modelId, err: String(err) },
+                metadata: buildErrorLogMetadata(err, { modelId }),
               });
               runtimeError = { cause: err, error: classifyAgentError(err) };
               continue;
@@ -255,7 +266,6 @@ export const codeAgentFunction = inngest.createFunction(
 
             const outcome = await executeRun({
               input: {
-                userPrompt,
                 previousMessages: portMessages,
                 plan,
                 runState,
@@ -295,6 +305,7 @@ export const codeAgentFunction = inngest.createFunction(
                   retryable: error.retryable,
                   errorMessage: error.message,
                   rawError: agentErrorMessage(outcome.error),
+                  providerError: extractErrorContext(outcome.error),
                 },
               });
               await execDeps.eventSink.emit({
@@ -550,10 +561,7 @@ export const askAgentFunction = inngest.createFunction(
       () => getPreviousMessages(event.data.projectId)
     );
 
-    const messages: ModelMessage[] = [
-      ...(previousMessages as ModelMessage[]),
-      { role: "user", content: event.data.userPrompt as string },
-    ];
+    const messages = previousMessages as ModelMessage[];
 
     const response = await loggedStep(log, step, "ask-agent", async () => {
       try {
@@ -562,7 +570,10 @@ export const askAgentFunction = inngest.createFunction(
           system: prompts.ask,
           messages,
           maxOutputTokens: 4096,
-          providerOptions: CACHE_PROVIDER_OPTIONS,
+          providerOptions: mergeOpenRouterProviderOptions(
+            CACHE_PROVIDER_OPTIONS,
+            plannerSpec
+          ) as Parameters<typeof generateText>[0]["providerOptions"],
         });
         return {
           text,
@@ -573,7 +584,9 @@ export const askAgentFunction = inngest.createFunction(
         const classified = classifyAgentError(err);
         log.error({
           event: "generate failed",
-          metadata: { err, category: classified.category },
+          metadata: buildErrorLogMetadata(err, {
+            messageCount: messages.length,
+          }),
         });
         return {
           text: "",

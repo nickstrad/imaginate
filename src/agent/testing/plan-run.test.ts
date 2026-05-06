@@ -14,8 +14,7 @@ describe("planRun", () => {
 
     await planRun({
       input: {
-        userPrompt: "make a plan",
-        previousMessages: [],
+        previousMessages: [{ role: "user", content: "make a plan" }],
         plannerSystemPrompt: "PLAN",
       },
       deps: {
@@ -37,8 +36,7 @@ describe("planRun", () => {
     await expect(
       planRun({
         input: {
-          userPrompt: "make a plan",
-          previousMessages: [],
+          previousMessages: [{ role: "user", content: "make a plan" }],
           plannerSystemPrompt: "PLAN",
         },
         deps: {

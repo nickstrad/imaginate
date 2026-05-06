@@ -1,8 +1,8 @@
 import { generateText, tool, type ModelMessage as AiModelMessage } from "ai";
 import {
   createModelProvider,
+  mergeOpenRouterProviderOptions,
   resolveExecutorModels,
-  resolveFallbackSlugs,
   resolvePlannerModel,
   resolveSpecWith,
   type ModelSpec,
@@ -20,7 +20,7 @@ import type {
   ProviderErrorClassification,
   ToolDefinition,
 } from "../../ports";
-import { classifyAgentError } from "../../domain/errors";
+import { buildErrorLogMetadata, classifyAgentError } from "../../domain/errors";
 
 function specToString(spec: { provider: string; model: string }): string {
   return `${spec.provider}:${spec.model}`;
@@ -107,6 +107,39 @@ function totalPromptChars(req: GenerateTextRequest): number {
       0
     )
   );
+}
+
+function describeMessageShape(
+  message: GenerateTextRequest["messages"][number],
+  index: number
+) {
+  const { role, content } = message;
+  if (typeof content === "string") {
+    return {
+      index,
+      role,
+      contentType: "string" as const,
+      contentLength: content.length,
+    };
+  }
+  if (Array.isArray(content)) {
+    return {
+      index,
+      role,
+      contentType: "parts" as const,
+      contentLength: content.length,
+      partTypes: content.map((p) =>
+        typeof p === "object" && p !== null && "type" in p
+          ? String((p as { type: unknown }).type)
+          : typeof p
+      ),
+    };
+  }
+  return { index, role, contentType: "parts" as const };
+}
+
+function summarizeMessageShape(req: GenerateTextRequest) {
+  return req.messages.map(describeMessageShape);
 }
 
 function logLlmCall(params: {
@@ -289,14 +322,16 @@ export function createAiSdkModelGateway(): ModelGateway {
     async generateText(req: GenerateTextRequest): Promise<GenerateTextResult> {
       const spec = parseSpec(req.modelId);
       const resolved = resolveSpecWith(spec, getProviderKey);
-      const fallbackSlugs = resolveFallbackSlugs(spec);
-      const result = await generateText({
-        model: createModelProvider(resolved, { fallbackSlugs }),
+      const generateOptions = {
+        model: createModelProvider(resolved),
         system: req.system,
         messages: req.messages as AiModelMessage[],
         tools: translateTools(req.tools),
         maxOutputTokens: req.maxOutputTokens,
-        providerOptions: req.providerOptions,
+        providerOptions: mergeOpenRouterProviderOptions(
+          req.providerOptions,
+          spec
+        ),
         experimental_onToolCallStart: req.onToolCallStart
           ? async (event: unknown) => {
               await notifyToolCallStart(req, event);
@@ -321,8 +356,30 @@ export function createAiSdkModelGateway(): ModelGateway {
               await req.onStepFinish?.(translateStep(stepResult));
             }
           : undefined,
+      };
+      let result: unknown;
+      try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generateText's generic option type cannot be represented after translating neutral port tools.
-      } as any);
+        result = await generateText(generateOptions as any);
+      } catch (err) {
+        req.logger?.child({ scope: "llm" }).error({
+          event: "llm call failed",
+          metadata: buildErrorLogMetadata(err, {
+            provider: resolved.provider,
+            model: resolved.model,
+            messageCount: req.messages.length,
+            totalChars: totalPromptChars(req),
+            hasTools: req.tools !== undefined,
+            toolCount: req.tools ? Object.keys(req.tools).length : 0,
+            maxOutputTokens: req.maxOutputTokens,
+            messageShape: summarizeMessageShape(req),
+          }),
+          fileMetadata: env.LOG_LLM_PAYLOADS
+            ? { system: req.system, messages: req.messages }
+            : undefined,
+        });
+        throw err;
+      }
 
       const raw = asRecord(result);
       const steps = Array.isArray(raw.steps) ? raw.steps : [];

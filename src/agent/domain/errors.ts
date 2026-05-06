@@ -76,6 +76,93 @@ const AGENT_ERROR_RULES: AgentErrorRule[] = [
   },
 ];
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+const MAX_CAUSE_DEPTH = 5;
+
+/**
+ * Extract structured context from a thrown error for logging.
+ *
+ * Duck-types fields that OpenRouter / AI SDK / Node fetch errors commonly
+ * attach (statusCode, body, error.{code,message,metadata}, cause). Returns a
+ * plain object suitable for passing as log `metadata`.
+ */
+export function extractErrorContext(err: unknown): Record<string, unknown> {
+  return extractErrorContextInner(err, new WeakSet(), 0);
+}
+
+function extractErrorContextInner(
+  err: unknown,
+  seen: WeakSet<object>,
+  depth: number
+): Record<string, unknown> {
+  const ctx: Record<string, unknown> = {
+    message: agentErrorMessage(err),
+  };
+  if (!isRecord(err)) {
+    return ctx;
+  }
+  if (seen.has(err)) {
+    return ctx;
+  }
+  seen.add(err);
+  const record = err;
+  if (typeof record.name === "string") {
+    ctx.name = record.name;
+  }
+  if (typeof record.statusCode === "number") {
+    ctx.statusCode = record.statusCode;
+  }
+  if (record.contentType) {
+    ctx.contentType = record.contentType;
+  }
+  if (record.body !== undefined) {
+    const body = record.body;
+    ctx.body = typeof body === "string" ? body.slice(0, 4000) : body;
+  }
+  if (isRecord(record.error)) {
+    const inner = record.error;
+    const errorCtx: Record<string, unknown> = {};
+    if (inner.code !== undefined) {
+      errorCtx.code = inner.code;
+    }
+    if (typeof inner.message === "string") {
+      errorCtx.message = inner.message;
+    }
+    if (inner.metadata !== undefined) {
+      errorCtx.metadata = inner.metadata;
+    }
+    ctx.error = errorCtx;
+  }
+  if (record.userId !== undefined) {
+    ctx.userId = record.userId;
+  }
+  if (record.cause !== undefined && depth < MAX_CAUSE_DEPTH) {
+    ctx.cause = extractErrorContextInner(record.cause, seen, depth + 1);
+  }
+  return ctx;
+}
+
+/**
+ * Build the standard log metadata for a provider/runtime failure: classified
+ * fields plus extracted error context, merged with any caller-supplied extras.
+ */
+export function buildErrorLogMetadata(
+  err: unknown,
+  extra?: Record<string, unknown>
+): Record<string, unknown> {
+  const classified = classifyAgentError(err);
+  return {
+    category: classified.category,
+    code: classified.code,
+    retryable: classified.retryable,
+    providerError: extractErrorContext(err),
+    ...extra,
+  };
+}
+
 export function agentErrorMessage(err: unknown): string {
   if (err instanceof Error) {
     return err.message;

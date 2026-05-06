@@ -1,5 +1,4 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { LanguageModel } from "ai";
 import { env } from "@/platform/config/env";
 import { MODEL_IDS, type ModelId } from "@/shared/config/models";
@@ -117,13 +116,49 @@ const MODEL_ROUTES = {
   executorFallback2: route("executorFallback2"),
 } satisfies Record<ModelRole, ModelRoute>;
 
-export interface CreateModelProviderOptions {
-  fallbackSlugs?: readonly string[];
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+
+const OPENROUTER_IGNORED_PROVIDERS = ["amazon-bedrock"] as const;
+
+export interface OpenRouterRequestOverrides {
+  models?: string[];
+  provider: { ignore: string[] };
+}
+
+export function buildOpenRouterRequestOverrides(
+  spec: ModelSpec
+): OpenRouterRequestOverrides | undefined {
+  if (spec.provider !== PROVIDERS.OPENROUTER) {
+    return undefined;
+  }
+  const fallbackSlugs = resolveFallbackSlugs(spec);
+  return {
+    provider: { ignore: [...OPENROUTER_IGNORED_PROVIDERS] },
+    ...(fallbackSlugs.length > 0 ? { models: [...fallbackSlugs] } : {}),
+  };
+}
+
+/**
+ * Merge OpenRouter overrides for `spec` into a base `providerOptions` object.
+ * No-op for non-OpenRouter specs.
+ */
+export function mergeOpenRouterProviderOptions(
+  base: Record<string, unknown> | undefined,
+  spec: ModelSpec
+): Record<string, unknown> | undefined {
+  const overrides = buildOpenRouterRequestOverrides(spec);
+  if (!overrides) {
+    return base;
+  }
+  const baseOpenRouter = (base?.openrouter as Record<string, unknown>) ?? {};
+  return {
+    ...base,
+    openrouter: { ...baseOpenRouter, ...overrides },
+  };
 }
 
 export function createModelProvider(
-  config: ResolvedModelConfig,
-  options?: CreateModelProviderOptions
+  config: ResolvedModelConfig
 ): LanguageModel {
   switch (config.provider) {
     case PROVIDERS.LM_STUDIO: {
@@ -135,14 +170,12 @@ export function createModelProvider(
       return provider.chatModel(config.model);
     }
     case PROVIDERS.OPENROUTER: {
-      const factory = createOpenRouter({ apiKey: config.apiKey });
-      const primarySlug = MODEL_IDS[config.model];
-      if (options?.fallbackSlugs && options.fallbackSlugs.length > 0) {
-        return factory(primarySlug, {
-          models: [...options.fallbackSlugs],
-        });
-      }
-      return factory(primarySlug);
+      const provider = createOpenAICompatible({
+        name: PROVIDERS.OPENROUTER,
+        baseURL: OPENROUTER_BASE_URL,
+        apiKey: config.apiKey,
+      });
+      return provider.chatModel(MODEL_IDS[config.model]);
     }
   }
 }

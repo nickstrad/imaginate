@@ -3,6 +3,7 @@ import {
   TASK_SUMMARY_RE,
   addUsage,
   agentErrorMessage,
+  buildErrorLogMetadata,
   buildTelemetry,
   classifyAgentError,
   EscalateReason,
@@ -39,7 +40,6 @@ import { logContextMutation } from "./context-logging";
 const TOOL_RESULT_LOG_CHARS = 2000;
 
 export interface ExecuteRunInput {
-  userPrompt: string;
   previousMessages: ModelMessage[];
   plan: PlanOutput;
   runState: RunState;
@@ -211,7 +211,6 @@ export async function executeRun(args: {
 }): Promise<ExecutorAttemptResult> {
   const { input, deps } = args;
   const {
-    userPrompt,
     previousMessages,
     plan,
     runState,
@@ -271,7 +270,7 @@ export async function executeRun(args: {
     const result = await deps.modelGateway.generateText({
       modelId,
       system: systemPrompt,
-      messages: [...previousMessages, { role: "user", content: userPrompt }],
+      messages: previousMessages,
       logger: deps.logger,
       tools,
       maxOutputTokens: AGENT_CONFIG.maxOutputTokens,
@@ -381,7 +380,7 @@ export async function executeRun(args: {
   } catch (err) {
     deps.logger.error({
       event: "executor failed",
-      metadata: { err },
+      metadata: buildErrorLogMetadata(err),
     });
     // Executor failures are returned to runAgent so model-ladder retry policy stays centralized.
     return {

@@ -28,7 +28,6 @@
     "@anthropic-ai/claude-code": "^1.0.55",
     "@e2b/code-interpreter": "^1.5.1",
     "@hookform/resolvers": "^5.1.1",
-    "@openrouter/ai-sdk-provider": "6.0.0-alpha.1",
     "@prisma/client": "^6.11.1",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",

@@ -62,13 +62,13 @@ export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
     totalTokens: 0,
   };
 
-  const previousMessages: ModelMessage[] = (input.previousMessages ?? []).map(
-    (m) => ({ role: m.role, content: m.content })
-  );
+  const previousMessages: ModelMessage[] = input.previousMessages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
 
   const plan = await planRun({
     input: {
-      userPrompt: input.prompt,
       previousMessages,
       plannerSystemPrompt: config.plannerSystemPrompt,
       providerCacheOptions: config.providerCacheOptions,
@@ -111,7 +111,6 @@ export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
 
       const outcome = await executeRun({
         input: {
-          userPrompt: input.prompt,
           previousMessages,
           plan,
           runState,

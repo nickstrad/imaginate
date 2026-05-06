@@ -32,7 +32,6 @@ export function planSnippet(plan: PlanOutput | undefined): string {
 }
 
 export interface PlanRunInput {
-  userPrompt: string;
   previousMessages: ModelMessage[];
   plannerSystemPrompt: string;
   providerCacheOptions?: Record<string, unknown>;
@@ -65,10 +64,7 @@ export async function planRun(args: {
     await deps.modelGateway.generateText({
       modelId,
       system: input.plannerSystemPrompt,
-      messages: [
-        ...input.previousMessages,
-        { role: "user", content: input.userPrompt },
-      ],
+      messages: input.previousMessages,
       logger: deps.logger,
       tools,
       maxOutputTokens: 1024,

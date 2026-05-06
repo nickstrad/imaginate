@@ -7,10 +7,12 @@ export * from "./adapters";
 export {
   AGENT_CONFIG,
   agentErrorMessage,
+  buildErrorLogMetadata,
   buildTelemetry,
   classifyAgentError,
   createRunState,
   EscalateReason,
+  extractErrorContext,
   extractTelemetry,
   hasSuccessfulVerification,
   inferVerificationKind,

@@ -169,7 +169,10 @@ function createRunDeps(
 
 function runTestAgent(gateway: TestModelGateway, sink: TestEventSink) {
   return runAgent({
-    input: { prompt: "hi", projectId: "p1" },
+    input: {
+      projectId: "p1",
+      previousMessages: [{ role: "user", content: "hi" }],
+    },
     deps: createRunDeps(gateway, sink),
     config: baseConfig(),
   });
@@ -427,7 +430,10 @@ describe("runAgent", () => {
 
     await expect(
       runAgent({
-        input: { prompt: "hi", projectId: "p1" },
+        input: {
+          projectId: "p1",
+          previousMessages: [{ role: "user", content: "hi" }],
+        },
         deps: createRunDeps(gateway, sink, logger),
         config: baseConfig(),
       })

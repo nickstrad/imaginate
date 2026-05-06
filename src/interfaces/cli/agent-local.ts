@@ -638,7 +638,10 @@ async function runAgentCli(args: CliArgs): Promise<number> {
   let result: AgentRunResult;
   try {
     result = await runAgent({
-      input: { prompt: args.prompt, projectId },
+      input: {
+        projectId,
+        previousMessages: [{ role: "user", content: args.prompt }],
+      },
       deps,
       config: {
         plannerSystemPrompt: getAgentPrompts().planner,

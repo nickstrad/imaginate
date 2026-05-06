@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { classifyAgentError } from "./errors";
+import { classifyAgentError, extractErrorContext } from "./errors";
 
 describe("classifyAgentError", () => {
   const cases = [
@@ -131,5 +131,67 @@ describe("classifyAgentError", () => {
     expect(classifyAgentError(new Error("RATE LIMIT")).category).toBe(
       "rate_limit"
     );
+  });
+});
+
+describe("extractErrorContext", () => {
+  it("returns just message for plain Error", () => {
+    expect(extractErrorContext(new Error("boom"))).toEqual({
+      message: "boom",
+      name: "Error",
+    });
+  });
+
+  it("extracts OpenRouter SDK fields", () => {
+    const err = Object.assign(new Error("Provider returned error"), {
+      name: "BadRequestResponseError",
+      statusCode: 400,
+      contentType: "application/json",
+      body: '{"error":{"code":400,"message":"upstream rejected"}}',
+      error: {
+        code: 400,
+        message: "upstream rejected",
+        metadata: { provider_name: "anthropic" },
+      },
+      userId: "user_123",
+    });
+
+    expect(extractErrorContext(err)).toEqual({
+      message: "Provider returned error",
+      name: "BadRequestResponseError",
+      statusCode: 400,
+      contentType: "application/json",
+      body: '{"error":{"code":400,"message":"upstream rejected"}}',
+      error: {
+        code: 400,
+        message: "upstream rejected",
+        metadata: { provider_name: "anthropic" },
+      },
+      userId: "user_123",
+    });
+  });
+
+  it("truncates very long bodies", () => {
+    const err = Object.assign(new Error("x"), { body: "a".repeat(10000) });
+    const ctx = extractErrorContext(err);
+    expect(typeof ctx.body).toBe("string");
+    expect((ctx.body as string).length).toBe(4000);
+  });
+
+  it("recurses into cause", () => {
+    const inner = Object.assign(new Error("inner"), { statusCode: 500 });
+    const outer = new Error("outer", { cause: inner });
+    const ctx = extractErrorContext(outer);
+    expect(ctx).toMatchObject({
+      message: "outer",
+      cause: { message: "inner", statusCode: 500 },
+    });
+  });
+
+  it("handles non-record inputs", () => {
+    expect(extractErrorContext("plain string")).toEqual({
+      message: "plain string",
+    });
+    expect(extractErrorContext(null)).toEqual({ message: "null" });
   });
 });

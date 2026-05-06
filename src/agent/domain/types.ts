@@ -79,9 +79,8 @@ export interface ChatMessage {
 }
 
 export interface AgentRunInput {
-  prompt: string;
   projectId: string;
-  previousMessages?: ChatMessage[];
+  previousMessages: ChatMessage[];
 }
 
 export interface AgentRunResult {

@@ -18,8 +18,8 @@ vi.mock("ai", () => ({
 
 vi.mock("@/platform/models", () => ({
   createModelProvider: () => ({ provider: "mock" }),
+  mergeOpenRouterProviderOptions: (base: unknown) => base,
   resolveExecutorModels: () => [{ provider: "openrouter", model: "executor" }],
-  resolveFallbackSlugs: () => [],
   resolvePlannerModel: () => ({ provider: "openrouter", model: "planner" }),
   resolveSpecWith: (spec: { provider: string; model: string }) => spec,
 }));

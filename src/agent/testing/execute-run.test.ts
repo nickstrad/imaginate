@@ -59,8 +59,7 @@ async function runExecutorWith(params: {
   const thoughts = params.thoughts ?? [];
   const outcome = await executeRun({
     input: {
-      userPrompt: "test",
-      previousMessages: [],
+      previousMessages: [{ role: "user", content: "test" }],
       plan: samplePlan,
       runState: createRunState(),
       thoughts,
@@ -249,7 +248,15 @@ describe("executeRun", () => {
         level: "error",
         scope: "run",
         event: "executor failed",
-        metadata: { err: error },
+        metadata: expect.objectContaining({
+          category: "unknown",
+          code: "provider.unknown",
+          retryable: false,
+          providerError: expect.objectContaining({
+            message: "executor down",
+            name: "Error",
+          }),
+        }),
       })
     );
   });
