@@ -24,6 +24,14 @@ interface ThoughtsModalProps {
   thoughts?: Thought[];
 }
 
+const ToolPayload = ({ value }: { value: unknown }) => (
+  <div className="rounded-sm border border-chrome-border bg-surface-subtle p-2 text-xs">
+    <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all text-xs text-foreground">
+      {JSON.stringify(value, null, 2)}
+    </pre>
+  </div>
+);
+
 const ToolCallsSection = ({ thought }: { thought: Thought }) => {
   const [expanded, setExpanded] = useState(false);
   const callCount = thought.toolCalls?.length ?? 0;
@@ -55,27 +63,19 @@ const ToolCallsSection = ({ thought }: { thought: Thought }) => {
               <div className="mb-1 font-mono text-xs text-muted-foreground">
                 → {tc.toolName}
               </div>
-              <div className="rounded-sm border border-chrome-border bg-surface-subtle p-2 text-xs">
-                <pre className="max-h-32 overflow-x-auto whitespace-pre-wrap break-all text-xs text-foreground">
-                  {JSON.stringify(tc.args, null, 2)}
-                </pre>
-              </div>
+              <ToolPayload value={tc.args} />
               {tc.completion && (
                 <>
                   <div className="mb-1 mt-1 font-mono text-xs text-muted-foreground">
                     ← {tc.completion.ok ? "result" : "error"}
                   </div>
-                  <div className="rounded-sm border border-chrome-border bg-surface-subtle p-2 text-xs">
-                    <pre className="max-h-32 overflow-x-auto whitespace-pre-wrap break-all text-xs text-foreground">
-                      {JSON.stringify(
-                        tc.completion.ok
-                          ? tc.completion.result
-                          : tc.completion.error,
-                        null,
-                        2
-                      )}
-                    </pre>
-                  </div>
+                  <ToolPayload
+                    value={
+                      tc.completion.ok
+                        ? tc.completion.result
+                        : tc.completion.error
+                    }
+                  />
                 </>
               )}
             </div>
@@ -95,17 +95,17 @@ export function ThoughtsModal({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="flex w-full flex-col border-chrome-border bg-surface text-surface-foreground sm:w-[500px]"
+        className="flex h-dvh max-h-dvh w-full flex-col gap-0 overflow-hidden border-chrome-border bg-surface text-surface-foreground sm:w-[500px]"
       >
-        <SheetHeader className="border-b border-chrome-border">
+        <SheetHeader className="shrink-0 border-b border-chrome-border">
           <SheetTitle className="text-foreground">Agent Thoughts</SheetTitle>
           <SheetDescription className="sr-only">
             Step-by-step reasoning and tool calls from the agent.
           </SheetDescription>
         </SheetHeader>
 
-        <ScrollArea className="flex-1 min-w-0">
-          <div className="p-6 space-y-4 min-w-0">
+        <ScrollArea className="min-h-0 min-w-0 flex-1">
+          <div className="min-w-0 space-y-4 p-6 pb-10">
             {thoughts.length === 0 ? (
               <div className="py-8 text-center text-muted-foreground">
                 No thoughts yet

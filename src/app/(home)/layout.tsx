@@ -10,9 +10,7 @@ const Layout: React.FC<Props> = ({ children }) => {
       <header className="sticky top-0 z-10">
         <Navbar />
       </header>
-      <main className="flex-1 overflow-y-auto bg-[radial-gradient(circle,var(--grid-dot)_1px,transparent_1px)] bg-[size:22px_22px]">
-        {children}
-      </main>
+      <main className="flex-1 overflow-y-auto bg-background">{children}</main>
     </div>
   );
 };

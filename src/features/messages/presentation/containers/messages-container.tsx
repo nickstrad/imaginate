@@ -5,7 +5,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { SendIcon, UserIcon } from "lucide-react";
+import { CornerDownLeftIcon, SendIcon, UserIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { toast } from "sonner";
@@ -13,9 +13,7 @@ import { useTRPC } from "@/platform/trpc-client";
 import { Avatar, AvatarFallback } from "@/ui/components/ui/avatar";
 import { Button } from "@/ui/components/ui/button";
 import { Card, CardContent } from "@/ui/components/ui/card";
-import { ModeSelector, useModeSelector } from "@/ui/components/mode-selector";
 import { Textarea } from "@/ui/components/ui/textarea";
-import { cn } from "@/shared/utils";
 import { Fragment, MessageRole } from "@/generated/prisma";
 import { AssistantMessage } from "@/features/projects/presentation/project/components/assistant-message";
 import { ProjectHeader } from "@/features/projects/presentation/project/components/project-header";
@@ -32,11 +30,13 @@ interface Props {
 const UserMessage = ({ message }: { message: Message }) => {
   const createdAt = new Date(message.createdAt);
   return (
-    <div className={cn("flex items-end gap-3 my-4 justify-end")}>
+    <div className="my-5 flex items-end justify-end gap-3">
       <div className="flex flex-col gap-1 items-end">
-        <Card className="max-w-2xl w-fit bg-primary text-primary-foreground">
-          <CardContent className="p-3">
-            <p className="whitespace-pre-wrap">{message.content}</p>
+        <Card className="w-fit max-w-2xl rounded-lg border-chrome-border bg-primary text-primary-foreground shadow-lg">
+          <CardContent className="p-4">
+            <p className="whitespace-pre-wrap text-[15px] leading-7">
+              {message.content}
+            </p>
           </CardContent>
         </Card>
         <span className="text-xs text-muted-foreground px-1">
@@ -46,9 +46,9 @@ const UserMessage = ({ message }: { message: Message }) => {
           })}
         </span>
       </div>
-      <Avatar className="h-8 w-8">
-        <AvatarFallback>
-          <UserIcon className="h-5 w-5" />
+      <Avatar className="h-9 w-9 rounded-full border border-chrome-border bg-surface-elevated shadow-xs">
+        <AvatarFallback className="bg-surface-elevated">
+          <UserIcon className="h-4 w-4 text-muted-foreground" />
         </AvatarFallback>
       </Avatar>
     </div>
@@ -72,7 +72,6 @@ export const MessagesContainer = ({
   const queryClient = useQueryClient();
   const trpc = useTRPC();
   const router = useRouter();
-  const modeSelectorState = useModeSelector();
   const { data: messages, refetch } = useSuspenseQuery(
     trpc.messages.getMany.queryOptions({ projectId }, { refetchInterval: 2000 })
   );
@@ -83,6 +82,8 @@ export const MessagesContainer = ({
       refetchOnWindowFocus: false,
     })
   );
+  const currentProjectName =
+    projects.find((project) => project.id === projectId)?.name || projectId;
 
   const scrollToBottom = React.useCallback(() => {
     const current = scrollContainerRef.current;
@@ -148,7 +149,9 @@ export const MessagesContainer = ({
     const lastAssistantMessage = messages.findLast(
       (message) => message.role === MessageRole.ASSISTANT && message.fragment
     );
-    if (!lastAssistantMessage?.fragment) return;
+    if (!lastAssistantMessage?.fragment) {
+      return;
+    }
 
     if (isFirstRun.current) {
       setActiveFragment(lastAssistantMessage.fragment);
@@ -177,16 +180,23 @@ export const MessagesContainer = ({
     })
   );
 
+  const sendMessage = React.useCallback(() => {
+    const userPrompt = content.trim();
+    if (!userPrompt) {
+      return;
+    }
+
+    setIsUserScrolling(false);
+    createMessage.mutate({
+      userPrompt,
+      projectId,
+      mode: "code",
+    });
+  }, [content, createMessage, projectId]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (content.trim()) {
-      setIsUserScrolling(false);
-      createMessage.mutate({
-        userPrompt: content,
-        projectId,
-        mode: modeSelectorState.mode,
-      });
-    }
+    sendMessage();
   };
 
   const openThoughts = React.useCallback((thoughts: Thought[]) => {
@@ -198,16 +208,14 @@ export const MessagesContainer = ({
     <div className="flex flex-col h-full">
       <ProjectHeader
         projects={projects}
-        currentProjectName={
-          projects.find((p) => p.id === projectId)?.name || projectId
-        }
+        currentProjectName={currentProjectName}
         onBackToDashboard={() => router.push("/")}
         onProjectChange={(nextProjectId) =>
           router.push(`/projects/${nextProjectId}`)
         }
       />
-      <div className="relative flex-1 min-h-0">
-        <div className="h-full overflow-y-auto pb-72" ref={scrollContainerRef}>
+      <div className="relative min-h-0 flex-1">
+        <div className="h-full overflow-y-auto pb-48" ref={scrollContainerRef}>
           <div className="pt-2 px-4 pb-4">
             {(messages as Message[]).map((message) =>
               message.role === MessageRole.USER ? (
@@ -225,46 +233,46 @@ export const MessagesContainer = ({
           </div>
         </div>
         {showGradient && (
-          <div className="absolute bottom-72 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+          <div className="pointer-events-none absolute bottom-48 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent" />
         )}
       </div>
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <Textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Type a message..."
-            disabled={createMessage.isPending}
-            autoComplete="off"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                if (content.trim()) {
-                  setIsUserScrolling(false);
-                  createMessage.mutate({
-                    userPrompt: content,
-                    projectId,
-                    mode: modeSelectorState.mode,
-                  });
+      <div className="absolute bottom-0 left-0 right-0 border-t border-chrome-border bg-chrome p-3 backdrop-blur supports-[backdrop-filter]:bg-chrome">
+        <form
+          onSubmit={handleSubmit}
+          className="rounded-lg border border-chrome-border bg-surface-elevated p-2 shadow-lg"
+        >
+          <div className="flex items-end gap-2">
+            <Textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Ask for a revision, new screen, or sharper interaction..."
+              disabled={createMessage.isPending}
+              autoComplete="off"
+              className="min-h-20 resize-none border-0 bg-surface-subtle px-3 py-3 text-base leading-6 shadow-inner focus-visible:ring-1"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
                 }
-              }
-            }}
-          />
-          <Button
-            type="submit"
-            size="icon"
-            disabled={createMessage.isPending || !content.trim()}
-          >
-            <SendIcon className="h-4 w-4" />
-          </Button>
+              }}
+            />
+            <Button
+              type="submit"
+              size="icon"
+              className="size-11 shrink-0 rounded-md"
+              disabled={createMessage.isPending || !content.trim()}
+            >
+              <SendIcon className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-3 px-1 text-xs text-muted-foreground">
+            <span>Describe the next change and keep building.</span>
+            <span className="hidden items-center gap-1 whitespace-nowrap sm:flex">
+              <CornerDownLeftIcon className="size-3" />
+              Enter
+            </span>
+          </div>
         </form>
-        <div className="mb-3">
-          <ModeSelector
-            mode={modeSelectorState.mode}
-            setMode={modeSelectorState.setMode}
-            availableModes={modeSelectorState.availableModes}
-          />
-        </div>
       </div>
       <ThoughtsModal
         open={thoughtsOpen}

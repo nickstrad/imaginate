@@ -1,79 +1,107 @@
-export const PROJECT_TEMPLATES = [
-  {
-    emoji: "🎬",
-    title: "Build a Netflix clone",
-    prompt:
-      "Build a Netflix-style homepage with a hero banner (use a nice, dark-mode compatible gradient here), movie sections, responsive cards, and a modal for viewing details using mock data and local state. Use dark mode.",
-  },
-  {
-    emoji: "📦",
-    title: "Build an admin dashboard",
-    prompt:
-      "Create an admin dashboard with a sidebar, stat cards, a chart placeholder, and a basic table with filter and pagination using local state. Use clear visual grouping and balance in your design for a modern, professional look.",
-  },
-  {
-    emoji: "📋",
-    title: "Build a kanban board",
-    prompt:
-      "Build a kanban board with drag-and-drop using react-beautiful-dnd and support for adding and removing tasks with local state. Use consistent spacing, column widths, and hover effects for a polished UI.",
-  },
-  {
-    emoji: "🗂️",
-    title: "Build a file manager",
-    prompt:
-      "Build a file manager with folder list, file grid, and options to rename or delete items using mock data and local state. Focus on spacing, clear icons, and visual distinction between folders and files.",
-  },
-  {
-    emoji: "📺",
-    title: "Build a YouTube clone",
-    prompt:
-      "Build a YouTube-style homepage with mock video thumbnails, a category sidebar, and a modal preview with title and description using local state. Ensure clean alignment and a well-organized grid layout.",
-  },
-  {
-    emoji: "🛍️",
-    title: "Build a store page",
-    prompt:
-      "Build a store page with category filters, a product grid, and local cart logic to add and remove items. Focus on clear typography, spacing, and button states for a great e-commerce UI.",
-  },
-  {
-    emoji: "🏡",
-    title: "Build an Airbnb clone",
-    prompt:
-      "Build an Airbnb-style listings grid with mock data, filter sidebar, and a modal with property details using local state. Use card spacing, soft shadows, and clean layout for a welcoming design.",
-  },
-  {
-    emoji: "🎵",
-    title: "Build a Spotify clone",
-    prompt:
-      "Build a Spotify-style music player with a sidebar for playlists, a main area for song details, and playback controls. Use local state for managing playback and song selection. Prioritize layout balance and intuitive control placement for a smooth user experience. Use dark mode.",
-  },
-] as const;
+import {
+  Columns3Icon,
+  FilmIcon,
+  FolderTreeIcon,
+  HomeIcon,
+  LayoutDashboardIcon,
+  Music2Icon,
+  ShoppingBagIcon,
+  TvIcon,
+} from "lucide-react";
 
 import { Card, CardContent } from "@/ui/components/ui/card";
+
+export const PROJECT_TEMPLATES = [
+  {
+    icon: FilmIcon,
+    title: "Streaming catalog",
+    prompt:
+      "Design a premium streaming catalog for independent films with a cinematic hero, editorial rows, saved picks, and a detail drawer that feels polished in dark mode.",
+  },
+  {
+    icon: LayoutDashboardIcon,
+    title: "Ops dashboard",
+    prompt:
+      "Create a compact operations dashboard for a support team with priority queues, trend cards, a dense activity table, and clear empty/loading states.",
+  },
+  {
+    icon: Columns3Icon,
+    title: "Launch board",
+    prompt:
+      "Build a launch-planning board with draggable workstreams, release-risk labels, owner avatars, and a focused task inspector panel.",
+  },
+  {
+    icon: FolderTreeIcon,
+    title: "Asset library",
+    prompt:
+      "Create a design asset library with folder navigation, metadata-rich file cards, search filters, rename/delete actions, and a preview drawer.",
+  },
+  {
+    icon: TvIcon,
+    title: "Creator hub",
+    prompt:
+      "Build a creator analytics hub with video cards, channel health metrics, an upload queue, and a clean modal for reviewing performance details.",
+  },
+  {
+    icon: ShoppingBagIcon,
+    title: "Boutique store",
+    prompt:
+      "Design a boutique storefront with refined product cards, category filters, cart state, and a checkout summary that feels elegant and practical.",
+  },
+  {
+    icon: HomeIcon,
+    title: "Stay finder",
+    prompt:
+      "Build a stay-finder interface with map-inspired listing cards, thoughtful filters, saved homes, and a booking detail modal with crisp hierarchy.",
+  },
+  {
+    icon: Music2Icon,
+    title: "Listening room",
+    prompt:
+      "Create a dark-mode music workspace with playlist navigation, current track context, queue management, and tactile playback controls.",
+  },
+] as const;
 
 interface ProjectTemplatesProps {
   onTemplateSelect: (prompt: string) => void;
 }
 
+const ProjectTemplateCard = ({
+  template,
+  onSelect,
+}: {
+  template: (typeof PROJECT_TEMPLATES)[number];
+  onSelect: (prompt: string) => void;
+}) => {
+  const TemplateIcon = template.icon;
+
+  return (
+    <Card
+      className="w-fit cursor-pointer border-chrome-border bg-surface-elevated py-0 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-ring/50 hover:bg-surface hover:shadow-md"
+      onClick={() => onSelect(template.prompt)}
+    >
+      <CardContent className="px-3 py-1.5">
+        <h4 className="flex items-center gap-2 whitespace-nowrap text-sm font-medium leading-tight text-foreground">
+          <TemplateIcon className="size-3.5 text-muted-foreground" />
+          {template.title}
+        </h4>
+      </CardContent>
+    </Card>
+  );
+};
+
 export const ProjectTemplates = ({
   onTemplateSelect,
 }: ProjectTemplatesProps) => {
   return (
-    <div className="mt-8">
-      <div className="flex flex-wrap gap-2 justify-center">
-        {PROJECT_TEMPLATES.map((template, index) => (
-          <Card
-            key={index}
-            className="w-fit cursor-pointer border-chrome-border bg-surface-elevated py-0 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-ring/50 hover:bg-surface hover:shadow-md"
-            onClick={() => onTemplateSelect(template.prompt)}
-          >
-            <CardContent className="px-3 py-1">
-              <h4 className="font-medium text-foreground text-sm leading-tight flex items-center gap-2 whitespace-nowrap">
-                <span className="text-lg">{template.emoji}</span>
-                {template.title}
-              </h4>
-            </CardContent>
-          </Card>
+    <div className="mt-6">
+      <div className="mx-auto flex max-w-3xl flex-wrap justify-center gap-2">
+        {PROJECT_TEMPLATES.map((template) => (
+          <ProjectTemplateCard
+            key={template.title}
+            template={template}
+            onSelect={onTemplateSelect}
+          />
         ))}
       </div>
     </div>
