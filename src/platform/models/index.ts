@@ -42,11 +42,7 @@ interface ModelRoute {
 }
 
 type ModelKey = keyof typeof MODEL_IDS;
-type ModelRole =
-  | "planner"
-  | "executorDefault"
-  | "executorFallback1"
-  | "executorFallback2";
+type ModelRole = "planner" | "executorDefault" | "executorFallback";
 
 const isLmStudioMode = env.MODEL_PROVIDER === PROVIDERS.LM_STUDIO;
 
@@ -58,15 +54,13 @@ const LM_STUDIO_MODEL_SPEC: ModelSpec = {
 const OPENROUTER_ROLE_MODELS = {
   planner: env.MODEL_PLANNER,
   executorDefault: env.MODEL_EXECUTOR_DEFAULT,
-  executorFallback1: env.MODEL_EXECUTOR_FALLBACK_1,
-  executorFallback2: env.MODEL_EXECUTOR_FALLBACK_2,
+  executorFallback: env.MODEL_EXECUTOR_FALLBACK,
 } satisfies Record<ModelRole, ModelKey>;
 
 const OPENROUTER_ROUTE_FALLBACKS = {
   planner: ["DEEPSEEK_CHAT_V3_1", "GROK_4_1_FAST"],
   executorDefault: ["QWEN_3_CODER", "DEEPSEEK_V4_FLASH"],
-  executorFallback1: ["GROK_CODE_FAST_1", "DEEPSEEK_V4_FLASH"],
-  executorFallback2: ["OPENAI_GPT_5_CODEX", "KIMI_K2_6"],
+  executorFallback: ["OPENAI_GPT_5_CODEX", "KIMI_K2_6"],
 } satisfies Record<ModelRole, readonly ModelKey[]>;
 
 function openRouterSpec(model: ModelKey): OpenRouterModelSpec {
@@ -83,17 +77,12 @@ function roleSpec(openrouterModel: ModelKey): ModelSpec {
 const MODEL_REGISTRY = {
   planner: roleSpec(OPENROUTER_ROLE_MODELS.planner),
   executorDefault: roleSpec(OPENROUTER_ROLE_MODELS.executorDefault),
-  executorFallback1: roleSpec(OPENROUTER_ROLE_MODELS.executorFallback1),
-  executorFallback2: roleSpec(OPENROUTER_ROLE_MODELS.executorFallback2),
+  executorFallback: roleSpec(OPENROUTER_ROLE_MODELS.executorFallback),
 } satisfies Record<ModelRole, ModelSpec>;
 
 const EXECUTOR_LADDER: readonly ModelSpec[] = isLmStudioMode
   ? [MODEL_REGISTRY.executorDefault]
-  : [
-      MODEL_REGISTRY.executorDefault,
-      MODEL_REGISTRY.executorFallback1,
-      MODEL_REGISTRY.executorFallback2,
-    ];
+  : [MODEL_REGISTRY.executorDefault, MODEL_REGISTRY.executorFallback];
 
 function routeFallbacks(role: ModelRole): readonly OpenRouterModelSpec[] {
   if (isLmStudioMode) {
@@ -112,8 +101,7 @@ function route(role: ModelRole): ModelRoute {
 const MODEL_ROUTES = {
   planner: route("planner"),
   executorDefault: route("executorDefault"),
-  executorFallback1: route("executorFallback1"),
-  executorFallback2: route("executorFallback2"),
+  executorFallback: route("executorFallback"),
 } satisfies Record<ModelRole, ModelRoute>;
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";

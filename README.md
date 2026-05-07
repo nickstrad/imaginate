@@ -36,23 +36,22 @@ fallbacks.
 
 ## Environment variables
 
-| Variable                    | Required | Notes                                                                             |
-| --------------------------- | -------- | --------------------------------------------------------------------------------- |
-| `DATABASE_URL`              | yes      | Postgres connection string; local dev can use the Docker database below           |
-| `NEXT_PUBLIC_APP_URL`       | yes      | e.g. `http://localhost:3000`                                                      |
-| `E2B_API_KEY`               | yes      | <https://e2b.dev> — sandbox for generated code                                    |
-| `OPENROUTER_API_KEY`        | prod     | <https://openrouter.ai/keys>                                                      |
-| `MODEL_PROVIDER`            | no       | `openrouter` \| `lmstudio` (default `openrouter`)                                 |
-| `LM_STUDIO_BASE_URL`        | no       | OpenAI-compatible base URL (default `http://127.0.0.1:1234/v1`)                   |
-| `LM_STUDIO_MODEL`           | no       | local LM Studio model id (default `qwen/qwen3-coder-next`; e.g. `gemma-4-31b-it`) |
-| `LM_STUDIO_API_KEY`         | no       | optional bearer token if your local server requires one                           |
-| `RATE_LIMIT_PER_HOUR`       | no       | per-IP limit on project + message creation; default `10`                          |
-| `LOG_LEVEL`                 | no       | `debug` \| `info` \| `warn` \| `error` (default `info`)                           |
-| `LOG_PRETTY`                | no       | `auto` \| `true` \| `false` (default `auto`)                                      |
-| `MODEL_PLANNER`             | no       | model key for the planner role — see **Models**                                   |
-| `MODEL_EXECUTOR_DEFAULT`    | no       | model key for the default executor                                                |
-| `MODEL_EXECUTOR_FALLBACK_1` | no       | model key for the first executor fallback                                         |
-| `MODEL_EXECUTOR_FALLBACK_2` | no       | model key for the second executor fallback                                        |
+| Variable                  | Required | Notes                                                                             |
+| ------------------------- | -------- | --------------------------------------------------------------------------------- |
+| `DATABASE_URL`            | yes      | Postgres connection string; local dev can use the Docker database below           |
+| `NEXT_PUBLIC_APP_URL`     | yes      | e.g. `http://localhost:3000`                                                      |
+| `E2B_API_KEY`             | yes      | <https://e2b.dev> — sandbox for generated code                                    |
+| `OPENROUTER_API_KEY`      | prod     | <https://openrouter.ai/keys>                                                      |
+| `MODEL_PROVIDER`          | no       | `openrouter` \| `lmstudio` (default `openrouter`)                                 |
+| `LM_STUDIO_BASE_URL`      | no       | OpenAI-compatible base URL (default `http://127.0.0.1:1234/v1`)                   |
+| `LM_STUDIO_MODEL`         | no       | local LM Studio model id (default `qwen/qwen3-coder-next`; e.g. `gemma-4-31b-it`) |
+| `LM_STUDIO_API_KEY`       | no       | optional bearer token if your local server requires one                           |
+| `RATE_LIMIT_PER_HOUR`     | no       | per-IP limit on project + message creation; default `10`                          |
+| `LOG_LEVEL`               | no       | `debug` \| `info` \| `warn` \| `error` (default `info`)                           |
+| `LOG_PRETTY`              | no       | `auto` \| `true` \| `false` (default `auto`)                                      |
+| `MODEL_PLANNER`           | no       | model key for the planner role — see **Models**                                   |
+| `MODEL_EXECUTOR_DEFAULT`  | no       | model key for the default executor                                                |
+| `MODEL_EXECUTOR_FALLBACK` | no       | model key for the executor fallback rung                                          |
 
 ## Local PostgreSQL
 
@@ -181,14 +180,13 @@ these keys to swap the model used for a given role.
 
 ### Roles and defaults
 
-| Role                  | Env var                     | Default                 |
-| --------------------- | --------------------------- | ----------------------- |
-| Planner               | `MODEL_PLANNER`             | `GEMINI_3_1_FLASH_LITE` |
-| Executor (default)    | `MODEL_EXECUTOR_DEFAULT`    | `CLAUDE_SONNET_4_6`     |
-| Executor (fallback 1) | `MODEL_EXECUTOR_FALLBACK_1` | `CLAUDE_HAIKU_4_5`      |
-| Executor (fallback 2) | `MODEL_EXECUTOR_FALLBACK_2` | `CLAUDE_OPUS_4_7`       |
+| Role                | Env var                   | Default                 |
+| ------------------- | ------------------------- | ----------------------- |
+| Planner             | `MODEL_PLANNER`           | `GEMINI_3_1_FLASH_LITE` |
+| Executor (default)  | `MODEL_EXECUTOR_DEFAULT`  | `CLAUDE_SONNET_4_6`     |
+| Executor (fallback) | `MODEL_EXECUTOR_FALLBACK` | `CLAUDE_OPUS_4_7`       |
 
-Executor ladder order on failure: default → fallback 1 → fallback 2.
+Executor ladder order on failure: default → fallback.
 
 When `MODEL_PROVIDER=lmstudio`, the executor ladder is just
 `lmstudio:${LM_STUDIO_MODEL}`.

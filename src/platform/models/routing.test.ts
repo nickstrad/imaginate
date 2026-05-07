@@ -9,8 +9,7 @@ async function loadOpenRouterRouting(): Promise<RoutingModule> {
   vi.stubEnv("MODEL_PROVIDER", PROVIDERS.OPENROUTER);
   vi.stubEnv("MODEL_PLANNER", "GEMINI_3_1_FLASH_LITE");
   vi.stubEnv("MODEL_EXECUTOR_DEFAULT", "CLAUDE_SONNET_4_6");
-  vi.stubEnv("MODEL_EXECUTOR_FALLBACK_1", "CLAUDE_HAIKU_4_5");
-  vi.stubEnv("MODEL_EXECUTOR_FALLBACK_2", "CLAUDE_OPUS_4_7");
+  vi.stubEnv("MODEL_EXECUTOR_FALLBACK", "CLAUDE_OPUS_4_7");
   return import(".");
 }
 
@@ -62,12 +61,11 @@ describe("resolveSpecWith", () => {
 });
 
 describe("resolveExecutorModels", () => {
-  it("returns default → fallback1 → fallback2 in order under OpenRouter", async () => {
+  it("returns default → fallback in order under OpenRouter", async () => {
     const routing = await loadOpenRouterRouting();
     const ladder = routing.resolveExecutorModels();
     expect(ladder.map((s) => s.model)).toEqual([
       "CLAUDE_SONNET_4_6",
-      "CLAUDE_HAIKU_4_5",
       "CLAUDE_OPUS_4_7",
     ]);
     for (const spec of ladder) {
@@ -102,13 +100,13 @@ describe("resolvePlannerModel", () => {
 });
 
 describe("resolveFallbackSlugs", () => {
-  it("maps OpenRouter fallbacks for executorFallback1 to slugs in order", async () => {
+  it("maps OpenRouter fallbacks for the executor fallback rung to slugs in order", async () => {
     const routing = await loadOpenRouterRouting();
     const ladder = routing.resolveExecutorModels();
     const slugs = routing.resolveFallbackSlugs(ladder[1]);
     expect(slugs).toEqual([
-      MODEL_IDS["GROK_CODE_FAST_1"],
-      MODEL_IDS["DEEPSEEK_V4_FLASH"],
+      MODEL_IDS["OPENAI_GPT_5_CODEX"],
+      MODEL_IDS["KIMI_K2_6"],
     ]);
   });
 

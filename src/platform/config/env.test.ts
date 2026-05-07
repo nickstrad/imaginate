@@ -11,8 +11,7 @@ describe("EnvSchema model fields", () => {
     expect(parsed.LM_STUDIO_MODEL).toBe("qwen/qwen3-coder-next");
     expect(parsed.MODEL_PLANNER).toBe(MODEL_KEYS.GEMINI_3_1_FLASH_LITE);
     expect(parsed.MODEL_EXECUTOR_DEFAULT).toBe(MODEL_KEYS.CLAUDE_SONNET_4_6);
-    expect(parsed.MODEL_EXECUTOR_FALLBACK_1).toBe(MODEL_KEYS.CLAUDE_HAIKU_4_5);
-    expect(parsed.MODEL_EXECUTOR_FALLBACK_2).toBe(MODEL_KEYS.CLAUDE_OPUS_4_7);
+    expect(parsed.MODEL_EXECUTOR_FALLBACK).toBe(MODEL_KEYS.CLAUDE_OPUS_4_7);
     expect(parsed.LOG_LLM_PAYLOADS).toBe(false);
   });
 

@@ -34,8 +34,7 @@ export const EnvSchema = z.object({
 
   MODEL_PLANNER: ModelIdSchema.default(MODEL_KEYS.GEMINI_3_1_FLASH_LITE),
   MODEL_EXECUTOR_DEFAULT: ModelIdSchema.default(MODEL_KEYS.CLAUDE_SONNET_4_6),
-  MODEL_EXECUTOR_FALLBACK_1: ModelIdSchema.default(MODEL_KEYS.CLAUDE_HAIKU_4_5),
-  MODEL_EXECUTOR_FALLBACK_2: ModelIdSchema.default(MODEL_KEYS.CLAUDE_OPUS_4_7),
+  MODEL_EXECUTOR_FALLBACK: ModelIdSchema.default(MODEL_KEYS.CLAUDE_OPUS_4_7),
 
   LOG_LEVEL: z.preprocess(
     (v) => (typeof v === "string" ? v.toLowerCase() : v),
@@ -63,10 +62,7 @@ function readRaw() {
     MODEL_PROVIDER: process.env.MODEL_PROVIDER || undefined,
     MODEL_PLANNER: process.env.MODEL_PLANNER || undefined,
     MODEL_EXECUTOR_DEFAULT: process.env.MODEL_EXECUTOR_DEFAULT || undefined,
-    MODEL_EXECUTOR_FALLBACK_1:
-      process.env.MODEL_EXECUTOR_FALLBACK_1 || undefined,
-    MODEL_EXECUTOR_FALLBACK_2:
-      process.env.MODEL_EXECUTOR_FALLBACK_2 || undefined,
+    MODEL_EXECUTOR_FALLBACK: process.env.MODEL_EXECUTOR_FALLBACK || undefined,
     LOG_LEVEL: process.env.LOG_LEVEL,
     LOG_LLM_PAYLOADS: process.env.LOG_LLM_PAYLOADS,
     RATE_LIMIT_PER_HOUR: process.env.RATE_LIMIT_PER_HOUR || undefined,
