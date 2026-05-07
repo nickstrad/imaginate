@@ -1,15 +1,17 @@
-// Local-workspace SandboxGateway. Wires SandboxHandle methods to
-// `node:fs/promises` and `node:child_process` against a configurable root.
-// Selected by `npm run agent:local -- --local <dir>`.
+// Local workspace adapter. Wires the agent's `Workspace` port to
+// `node:fs/promises` and `node:child_process` against a configurable root
+// directory. Selected by `npm run agent:local -- --local <dir>` and the
+// future agentic-coding TUI: there is no sandboxing, no preview URL — the
+// agent just iterates and edits files in place until it is done.
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import type {
-  SandboxCommandOptions,
-  SandboxCommandResult,
-  SandboxGateway,
-  SandboxHandle,
+  Workspace,
+  WorkspaceCommandOptions,
+  WorkspaceCommandResult,
+  WorkspaceProvider,
 } from "../../ports";
 
 export interface LocalWorkspaceOptions {
@@ -26,8 +28,8 @@ function resolvePath(root: string, p: string): string {
 async function runProcess(
   root: string,
   command: string,
-  opts?: SandboxCommandOptions
-): Promise<SandboxCommandResult> {
+  opts?: WorkspaceCommandOptions
+): Promise<WorkspaceCommandResult> {
   return new Promise((resolve) => {
     const child = spawn(command, {
       cwd: root,
@@ -66,12 +68,11 @@ async function runProcess(
   });
 }
 
-export function createLocalWorkspaceGateway(
+export function createLocalWorkspaceProvider(
   options: LocalWorkspaceOptions
-): SandboxGateway {
+): WorkspaceProvider {
   const root = options.root;
-  const handle: SandboxHandle = {
-    sandboxId: "local",
+  const workspace: Workspace = {
     commands: {
       async run(cmd, opts) {
         return runProcess(root, cmd, opts);
@@ -87,16 +88,10 @@ export function createLocalWorkspaceGateway(
         await fs.writeFile(full, content, "utf8");
       },
     },
-    setTimeout() {
-      // No-op for local execution.
-    },
-    getHost() {
-      return "localhost";
-    },
   };
   return {
     async acquire() {
-      return handle;
+      return workspace;
     },
   };
 }

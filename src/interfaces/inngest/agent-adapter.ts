@@ -2,7 +2,7 @@ import {
   AgentRuntimeEventType,
   createAiSdkModelGateway,
   createAiSdkToolFactory,
-  createE2bSandboxGateway,
+  createE2bWorkspaceProvider,
   createPrismaMessageStore,
   createPrismaTelemetryStore,
   type AgentLogger,
@@ -199,7 +199,9 @@ export function buildAgentDeps(input: {
 }): AgentRuntimeDeps {
   return {
     modelGateway: createAiSdkModelGateway(),
-    sandboxGateway: createE2bSandboxGateway({ sandboxId: input.sandboxId }),
+    workspaceProvider: createE2bWorkspaceProvider({
+      sandboxId: input.sandboxId,
+    }),
     toolFactory: createAiSdkToolFactory(),
     messageStore: createPrismaMessageStore(),
     telemetryStore: createPrismaTelemetryStore(),

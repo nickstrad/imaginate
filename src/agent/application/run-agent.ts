@@ -122,7 +122,7 @@ export async function runAgent(args: RunAgentArgs): Promise<AgentRunResult> {
         },
         deps: {
           modelGateway: deps.modelGateway,
-          sandboxGateway: deps.sandboxGateway,
+          workspaceProvider: deps.workspaceProvider,
           toolFactory: deps.toolFactory,
           eventSink: deps.eventSink,
           logger: deps.logger,

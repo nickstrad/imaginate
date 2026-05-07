@@ -24,11 +24,22 @@ src/
 src/agent/
   domain/        Pure state, decisions, verification, edits, schemas, types, runtime event contract
   application/   Planner/executor use cases and runtime event production
-  ports/         Model, sandbox, message, telemetry, filesystem, logging boundaries
+  ports/         Model, workspace, message, telemetry, event-sink, logging boundaries
   adapters/      AI SDK, E2B, Prisma, local workspace, memory, terminal bindings
   testing/       Fakes and in-memory implementations for tests
   index.ts
 ```
+
+The `Workspace` port (`ports/workspace.ts`) is the agent's portable
+file/command surface. The same interface fits an e2b cloud sandbox
+(`adapters/e2b/`) and a local directory driven by the CLI / agentic-coding
+TUI (`adapters/local-workspace/`). Tools consume it via
+`ToolFactoryContext.workspace` and never reach into runtime-specific SDKs.
+Capabilities only some runtimes can offer (preview URL, idle timeout,
+teardown) deliberately do not live on the port — the e2b composition path
+manages preview/timeout via `src/platform/sandbox/`, and reintroducing
+optional capability sub-interfaces is reserved for the day a tool genuinely
+needs them.
 
 ## Direction of dependencies
 
@@ -64,7 +75,7 @@ Key invariants:
 
 - `domain/` — pure functions, types, schemas, and the runtime event type contract (`events.ts`). No I/O. Tests run with no mocks. Event types live here (not in `application/`) so `ports/event-sink.ts` can reference them without crossing the `ports → application` boundary.
 - `application/` — use cases (`runAgent`, `planRun`, `executeRun`) that take a `deps` object of ports. They produce events of the types declared in `domain/events.ts` and emit them through the event sink port; they do not write to Prisma or the network directly.
-- `ports/` — interface declarations. One file per port (`model-gateway.ts`, `sandbox-gateway.ts`, `message-store.ts`, `telemetry-store.ts`, `event-sink.ts`, `logger.ts`, …). Ports import only from `agent/domain` and `shared`.
+- `ports/` — interface declarations. One file per port (`model-gateway.ts`, `workspace.ts`, `message-store.ts`, `telemetry-store.ts`, `event-sink.ts`, `logger.ts`, …). Ports import only from `agent/domain` and `shared`.
 - `adapters/` — concrete bindings, one folder per integration (`ai-sdk/`, `e2b/`, `prisma/`, `local-workspace/`, `memory/`, `terminal/`). Each folder exports a factory.
 - `testing/` — fakes and in-memory implementations used by tests. Not imported from production paths.
 - Public surface: `src/agent/index.ts` re-exports application use cases, port types, the runtime event types from `domain/events.ts`, and named adapter factories. Consumers import from `@/agent`, not from deep paths — the internal layering (`domain` / `application` / `ports` / `adapters`) is an implementation detail.

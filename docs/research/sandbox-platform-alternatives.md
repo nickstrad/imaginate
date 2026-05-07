@@ -1,5 +1,12 @@
 # Sandbox Platform Alternatives
 
+> Note (2026-05-06): The agent port previously named `SandboxGateway` /
+> `SandboxHandle` is now `WorkspaceProvider` / `Workspace` and lives at
+> `src/agent/ports/workspace.ts`. The e2b-only methods (`setTimeout`,
+> `getHost`) were dropped from the port — `src/platform/sandbox/` continues
+> to own e2b idle-timeout and preview-URL construction. References below to
+> the older names should be read as pointing at the same seam.
+
 Research date: 2026-04-26
 
 Question: Given this repo's current E2B usage, which sandbox platforms are worth creating experimental interfaces for, and what gaps or switching reasons matter?

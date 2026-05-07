@@ -3,14 +3,14 @@ import type {
   AgentLogger,
   MessageStore,
   ModelGateway,
-  SandboxGateway,
   TelemetryStore,
   ToolFactory,
+  WorkspaceProvider,
 } from "../ports";
 
 export interface AgentRuntimeDeps {
   modelGateway: ModelGateway;
-  sandboxGateway: SandboxGateway;
+  workspaceProvider: WorkspaceProvider;
   toolFactory: ToolFactory;
   messageStore: MessageStore;
   telemetryStore: TelemetryStore;

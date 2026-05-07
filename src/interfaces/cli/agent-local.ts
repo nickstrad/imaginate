@@ -10,9 +10,9 @@ import {
   AgentRuntimeEventType,
   createAiSdkModelGateway,
   createAiSdkToolFactory,
-  createE2bSandboxGateway,
+  createE2bWorkspaceProvider,
   createInMemoryMessageStore,
-  createLocalWorkspaceGateway,
+  createLocalWorkspaceProvider,
   createNoopTelemetryStore,
   createTerminalEventSink,
   runAgent,
@@ -20,7 +20,7 @@ import {
   type AgentRunResult,
   type AgentRuntimeEvent,
   type PlanOutput,
-  type SandboxGateway,
+  type WorkspaceProvider,
 } from "@/agent";
 import {
   createLogger,
@@ -594,15 +594,15 @@ async function runAgentCli(args: CliArgs): Promise<number> {
   logRunStart({ logger: log, projectId, sandboxMode });
 
   let sandbox: SandboxLike | undefined;
-  let sandboxGateway: SandboxGateway;
+  let workspaceProvider: WorkspaceProvider;
   let sandboxSummary: SandboxSummary;
 
   if (args.localDir) {
-    sandboxGateway = createLocalWorkspaceGateway({ root: args.localDir });
+    workspaceProvider = createLocalWorkspaceProvider({ root: args.localDir });
     sandboxSummary = {};
   } else {
     // Provision the sandbox eagerly so we can reuse the same id for both the
-    // gateway and the post-run sandbox-summary call.
+    // workspace provider and the post-run sandbox-summary call.
     sandbox = await ensureSandbox(args, args.json);
     const sandboxId = sandbox.sandboxId;
     sandboxSummary = summarizeSandbox(sandbox);
@@ -611,7 +611,7 @@ async function runAgentCli(args: CliArgs): Promise<number> {
       args.json
     );
     await ensureSandboxPreview(sandbox, args.json);
-    sandboxGateway = createE2bSandboxGateway({ sandboxId });
+    workspaceProvider = createE2bWorkspaceProvider({ sandboxId });
   }
 
   const eventSink = {
@@ -625,7 +625,7 @@ async function runAgentCli(args: CliArgs): Promise<number> {
 
   const deps = {
     modelGateway: createAiSdkModelGateway(),
-    sandboxGateway,
+    workspaceProvider,
     toolFactory: createAiSdkToolFactory(),
     messageStore: createInMemoryMessageStore(),
     telemetryStore: createNoopTelemetryStore(),

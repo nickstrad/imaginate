@@ -6,8 +6,8 @@ import {
 } from "../domain/events";
 import {
   createFakeModelGateway,
-  createFakeSandboxGateway,
   createFakeToolFactory,
+  createFakeWorkspaceProvider,
   createInMemoryEventSink,
   createInMemoryMessageStore,
   createInMemoryTelemetryStore,
@@ -158,7 +158,7 @@ function createRunDeps(
 ) {
   return {
     modelGateway: gateway,
-    sandboxGateway: createFakeSandboxGateway(),
+    workspaceProvider: createFakeWorkspaceProvider(),
     toolFactory: createFakeToolFactory(),
     messageStore: createInMemoryMessageStore(),
     telemetryStore: createInMemoryTelemetryStore(),

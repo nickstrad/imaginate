@@ -1,1 +1,1 @@
-export * from "./sandbox-gateway";
+export * from "./workspace";

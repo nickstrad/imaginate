@@ -5,8 +5,8 @@ import type { GenerateTextStepResult } from "../ports";
 import type { PlanOutput, Thought } from "../domain/types";
 import {
   createFakeModelGateway,
-  createFakeSandboxGateway,
   createFakeToolFactory,
+  createFakeWorkspaceProvider,
   createInMemoryEventSink,
   type FakeModelGateway,
 } from "./in-memory-stores";
@@ -73,7 +73,7 @@ async function runExecutorWith(params: {
     },
     deps: {
       modelGateway: params.gateway,
-      sandboxGateway: createFakeSandboxGateway(),
+      workspaceProvider: createFakeWorkspaceProvider(),
       toolFactory: createFakeToolFactory(),
       eventSink: createInMemoryEventSink(),
       logger,

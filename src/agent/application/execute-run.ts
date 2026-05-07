@@ -29,10 +29,10 @@ import type {
   GenerateTextStepResult,
   ModelGateway,
   ModelMessage,
-  SandboxGateway,
   ToolCallFinishEvent,
   ToolCallStartEvent,
   ToolFactory,
+  WorkspaceProvider,
 } from "../ports";
 import { planSnippet } from "./plan-run";
 import { logContextMutation } from "./context-logging";
@@ -52,7 +52,7 @@ export interface ExecuteRunInput {
 
 export interface ExecuteRunDeps {
   modelGateway: ModelGateway;
-  sandboxGateway: SandboxGateway;
+  workspaceProvider: WorkspaceProvider;
   toolFactory: ToolFactory;
   eventSink: AgentEventSink;
   logger: AgentLogger;
@@ -223,8 +223,8 @@ export async function executeRun(args: {
   const desc = deps.modelGateway.describeModel(modelId);
   runState.escalatedTo = `${desc.provider}:${desc.model}`;
 
-  const sandbox = await deps.sandboxGateway.acquire();
-  const tools = deps.toolFactory.createExecutorTools({ sandbox, runState });
+  const workspace = await deps.workspaceProvider.acquire();
+  const tools = deps.toolFactory.createExecutorTools({ workspace, runState });
 
   const systemPrompt = input.buildExecutorSystemPrompt(planSnippet(plan));
   const completedToolCallIdsByStep = new Map<number, string[]>();

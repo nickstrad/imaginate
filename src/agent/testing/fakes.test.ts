@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { AgentRuntimeEventType } from "../domain/events";
 import {
   createFakeModelGateway,
-  createFakeSandboxGateway,
+  createFakeWorkspaceProvider,
   createInMemoryEventSink,
   createInMemoryMessageStore,
   createInMemoryTelemetryStore,
@@ -82,20 +82,20 @@ describe("agent skeleton fakes", () => {
     expect(gw.calls[0].modelId).toBe("test/model");
   });
 
-  it("fake sandbox gateway proxies file IO and command queue", async () => {
-    const gw = createFakeSandboxGateway({
+  it("fake workspace provider proxies file IO and command queue", async () => {
+    const gw = createFakeWorkspaceProvider({
       files: { "/a.txt": "alpha" },
       commandResponses: [
         { exitCode: 0, stdout: "ok", stderr: "" },
         { exitCode: 1, stdout: "", stderr: "boom" },
       ],
     });
-    const sandbox = await gw.acquire();
-    expect(await sandbox.files.read("/a.txt")).toBe("alpha");
-    await sandbox.files.write("/b.txt", "beta");
+    const workspace = await gw.acquire();
+    expect(await workspace.files.read("/a.txt")).toBe("alpha");
+    await workspace.files.write("/b.txt", "beta");
     expect(gw.files.get("/b.txt")).toBe("beta");
-    expect((await sandbox.commands.run("echo")).exitCode).toBe(0);
-    expect((await sandbox.commands.run("false")).exitCode).toBe(1);
+    expect((await workspace.commands.run("echo")).exitCode).toBe(0);
+    expect((await workspace.commands.run("false")).exitCode).toBe(1);
     expect(gw.commandsRun.map((c) => c.cmd)).toEqual(["echo", "false"]);
   });
 });

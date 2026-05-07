@@ -1,9 +1,9 @@
-import type { SandboxHandle } from "./sandbox-gateway";
+import type { Workspace } from "./workspace";
 import type { ToolSet } from "./model-gateway";
 import type { PlanOutput, RunState } from "../domain/types";
 
 export interface ToolFactoryContext {
-  sandbox: SandboxHandle;
+  workspace: Workspace;
   runState: RunState;
 }
 

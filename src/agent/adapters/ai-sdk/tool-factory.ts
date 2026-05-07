@@ -18,11 +18,11 @@ import type {
   VerificationToolKind,
 } from "../../domain/types";
 import type {
-  SandboxHandle,
   ToolDefinition,
   ToolFactory,
   ToolFactoryContext,
   ToolSet,
+  Workspace,
 } from "../../ports";
 
 function truncate(s: string) {
@@ -34,7 +34,7 @@ function exceedsMax(len: number) {
 }
 
 async function runCommand(
-  sandbox: SandboxHandle,
+  workspace: Workspace,
   command: string
 ): Promise<{
   success: boolean;
@@ -45,7 +45,7 @@ async function runCommand(
   stderrTruncated: boolean;
 }> {
   const buffers = { stdout: "", stderr: "" };
-  const result = await sandbox.commands.run(command, {
+  const result = await workspace.commands.run(command, {
     timeoutMs: AGENT_CONFIG.commandTimeoutMs ?? 0,
     onStdout: (d: string) => {
       buffers.stdout += d;
@@ -65,17 +65,17 @@ async function runCommand(
 }
 
 function makeTerminalTool(
-  sandbox: SandboxHandle,
+  workspace: Workspace,
   runState: RunState
 ): ToolDefinition {
   return {
     description:
-      "Run a shell command in the sandbox. Returns { success, exitCode, stdout, stderr, stdoutTruncated, stderrTruncated }.",
+      "Run a shell command in the workspace. Returns { success, exitCode, stdout, stderr, stdoutTruncated, stderrTruncated }.",
     inputSchema: z.object({ command: z.string() }),
     execute: async (input) => {
       const { command } = input as { command: string };
       try {
-        const res = await runCommand(sandbox, command);
+        const res = await runCommand(workspace, command);
         runState.commandsRun.push({ command, success: res.success });
         const kind = inferVerificationKind(command);
         if (kind) {
@@ -100,18 +100,18 @@ function makeTerminalTool(
 }
 
 function makeReadFilesTool(
-  sandbox: SandboxHandle,
+  workspace: Workspace,
   runState: RunState
 ): ToolDefinition {
   return {
-    description: "Read one or more files from the sandbox.",
+    description: "Read one or more files from the workspace.",
     inputSchema: z.object({ files: z.array(z.string()) }),
     execute: async (input) => {
       const { files } = input as { files: string[] };
       try {
         const results = await Promise.all(
           files.map(async (path) => {
-            const content = await sandbox.files.read(path);
+            const content = await workspace.files.read(path);
             runState.filesRead.push(path);
             return {
               path,
@@ -129,14 +129,14 @@ function makeReadFilesTool(
   };
 }
 
-function makeListFilesTool(sandbox: SandboxHandle): ToolDefinition {
+function makeListFilesTool(workspace: Workspace): ToolDefinition {
   return {
     description: "List files under a path (`ls -R`). Free — no budget cost.",
     inputSchema: z.object({ path: z.string().default(".") }),
     execute: async (input) => {
       const { path } = input as { path: string };
       try {
-        const result = await sandbox.commands.run(`ls -R ${path}`);
+        const result = await workspace.commands.run(`ls -R ${path}`);
         return {
           success: result.exitCode === 0,
           output: (result.stdout ?? "").slice(0, 10_000),
@@ -150,12 +150,12 @@ function makeListFilesTool(sandbox: SandboxHandle): ToolDefinition {
 }
 
 function makeWriteFilesTool(
-  sandbox: SandboxHandle,
+  workspace: Workspace,
   runState: RunState
 ): ToolDefinition {
   return {
     description:
-      "Create NEW files or fully rewrite files in the sandbox. Prefer replaceInFile / applyPatch for edits to existing files. Batch writes into one call.",
+      "Create NEW files or fully rewrite files in the workspace. Prefer replaceInFile / applyPatch for edits to existing files. Batch writes into one call.",
     inputSchema: z.object({
       files: z.array(z.object({ path: z.string(), content: z.string() })),
     }),
@@ -165,7 +165,7 @@ function makeWriteFilesTool(
       };
       try {
         for (const f of files) {
-          await sandbox.files.write(f.path, f.content);
+          await workspace.files.write(f.path, f.content);
           runState.filesWritten[f.path] = f.content;
         }
         return {
@@ -181,7 +181,7 @@ function makeWriteFilesTool(
 }
 
 function makeReplaceInFileTool(
-  sandbox: SandboxHandle,
+  workspace: Workspace,
   runState: RunState
 ): ToolDefinition {
   return {
@@ -196,7 +196,7 @@ function makeReplaceInFileTool(
         expectedOccurrences: number;
       };
       try {
-        const original = await sandbox.files.read(path);
+        const original = await workspace.files.read(path);
         const result = applyEdit(original, {
           find,
           replace,
@@ -205,7 +205,7 @@ function makeReplaceInFileTool(
         if (!result.ok) {
           return { success: false, error: result.error };
         }
-        await sandbox.files.write(path, result.content);
+        await workspace.files.write(path, result.content);
         runState.filesWritten[path] = result.content;
         return { success: true, path, replacements: result.count };
       } catch (error) {
@@ -217,7 +217,7 @@ function makeReplaceInFileTool(
 }
 
 function makeApplyPatchTool(
-  sandbox: SandboxHandle,
+  workspace: Workspace,
   runState: RunState
 ): ToolDefinition {
   return {
@@ -250,7 +250,7 @@ function makeApplyPatchTool(
         }
       }
       try {
-        let content = await sandbox.files.read(path);
+        let content = await workspace.files.read(path);
         const applied: Array<{ count: number }> = [];
         for (const [i, edit] of edits.entries()) {
           const result = applyEdit(content, edit);
@@ -264,7 +264,7 @@ function makeApplyPatchTool(
           content = result.content;
           applied.push({ count: result.count });
         }
-        await sandbox.files.write(path, content);
+        await workspace.files.write(path, content);
         runState.filesWritten[path] = content;
         return { success: true, path, edits: applied };
       } catch (error) {
@@ -276,7 +276,7 @@ function makeApplyPatchTool(
 }
 
 function makeVerificationTool(
-  sandbox: SandboxHandle,
+  workspace: Workspace,
   runState: RunState,
   kind: VerificationToolKind,
   description: string
@@ -288,7 +288,7 @@ function makeVerificationTool(
       const { command } = (input as { command?: string }) ?? {};
       const cmd = command ?? DEFAULT_VERIFICATION_COMMAND[kind];
       try {
-        const res = await runCommand(sandbox, cmd);
+        const res = await runCommand(workspace, cmd);
         runState.commandsRun.push({ command: cmd, success: res.success });
         markVerification(runState, kind, cmd, res.success);
         return { ...res, kind, command: cmd };
@@ -325,28 +325,28 @@ export function isFinalOutputAcceptable(runState: RunState): boolean {
 export function createAiSdkToolFactory(): ToolFactory {
   return {
     createExecutorTools(ctx: ToolFactoryContext): ToolSet {
-      const { sandbox, runState } = ctx;
+      const { workspace, runState } = ctx;
       return {
-        terminal: makeTerminalTool(sandbox, runState),
-        listFiles: makeListFilesTool(sandbox),
-        readFiles: makeReadFilesTool(sandbox, runState),
-        writeFiles: makeWriteFilesTool(sandbox, runState),
-        replaceInFile: makeReplaceInFileTool(sandbox, runState),
-        applyPatch: makeApplyPatchTool(sandbox, runState),
+        terminal: makeTerminalTool(workspace, runState),
+        listFiles: makeListFilesTool(workspace),
+        readFiles: makeReadFilesTool(workspace, runState),
+        writeFiles: makeWriteFilesTool(workspace, runState),
+        replaceInFile: makeReplaceInFileTool(workspace, runState),
+        applyPatch: makeApplyPatchTool(workspace, runState),
         runBuild: makeVerificationTool(
-          sandbox,
+          workspace,
           runState,
           "build",
           "Run the TypeScript type check (tsc --noEmit). Records a verification row."
         ),
         runTests: makeVerificationTool(
-          sandbox,
+          workspace,
           runState,
           "test",
           "Run the project's test suite. Records a verification row."
         ),
         runLint: makeVerificationTool(
-          sandbox,
+          workspace,
           runState,
           "lint",
           "Run the project's linter. Records a verification row."

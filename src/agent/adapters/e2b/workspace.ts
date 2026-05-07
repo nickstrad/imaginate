@@ -1,26 +1,24 @@
-import { ensurePreviewReady, getSandbox } from "@/platform/sandbox";
+import { getSandbox } from "@/platform/sandbox";
 import type {
-  SandboxCommandOptions,
-  SandboxCommandResult,
-  SandboxGateway,
-  SandboxHandle,
+  Workspace,
+  WorkspaceCommandOptions,
+  WorkspaceCommandResult,
+  WorkspaceProvider,
 } from "../../ports";
 
-export interface E2bSandboxGatewayOptions {
+export interface E2bWorkspaceProviderOptions {
   sandboxId: string;
-  ensurePreview?: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function wrap(sandbox: any): SandboxHandle {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- e2b's @e2b/code-interpreter `Sandbox` has no exported type for the surface we wrap; we only touch the documented `commands.run`/`files.read|write` shape.
+function wrap(sandbox: any): Workspace {
   return {
-    sandboxId: sandbox.sandboxId,
     commands: {
       async run(
         cmd: string,
-        opts?: SandboxCommandOptions
-      ): Promise<SandboxCommandResult> {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        opts?: WorkspaceCommandOptions
+      ): Promise<WorkspaceCommandResult> {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- builds an options bag for the untyped e2b SDK; only includes fields when the caller set them so we don't override SDK defaults.
         const passOpts: any = {};
         if (opts?.timeoutMs !== undefined) {
           passOpts.timeoutMs = opts.timeoutMs;
@@ -47,27 +45,18 @@ function wrap(sandbox: any): SandboxHandle {
         await sandbox.files.write(path, content);
       },
     },
-    setTimeout(ms: number) {
-      void sandbox.setTimeout(ms);
-    },
-    getHost(port?: number) {
-      return sandbox.getHost(port);
-    },
   };
 }
 
-export function createE2bSandboxGateway(
-  options: E2bSandboxGatewayOptions
-): SandboxGateway {
-  let cached: Promise<SandboxHandle> | undefined;
+export function createE2bWorkspaceProvider(
+  options: E2bWorkspaceProviderOptions
+): WorkspaceProvider {
+  let cached: Promise<Workspace> | undefined;
   return {
-    async acquire(): Promise<SandboxHandle> {
+    async acquire(): Promise<Workspace> {
       if (!cached) {
         cached = (async () => {
           const sandbox = await getSandbox(options.sandboxId);
-          if (options.ensurePreview) {
-            await ensurePreviewReady(sandbox);
-          }
           return wrap(sandbox);
         })();
       }

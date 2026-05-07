@@ -9,15 +9,15 @@ import type {
   ModelDescriptor,
   ModelGateway,
   ProviderErrorClassification,
-  SandboxCommandOptions,
-  SandboxCommandResult,
-  SandboxGateway,
-  SandboxHandle,
   TelemetryStore,
   TelemetryUpsertArgs,
   ToolFactory,
   ToolFactoryContext,
   ToolSet,
+  Workspace,
+  WorkspaceCommandOptions,
+  WorkspaceCommandResult,
+  WorkspaceProvider,
 } from "../ports";
 import { createTestLogger } from "./test-logger";
 import { classifyAgentError } from "../domain/errors";
@@ -173,32 +173,30 @@ export function createFakeModelGateway(
   };
 }
 
-export interface FakeSandboxOptions {
-  sandboxId?: string;
+export interface FakeWorkspaceOptions {
   files?: Record<string, string>;
-  commandResponses?: SandboxCommandResult[];
-  host?: string;
+  commandResponses?: WorkspaceCommandResult[];
 }
 
-export interface FakeSandboxGateway extends SandboxGateway {
-  readonly handle: SandboxHandle;
+export interface FakeWorkspaceProvider extends WorkspaceProvider {
   readonly commandsRun: ReadonlyArray<{
     cmd: string;
-    opts?: SandboxCommandOptions;
+    opts?: WorkspaceCommandOptions;
   }>;
   readonly files: ReadonlyMap<string, string>;
 }
 
-export function createFakeSandboxGateway(
-  options: FakeSandboxOptions = {}
-): FakeSandboxGateway {
-  const sandboxId = options.sandboxId ?? "sbx_test";
+export function createFakeWorkspaceProvider(
+  options: FakeWorkspaceOptions = {}
+): FakeWorkspaceProvider {
   const fileMap = new Map(Object.entries(options.files ?? {}));
   const cmdQueue = [...(options.commandResponses ?? [])];
-  const commandsRun: Array<{ cmd: string; opts?: SandboxCommandOptions }> = [];
+  const commandsRun: Array<{
+    cmd: string;
+    opts?: WorkspaceCommandOptions;
+  }> = [];
 
-  const handle: SandboxHandle = {
-    sandboxId,
+  const workspace: Workspace = {
     commands: {
       async run(cmd, opts) {
         commandsRun.push({ cmd, opts });
@@ -209,7 +207,7 @@ export function createFakeSandboxGateway(
       async read(path) {
         const content = fileMap.get(path);
         if (content === undefined) {
-          throw new Error(`fake sandbox: file not found: ${path}`);
+          throw new Error(`fake workspace: file not found: ${path}`);
         }
         return content;
       },
@@ -217,17 +215,9 @@ export function createFakeSandboxGateway(
         fileMap.set(path, content);
       },
     },
-    setTimeout() {},
-    getHost(port) {
-      const base = options.host ?? "fake.local";
-      return port === undefined ? base : `${base}:${port}`;
-    },
   };
 
   return {
-    get handle() {
-      return handle;
-    },
     get commandsRun() {
       return commandsRun;
     },
@@ -235,7 +225,7 @@ export function createFakeSandboxGateway(
       return fileMap;
     },
     async acquire() {
-      return handle;
+      return workspace;
     },
   };
 }

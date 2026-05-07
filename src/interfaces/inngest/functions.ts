@@ -277,7 +277,7 @@ export const codeAgentFunction = inngest.createFunction(
               },
               deps: {
                 modelGateway: execDeps.modelGateway,
-                sandboxGateway: execDeps.sandboxGateway,
+                workspaceProvider: execDeps.workspaceProvider,
                 toolFactory: execDeps.toolFactory,
                 eventSink: execDeps.eventSink,
                 logger: execDeps.logger,
