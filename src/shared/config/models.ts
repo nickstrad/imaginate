@@ -1,7 +1,7 @@
 export const MODEL_IDS = {
   GEMINI_3_1_FLASH_LITE: "google/gemini-3.1-flash-lite-preview",
   GEMINI_2_5_FLASH_LITE: "google/gemini-2.5-flash-lite",
-  GEMINI_3_FLASH: "google/gemini-3-flash-preview",
+  GEMINI_3_5_FLASH: "google/gemini-3.5-flash",
   GEMMA_3_27B: "google/gemma-3-27b-it",
   OPENAI_GPT_5_CODEX: "openai/gpt-5-codex",
   OPENAI_GPT_5_MINI: "openai/gpt-5-mini",

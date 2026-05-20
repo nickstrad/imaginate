@@ -32,8 +32,8 @@ export const EnvSchema = z.object({
 
   MODEL_PROVIDER: ModelProviderSchema.default(PROVIDERS.OPENROUTER),
 
-  MODEL_PLANNER: ModelIdSchema.default(MODEL_KEYS.GEMINI_3_1_FLASH_LITE),
-  MODEL_EXECUTOR_DEFAULT: ModelIdSchema.default(MODEL_KEYS.CLAUDE_SONNET_4_6),
+  MODEL_PLANNER: ModelIdSchema.default(MODEL_KEYS.GEMINI_3_5_FLASH),
+  MODEL_EXECUTOR_DEFAULT: ModelIdSchema.default(MODEL_KEYS.GEMINI_3_5_FLASH),
   MODEL_EXECUTOR_FALLBACK: ModelIdSchema.default(MODEL_KEYS.CLAUDE_OPUS_4_7),
 
   LOG_LEVEL: z.preprocess(
